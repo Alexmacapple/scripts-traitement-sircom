@@ -59,3 +59,6 @@ run_master_auto.py
 test-posix-path.py
 comprehensive_column_mapping.xlsx
 comprehensive_column_mapping.csv
+
+# Mails et communications
+mail-livraison-victoria.md
