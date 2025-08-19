@@ -1,0 +1,61 @@
+# Fichiers de données sources
+Sircom.xlsx
+Sircom_*.xlsx
+*.xlsx
+
+# Dossier d'images sources
+export_images_id_dossier/
+
+# Dossier de livrables
+livrable-1-10-aout-2025/
+
+# Environnement virtuel Python
+venv/
+.venv/
+env/
+
+# Fichiers générés par le traitement
+1-header-lettres-colonne-excel-mapping-excel.xlsx
+2-image-id-adder-excel-fusion.xlsx
+3-fusion-tri-region-departement.xlsx
+4-changer-date.xlsx
+5-livrable-final-word.xlsx
+6-clean-headers.xlsx
+7-add-pathimg.xlsx
+8-optimize-content.xlsx
+9-final-sircom-indesign-utf16.csv
+mapping_colonnes_charles.xlsx
+mapping_colonnes_charles.csv
+
+# Dossier des images traitées
+export_images_id_dossier_rename_resize/
+
+# Logs et rapports
+*.log
+sircom-rapport-*.txt
+images-processing-*.log
+
+# Fichiers temporaires et cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Fichiers de sauvegarde
+*.backup-*
+
+# Fichiers temporaires de développement
+column_mapping.json
+column_mapping.py
+list_original_columns.py
+run_master_auto.py
+test-posix-path.py
+comprehensive_column_mapping.xlsx
+comprehensive_column_mapping.csv
