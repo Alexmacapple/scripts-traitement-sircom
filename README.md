@@ -58,12 +58,13 @@ Appuyez sur Entrée pour garder le défaut, ou saisissez un nouveau chemin :
 
 ## ⏱️ Durée du traitement
 
-Le traitement complet prend environ **30 secondes** et exécute automatiquement 12 scripts :
+Le traitement complet prend environ **30 secondes** et exécute automatiquement 13 scripts :
 
 1. **Scripts 0-5** : Traitement Excel (normalisation, tri, formatage)
 2. **Scripts 6-9** : Préparation InDesign (nettoyage, chemins d'images)
-3. **Script 10** : Optimisation des images (redimensionnement, renommage)
+3. **Script 10** : Optimisation des images (redimensionnement, renommage avec mapping réel depuis Excel)
 4. **Script 11** : Création du mapping des colonnes
+5. **Script 12** : Vérification de l'intégrité des données (validation finale)
 
 ## 📦 Fichiers générés
 
@@ -123,7 +124,8 @@ python3 sircom_master_script.py --verbose
 ### Images
 - Un fichier image par dossier
 - Formats acceptés : JPG, PNG, GIF, WEBP, etc.
-- L'ordre alphabétique des fichiers doit correspondre à l'ordre des dossiers
+- **IMPORTANT** : Le script 10 utilise maintenant le mapping réel depuis Excel (colonne B = ID, colonne CE = nom de l'image)
+- Plus besoin que l'ordre alphabétique corresponde aux dossiers
 
 ## 🎨 Utilisation dans InDesign
 

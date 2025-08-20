@@ -63,3 +63,16 @@ comprehensive_column_mapping.csv
 
 # Mails et communications
 mail-livraison-victoria.md
+mail-victoria-correction.md
+
+# Archives et zips
+Livrable-20-Aout-2024-victoria 2.zip
+*.zip
+
+# Scripts temporaires
+push-to-github.sh
+10-process-images-fixed.py
+
+# Logs supplémentaires
+orchestrator-run.log
+sircom-processing-*.log

@@ -106,6 +106,11 @@ SCRIPTS_CHAIN = [
         "script": "11-create_mapping_excel.py",
         "description": "Création du mapping pour InDesign",
         "output_file": "mapping_colonnes_charles.xlsx"
+    },
+    {
+        "script": "12-verify_data_integrity.py",
+        "description": "Vérification de l'intégrité des données",
+        "output_file": "validation"  # Pas de fichier physique, juste un placeholder pour validation
     }
 ]
 
@@ -283,6 +288,10 @@ class SircomMasterProcessor:
 
     def validate_file(self, filepath, min_rows=1):
         """Valider qu'un fichier est correctement créé"""
+        # Cas spécial pour le script 12 de validation qui ne crée pas de fichier
+        if filepath == "validation":
+            return True, "Script de validation (pas de fichier de sortie)"
+            
         if not os.path.exists(filepath):
             return False, "Fichier non créé"
         
@@ -398,14 +407,17 @@ class SircomMasterProcessor:
                 self.stats['scripts_executed'] += 1
                 self.stats['files_created'].append(output_file)
                 self.stats['execution_times'][script_name] = execution_time
-                if os.path.isdir(output_file):
-                    # Pour les répertoires, calculer la taille totale
-                    total_size = sum(os.path.getsize(os.path.join(output_file, f)) 
-                                   for f in os.listdir(output_file) 
-                                   if os.path.isfile(os.path.join(output_file, f)))
-                    self.stats['file_sizes'][output_file] = total_size
-                else:
-                    self.stats['file_sizes'][output_file] = os.path.getsize(output_file)
+                
+                # Ignorer le calcul de taille pour le script de validation
+                if output_file != "validation":
+                    if os.path.isdir(output_file):
+                        # Pour les répertoires, calculer la taille totale
+                        total_size = sum(os.path.getsize(os.path.join(output_file, f)) 
+                                       for f in os.listdir(output_file) 
+                                       if os.path.isfile(os.path.join(output_file, f)))
+                        self.stats['file_sizes'][output_file] = total_size
+                    else:
+                        self.stats['file_sizes'][output_file] = os.path.getsize(output_file)
                 
                 if self.verbose and result.stdout:
                     self.logger.debug(f"Sortie du script :\n{result.stdout}")
@@ -485,7 +497,10 @@ Espace disque total : {total_files_size:,} octets ({total_files_size/1024/1024:.
 """
         
         for filename in self.stats['files_created']:
-            if os.path.exists(filename):
+            if filename == "validation":
+                # Script de validation - pas de fichier physique
+                report_content += f"{filename:<50} : Script de validation (pas de fichier)\n"
+            elif os.path.exists(filename):
                 if os.path.isdir(filename):
                     # Pour les répertoires, afficher le nombre de fichiers
                     files_count = len([f for f in os.listdir(filename) 
