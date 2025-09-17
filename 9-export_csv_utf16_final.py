@@ -41,7 +41,7 @@ try:
     
     # Conversion intelligente : garder les colonnes numériques comme numériques, le reste en string
     for col in df.columns:
-        if col in ['b_id', 'imageid'] or 'id' in str(col).lower():
+        if col in ['f_id', 'imageid'] or 'id' in str(col).lower():
             # Pour les colonnes d'ID, convertir en string en préservant les nombres
             df[col] = df[col].apply(lambda x: str(int(x)) if isinstance(x, (int, float)) and not pd.isna(x) and x != "#N/A" else str(x))
         else:
@@ -54,9 +54,9 @@ try:
     br_count = df.astype(str).apply(lambda x: x.str.contains('<br>', case=False, na=False)).sum().sum()
     
     # Vérifier les IDs
-    if 'b_id' in df.columns:
-        valid_ids = df[df['b_id'] != "#N/A"]['b_id'].tolist()
-        print(f"🔍 IDs détectés dans b_id : {len(valid_ids)} - {valid_ids[:5]}{'...' if len(valid_ids) > 5 else ''}")
+    if 'f_id' in df.columns:
+        valid_ids = df[df['f_id'] != "#N/A"]['f_id'].tolist()
+        print(f"🔍 IDs détectés dans f_id : {len(valid_ids)} - {valid_ids[:5]}{'...' if len(valid_ids) > 5 else ''}")
     
     print(f"📊 Cellules #N/A : {na_count}/{total_cells}")
     print(f"📊 Cellules avec <br> : {br_count}")

@@ -16,26 +16,28 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment
 import os
 
-# Champs demandés par Charles selon Expression-de-besoin.md
+# Champs demandés selon EDB.md - Nouvelle structure 25 colonnes
 CHARLES_REQUESTED_COLUMNS = {
-    'E': 'Nom de l\'entreprise',
-    'AW': 'Nom du produit',
-    'BH': 'Ville de production',
-    'AY': 'Catégorie du produit',
-    'AX': 'Description du produit',
-    'BM': 'Certification OFG',
-    'BS': 'Prix départ usine',
-    'BQ': '% de valeur ajouté en France',
-    'BD': 'Exportation',
-    'AD': 'Type d\'entreprise',
-    'AE': 'Nombre de salariés',
-    'AF': 'Chiffre d\'affaires',
-    'AI': 'Présentation de l\'entreprise',
-    'AN': 'Label EPV',
-    'AU': 'Programme du gouvernement',
-    'AJ': 'Démarche de relocalisation',
-    'BF': 'Page de présentation régionale',
-    'AM': 'Lequel ? (pour logo)'
+    'F': 'ID du dossier',
+    'G': 'Nom du produit',
+    'H': 'Nom de l\'entreprise',
+    'I': 'Catégorie du produit',
+    'J': 'Description du produit',
+    'K': 'Prix départ usine',
+    'L': '% de valeur ajouté en France',
+    'M': 'Exportation',
+    'N': 'Certification OFG',
+    'O': 'Label IG',  # NOUVEAU champ ajouté
+    'P': 'Type d\'entreprise',
+    'Q': 'Nombre de salariés',
+    'R': 'Chiffre d\'affaires',
+    'S': 'Présentation de l\'entreprise',
+    'U': 'Démarche de relocalisation',
+    'V': 'Label EPV',
+    'W': 'Programme du gouvernement',
+    'X': 'Le(s)quel(s)',
+    'Y': 'Photo du produit'
+    # Note: 'Ville de production' a été SUPPRIMÉ
 }
 
 def get_excel_headers(filepath):
@@ -66,10 +68,10 @@ def create_mapping():
         print(f"❌ Erreur : Le fichier {excel_file} n'existe pas")
         print("💡 Assurez-vous d'avoir exécuté les scripts de traitement")
         return
-    
+
     excel_headers = get_excel_headers(excel_file)
     print(f"✅ {len(excel_headers)} colonnes Excel trouvées")
-    
+
     # Lire les en-têtes CSV
     csv_file = "9-final-sircom-indesign-utf16.csv"
     if not os.path.exists(csv_file):

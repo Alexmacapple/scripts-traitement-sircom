@@ -132,7 +132,7 @@ try:
         header_value = worksheet.cell(row=1, column=col_num).value
         if header_value:
             header_clean = str(header_value).lower().strip()
-            if header_clean in ['a_madeinfr', 'b_id', 'imageid']:
+            if header_clean in ['f_id', 'imageid']:
                 critical_columns[header_clean] = col_num
                 print(f"  🔍 Colonne critique identifiée : '{header_value}' en position {col_num}")
     
@@ -156,11 +156,11 @@ try:
             delete_reason = "entièrement vide"
         
         # Critère 2 : Colonnes critiques vides (ID manquant = dossier invalide)
-        elif 'b_id' in critical_columns:
-            b_id_value = worksheet.cell(row=row_num, column=critical_columns['b_id']).value
-            if is_empty_cell(b_id_value):
+        elif 'f_id' in critical_columns:
+            f_id_value = worksheet.cell(row=row_num, column=critical_columns['f_id']).value
+            if is_empty_cell(f_id_value):
                 should_delete = True
-                delete_reason = "ID manquant (b_id vide)"
+                delete_reason = "ID manquant (f_id vide)"
         
         if should_delete:
             rows_to_delete.append((row_num, delete_reason))

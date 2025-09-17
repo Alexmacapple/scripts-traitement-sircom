@@ -4,6 +4,17 @@
 
 Cette chaîne de traitement automatise la préparation des données pour le catalogue de la Grande Exposition du Fabriqué en France 2025. Elle transforme l'export Excel de Démarches Simplifiées en fichiers prêts pour InDesign.
 
+## 🆕 Mise à jour importante (Septembre 2025)
+
+La structure Excel a été modifiée :
+- **Nouvelle structure** : 25 colonnes (A-Y) au lieu de ~95 colonnes
+- **ID en colonne F** (anciennement B)
+- **Entreprise en colonne H** (anciennement E)
+- **Produit en colonne G** (anciennement AW)
+- **Photo en colonne Y** (anciennement CE)
+- **Nouveau champ** : Label IG en colonne O
+- **Champ supprimé** : Ville de production
+
 ## 📋 Prérequis
 
 ### 1. Environnement technique
@@ -19,10 +30,10 @@ Cette chaîne de traitement automatise la préparation des données pour le cata
 - **Emplacement** : Dans le dossier `scripts-traitement-sircom/`
 
 #### Dossier d'images
-- **Nom obligatoire** : `export_images_id_dossier`
+- **Nom du dossier** : `images` (anciennement `export_images_id_dossier`)
 - **Contenu** : Images des produits (JPG, PNG, etc.)
-- **Emplacement** : Dans le dossier `scripts-traitement-sircom/`
-- **Important** : Le nombre d'images doit correspondre au nombre de dossiers valides dans le fichier Excel
+- **Emplacement** : Dans le dossier parent `/Users/alex/Desktop/Made-In-France/images/`
+- **Format des noms** : Les IDs peuvent être alphanumériques (ex: ARA07.2025-HGV) et doivent être normalisés en minuscules sans espaces ni points
 
 ## 🚀 Lancement du traitement
 
@@ -34,7 +45,7 @@ cd /chemin/vers/scripts-traitement-sircom/
 
 # Vérifier la présence des fichiers
 ls -la Sircom.xlsx
-ls -la export_images_id_dossier/
+ls -la ../images/
 ```
 
 ### Étape 2 : Lancer le script maître
@@ -83,7 +94,7 @@ Le traitement complet prend environ **30 secondes** et exécute automatiquement 
 3. **`export_images_id_dossier_rename_resize/`**
    - Dossier contenant les images optimisées
    - Images redimensionnées à 350px max
-   - Nommage : `dossier-XXXXX.jpg`
+   - Nommage normalisé : `dossier-{id}.jpg` (minuscules, sans espaces ni points)
 
 4. **`mapping_colonnes_charles.xlsx`**
    - Tableau de correspondance des colonnes
@@ -103,8 +114,8 @@ Le traitement complet prend environ **30 secondes** et exécute automatiquement 
 2. Vérifiez le fichier de log pour plus de détails
 3. Causes fréquentes :
    - Fichier `Sircom.xlsx` manquant ou mal nommé
-   - Dossier `export_images_id_dossier` manquant
-   - Nombre d'images différent du nombre de dossiers
+   - Dossier `images` manquant dans le dossier parent
+   - Format des IDs non normalisé (doivent être en minuscules sans espaces ni points)
 
 ### Relancer après une erreur
 
@@ -118,14 +129,14 @@ python3 sircom_master_script.py --verbose
 
 ### Sircom.xlsx
 - Export standard depuis Démarches Simplifiées
-- Contient les colonnes A à CQ
+- **Nouvelle structure** : 25 colonnes (A à Y)
 - Une ligne d'en-têtes + les dossiers de candidature
 
 ### Images
-- Un fichier image par dossier
+- Un fichier image par dossier (si disponible)
 - Formats acceptés : JPG, PNG, GIF, WEBP, etc.
-- **IMPORTANT** : Le script 10 utilise maintenant le mapping réel depuis Excel (colonne B = ID, colonne CE = nom de l'image)
-- Plus besoin que l'ordre alphabétique corresponde aux dossiers
+- **Mapping actuel** : Colonne F = ID, Colonne Y = nom de l'image
+- **Normalisation** : Les IDs alphanumériques (ex: ARA07.2025-HGV) sont convertis en minuscules sans espaces ni points (ex: ara072025-hgv)
 
 ## 🎨 Utilisation dans InDesign
 
@@ -149,5 +160,5 @@ En cas de difficultés :
 
 ---
 
-**Version** : 2.0 (Compatible InDesign 19.4+ avec chemins POSIX)  
-**Dernière mise à jour** : Août 2025
+**Version** : 3.0 (Adaptée à la nouvelle structure 25 colonnes)
+**Dernière mise à jour** : Septembre 2025

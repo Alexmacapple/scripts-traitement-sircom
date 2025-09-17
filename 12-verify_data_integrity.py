@@ -19,7 +19,7 @@ def verify_data_integrity():
         excel_file = 'Sircom.xlsx'
         df_excel = pd.read_excel(excel_file)
         print(f'✅ Excel source lu : {len(df_excel)} lignes (hors en-tête)')
-        
+
         # 2. Lire le CSV final
         csv_file = '9-final-sircom-indesign-utf16.csv'
         df_csv = pd.read_csv(csv_file, encoding='utf-16')
@@ -27,18 +27,28 @@ def verify_data_integrity():
         print()
         
         # 3. Extraire les données pour comparaison
-        # Colonnes Excel
-        col_id_excel = df_excel.columns[1]  # Colonne B = ID
-        col_image_excel = df_excel.columns[82]  # Colonne CE = Image source
-        col_entreprise_excel = df_excel.columns[4]  # Colonne E = Entreprise
-        col_produit_excel = df_excel.columns[48]  # Colonne AW = Produit
+        # Colonnes Excel - Nouvelle structure 25 colonnes (A-Y)
+        col_id_excel = df_excel.columns[5]  # Colonne F = ID
+        col_produit_excel = df_excel.columns[6]  # Colonne G = Produit
+        col_entreprise_excel = df_excel.columns[7]  # Colonne H = Entreprise
+        col_image_excel = df_excel.columns[24]  # Colonne Y = Photo
         
         # Créer un dictionnaire des données Excel
         excel_data = {}
         for idx, row in df_excel.iterrows():
             id_val = row[col_id_excel]
             if pd.notna(id_val) and str(id_val) not in ['#N/A', '']:
-                id_str = str(int(id_val) if isinstance(id_val, float) else id_val)
+                # Gérer les IDs numériques et alphanumériques
+                try:
+                    # Si c'est un nombre float, convertir en int
+                    if isinstance(id_val, (int, float)):
+                        id_str = str(int(id_val))
+                    else:
+                        # Si c'est une chaîne, garder tel quel
+                        id_str = str(id_val)
+                except:
+                    id_str = str(id_val)
+
                 excel_data[id_str] = {
                     'entreprise': str(row[col_entreprise_excel]) if pd.notna(row[col_entreprise_excel]) else '#N/A',
                     'produit': str(row[col_produit_excel]) if pd.notna(row[col_produit_excel]) else '#N/A',
@@ -56,10 +66,10 @@ def verify_data_integrity():
         warnings = []
         
         for idx, row in df_csv.iterrows():
-            csv_id = str(row['b_id'])
+            csv_id = str(row['f_id'])
             csv_image = str(row['imageid'])
-            csv_entreprise = str(row['e_entrepri']) if 'e_entrepri' in row else '#N/A'
-            csv_produit = str(row['aw_denomin']) if 'aw_denomin' in row else '#N/A'
+            csv_entreprise = str(row['h_entrepri']) if 'h_entrepri' in row else '#N/A'
+            csv_produit = str(row['g_denomina']) if 'g_denomina' in row else '#N/A'
             
             # Tronquer pour l'affichage
             entreprise_display = csv_entreprise[:27] + '...' if len(csv_entreprise) > 30 else csv_entreprise
@@ -68,8 +78,10 @@ def verify_data_integrity():
             if csv_id in excel_data:
                 excel_info = excel_data[csv_id]
                 
-                # Vérifier la cohérence image_id
-                expected_image = f"dossier-{csv_id}.jpg"
+                # Vérifier la cohérence image_id (avec normalisation)
+                # Les IDs peuvent être alphanumériques, normaliser en minuscules
+                normalized_id = csv_id.lower().replace('.', '').replace(' ', '')
+                expected_image = f"dossier-{normalized_id}.jpg"
                 if csv_image != expected_image:
                     status = '❌ IMG ERR'
                     errors.append(f"Ligne {idx+2}: Image attendue {expected_image}, trouvée {csv_image}")
@@ -98,7 +110,7 @@ def verify_data_integrity():
         print()
         
         # IDs manquants dans le CSV
-        csv_ids = set(str(row['b_id']) for _, row in df_csv.iterrows())
+        csv_ids = set(str(row['f_id']) for _, row in df_csv.iterrows())
         missing_ids = set(excel_data.keys()) - csv_ids
         if missing_ids:
             print(f"⚠️  IDs présents dans Excel mais absents du CSV final :")
@@ -131,16 +143,16 @@ def verify_data_integrity():
         print("🖼️  VÉRIFICATION DES ASSOCIATIONS IMAGE/DOSSIER :")
         print()
         
-        # Quelques exemples pour valider
+        # Quelques exemples pour valider avec les nouveaux IDs alphanumériques
         verif_samples = [
-            ('24331205', 'packshot 4 Filtres gourde doypack.jpg', 'Filtres à eau'),
-            ('24697654', 'IMG_3302.jpeg', 'Pizza ou autre produit'),
-            ('24333464', 'IMG_0202.JPG', 'Produit'),
+            ('ara072025-hgv', 'Photo produit HGV', 'HGV'),
+            ('ara432025-rochefreres', 'Photo produit Roche Frères', 'Roche Frères'),
+            ('corse2a2025-neutralvision', 'Photo produit Neutral Vision', 'Neutral Vision'),
         ]
         
         for check_id, expected_source, description in verif_samples:
             if check_id in excel_data:
-                csv_row = df_csv[df_csv['b_id'] == int(check_id)]
+                csv_row = df_csv[df_csv['f_id'] == check_id]
                 if not csv_row.empty:
                     csv_image = csv_row.iloc[0]['imageid']
                     print(f"  ID {check_id} ({description}):")

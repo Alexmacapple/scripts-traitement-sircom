@@ -51,8 +51,8 @@ JPEG_QUALITY = 100
 DPI = 300
 
 # Chemins des fichiers et répertoires
-EXCEL_FILE = "Sircom.xlsx"
-SOURCE_DIR = "export_images_id_dossier"
+EXCEL_FILE = "7-add-pathimg.xlsx"  # Utiliser le fichier avec le mapping
+SOURCE_DIR = "/Users/alex/Desktop/Made-In-France/images"  # Dossier avec nos 5 images
 TARGET_DIR = "export_images_id_dossier_rename_resize"
 
 # Extensions d'images supportées
@@ -169,67 +169,53 @@ def check_prerequisites(logger):
 def read_excel_mapping(excel_file, logger):
     """
     Lit le fichier Excel et crée le mapping ID -> nom d'image
-    
-    POINT CRITIQUE (là où était le bug) :
-    - L'ancienne version lisait juste le CSV et prenait les images dans l'ordre
-    - Cette version lit Excel pour avoir la VRAIE correspondance
-    
-    Structure du fichier Excel :
-    - Colonne B (index 1) : ID du dossier
-    - Colonne CE (index 82) : Nom de l'image uploadée par l'entreprise
-    
+
+    Adapté pour lire depuis 7-add-pathimg.xlsx qui contient :
+    - Colonne f_id : ID du dossier
+    - Colonne imageid : Nom de l'image normalisée
+
     Retourne un dictionnaire : {ID_dossier: nom_image_source}
     """
     logger.info(f"📖 Lecture du fichier Excel : {excel_file}")
-    
+
     try:
         # Lire le fichier Excel
         df = pd.read_excel(excel_file)
-        
-        # Identifier les colonnes
-        # Colonne B (index 1) = ID
-        col_id = df.columns[1] if len(df.columns) > 1 else None
-        # Colonne CE (index 82) = Image  
-        col_image = df.columns[82] if len(df.columns) > 82 else None
-        
-        if not col_id or not col_image:
-            logger.error("❌ Impossible de trouver les colonnes ID et Image dans le fichier Excel")
-            logger.error(f"   Colonnes disponibles : {len(df.columns)}")
+
+        # Utiliser les colonnes par nom (plus robuste)
+        if 'f_id' not in df.columns or 'imageid' not in df.columns:
+            logger.error("❌ Colonnes f_id ou imageid non trouvées")
+            logger.error(f"   Colonnes disponibles : {list(df.columns)}")
             return {}
-            
-        logger.info(f"📋 Colonne ID : {col_id}")
-        logger.info(f"📋 Colonne Image : {col_image}")
-        
+
+        logger.info(f"📋 Colonne ID : f_id")
+        logger.info(f"📋 Colonne Image : imageid")
+
         # Créer le mapping
         mapping = {}
         skipped = 0
-        
+
         for index, row in df.iterrows():
-            dossier_id = row[col_id]
-            image_name = row[col_image]
-            
+            dossier_id = row['f_id']
+            image_name = row['imageid']
+
             # Vérifier que les deux valeurs sont valides
             if pd.notna(dossier_id) and pd.notna(image_name) and str(image_name) not in ['#N/A', 'N/A', '']:
-                # Convertir l'ID en entier si c'est un float
-                if isinstance(dossier_id, float):
-                    dossier_id = int(dossier_id)
-                
-                # Nettoyer le nom de l'image
-                image_name = str(image_name).strip()
-                
-                mapping[str(dossier_id)] = image_name
-                
+                # Le nom est déjà au format dossier-xxx.jpg
+                # On garde le nom complet pour la recherche
+                mapping[str(dossier_id)] = str(image_name)
+
                 if len(mapping) <= 5:  # Afficher les 5 premiers
-                    logger.info(f"  ✅ Mapping : Dossier {dossier_id} → {image_name}")
+                    logger.info(f"  ✅ Mapping : {dossier_id} → {image_name}")
             else:
                 skipped += 1
-        
+
         logger.info(f"✅ Mapping créé avec {len(mapping)} correspondances")
         if skipped > 0:
             logger.info(f"⚠️  {skipped} lignes ignorées (pas d'image ou image invalide)")
-        
+
         return mapping
-        
+
     except Exception as e:
         logger.error(f"❌ Erreur lors de la lecture du fichier Excel : {e}")
         return {}
@@ -332,8 +318,10 @@ def main():
         total_size = 0
         
         for dossier_id, source_image_name in mapping.items():
-            new_name = f"dossier-{dossier_id}.jpg"
-            
+            # CORRECTION : Utiliser directement le nom normalisé de imageid
+            # source_image_name contient déjà le bon nom (ex: dossier-ara072025-hgv.jpg)
+            new_name = source_image_name  # Utiliser directement le nom de imageid
+
             # CORRECTION IMPORTANTE : On cherche l'image PAR SON NOM, pas par position !
             # L'ancien script prenait juste l'image N pour le dossier N (FAUX)
             # Maintenant on cherche l'image qui a VRAIMENT ce nom

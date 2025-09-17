@@ -12,6 +12,16 @@
 import openpyxl
 import os
 
+def normalize_image_id(image_id):
+    """Normalise l'ID pour le nom de fichier : minuscules, sans points ni espaces"""
+    # Mettre en minuscules
+    normalized = image_id.lower()
+    # Remplacer les points par rien (sauf l'extension)
+    normalized = normalized.replace('.', '')
+    # Remplacer les espaces par rien
+    normalized = normalized.replace(' ', '')
+    return normalized
+
 # Configuration du chemin des images (format POSIX pour InDesign 19.4+)
 IMAGE_BASE_PATH = "/Users/victoria/Documents/export-jpg-resize"
 
@@ -76,15 +86,21 @@ try:
                 else:
                     # Sinon, utiliser la valeur telle quelle comme ID
                     image_id = imageid_value
-                
-                # Générer le chemin complet (format POSIX)
-                full_path = f"{IMAGE_BASE_PATH}/dossier-{image_id}.jpg"
+
+                # Normaliser l'ID avant de générer le chemin
+                normalized_id = normalize_image_id(image_id)
+
+                # Générer le chemin complet avec l'ID normalisé (format POSIX)
+                full_path = f"{IMAGE_BASE_PATH}/dossier-{normalized_id}.jpg"
+
+                # Aussi mettre à jour la colonne imageid avec le nom normalisé
+                worksheet.cell(row=imageid_cell.row, column=imageid_column).value = f"dossier-{normalized_id}.jpg"
                 worksheet.cell(row=imageid_cell.row, column=pathimg_column).value = full_path
                 paths_generated += 1
                 
                 # Afficher les 5 premiers exemples
                 if paths_generated <= 5:
-                    print(f"  📝 Ligne {imageid_cell.row}: ID={image_id} → {full_path}")
+                    print(f"  📝 Ligne {imageid_cell.row}: ID={normalized_id} → {full_path}")
             else:
                 # Pour les cellules vides, mettre #N/A
                 worksheet.cell(row=imageid_cell.row, column=pathimg_column).value = "#N/A"

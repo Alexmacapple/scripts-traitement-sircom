@@ -1,3 +1,13 @@
+# Ignorer tous les répertoires commençant par underscore
+_*/
+
+# Dossiers spécifiques à ignorer
+_excel/
+_ds/
+_livrable-16-septembre-2025/
+_démarches/
+_livrable2-17-septembre/
+
 # Fichiers de données sources
 Sircom.xlsx
 Sircom_*.xlsx
@@ -30,6 +40,12 @@ mapping_colonnes_charles.csv
 
 # Dossier des images traitées
 export_images_id_dossier_rename_resize/
+
+# Dossier de mapping
+mapping/
+
+# Dossier des scripts de fix
+fixe-scripts/
 
 # Logs et rapports
 *.log
