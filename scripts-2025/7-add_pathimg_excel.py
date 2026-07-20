@@ -30,22 +30,22 @@ file_path = "6-clean-headers.xlsx"
 
 # 2. Vérifier que le fichier source existe
 if not os.path.exists(file_path):
-    print(f"❌ Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
-    print("💡 Assurez-vous d'avoir exécuté le script '6-clean-headers.py' au préalable.")
+    print(f"Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
+    print("Assurez-vous d'avoir exécuté le script '6-clean-headers.py' au préalable.")
     exit(1)
 
-print(f"📂 Traitement du fichier : {file_path}")
-print(f"🖼️  Chemin des images configuré : {IMAGE_BASE_PATH}")
+print(f"Traitement du fichier : {file_path}")
+print(f"Chemin des images configuré : {IMAGE_BASE_PATH}")
 
 try:
     # 3. Ouvrir le fichier Excel
     workbook = openpyxl.load_workbook(file_path)
-    print(f"✅ Fichier ouvert avec succès")
+    print(f"Fichier ouvert avec succès")
     
     # 4. Traiter la feuille active
     worksheet = workbook.active
     sheet_name = worksheet.title
-    print(f"🔄 Traitement de la feuille : {sheet_name}")
+    print(f"Traitement de la feuille : {sheet_name}")
 
     # 5. Chercher la colonne "imageid"
     imageid_column = None
@@ -53,7 +53,7 @@ try:
         for cell in col:
             if cell.value == "imageid":
                 imageid_column = cell.column
-                print(f"✅ Colonne 'imageid' trouvée en position : {openpyxl.utils.get_column_letter(imageid_column)}")
+                print(f"Colonne 'imageid' trouvée en position : {openpyxl.utils.get_column_letter(imageid_column)}")
                 break
         if imageid_column:
             break
@@ -63,7 +63,7 @@ try:
         pathimg_column = imageid_column + 1
         worksheet.insert_cols(pathimg_column)
         worksheet.cell(row=1, column=pathimg_column).value = "@pathimg"
-        print(f"✅ Colonne '@pathimg' ajoutée en position : {openpyxl.utils.get_column_letter(pathimg_column)}")
+        print(f"Colonne '@pathimg' ajoutée en position : {openpyxl.utils.get_column_letter(pathimg_column)}")
 
         # 7. Parcourir les données et générer les chemins d'images
         rows_processed = 0
@@ -100,31 +100,31 @@ try:
                 
                 # Afficher les 5 premiers exemples
                 if paths_generated <= 5:
-                    print(f"  📝 Ligne {imageid_cell.row}: ID={normalized_id} → {full_path}")
+                    print(f"  Ligne {imageid_cell.row}: ID={normalized_id} → {full_path}")
             else:
                 # Pour les cellules vides, mettre #N/A
                 worksheet.cell(row=imageid_cell.row, column=pathimg_column).value = "#N/A"
         
-        print(f"✅ {paths_generated}/{rows_processed} chemins d'images générés")
+        print(f"{paths_generated}/{rows_processed} chemins d'images générés")
 
         # 8. Enregistrer les modifications
         output_filename = "7-add-pathimg.xlsx"
         workbook.save(output_filename)
-        print(f"✅ Fichier sauvegardé sous : {output_filename}")
+        print(f"Fichier sauvegardé sous : {output_filename}")
         
         # 9. Afficher un résumé
-        print(f"\n📋 Résumé du traitement :")
-        print(f"  ✓ Colonne source : 'imageid'")
-        print(f"  ✓ Colonne ajoutée : '@pathimg'")
-        print(f"  ✓ Format des chemins : {IMAGE_BASE_PATH}/dossier-{{ID}}.jpg")
-        print(f"  ✓ Lignes traitées : {rows_processed}")
-        print(f"  ✓ Chemins générés : {paths_generated}")
+        print(f"\nRésumé du traitement :")
+        print(f"  Colonne source : 'imageid'")
+        print(f"  Colonne ajoutée : '@pathimg'")
+        print(f"  Format des chemins : {IMAGE_BASE_PATH}/dossier-{{ID}}.jpg")
+        print(f"  Lignes traitées : {rows_processed}")
+        print(f"  Chemins générés : {paths_generated}")
         
-        print("🎉 Ajout des chemins d'images terminé avec succès !")
+        print("Ajout des chemins d'images terminé avec succès !")
         
     else:
-        print("❌ Erreur : La colonne 'imageid' n'a pas été trouvée dans la feuille.")
-        print("💡 Colonnes disponibles :")
+        print("Erreur : La colonne 'imageid' n'a pas été trouvée dans la feuille.")
+        print("Colonnes disponibles :")
         for col in worksheet.iter_cols(min_row=1, max_row=1):
             for cell in col:
                 if cell.value:
@@ -132,10 +132,10 @@ try:
         exit(1)
 
 except Exception as e:
-    print(f"❌ Erreur lors du traitement : {e}")
+    print(f"Erreur lors du traitement : {e}")
     exit(1)
 finally:
     # 10. Fermer le fichier Excel
     if 'workbook' in locals():
         workbook.close()
-    print("📁 Fichier fermé")
+    print("Fichier fermé")

@@ -41,20 +41,20 @@ file_path = "5-livrable-final-word.xlsx"
 
 # 2. Vérifier que le fichier source existe
 if not os.path.exists(file_path):
-    print(f"❌ Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
-    print("💡 Assurez-vous d'avoir exécuté le script '5-livrable-final.py' au préalable.")
+    print(f"Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
+    print("Assurez-vous d'avoir exécuté le script '5-livrable-final.py' au préalable.")
     exit(1)
 
-print(f"📂 Traitement du fichier : {file_path}")
+print(f"Traitement du fichier : {file_path}")
 
 try:
     # 3. Ouvrir le fichier Excel
     workbook = openpyxl.load_workbook(file_path)
-    print(f"✅ Fichier ouvert avec succès")
+    print(f"Fichier ouvert avec succès")
     
     # 4. Traiter toutes les feuilles
     for sheet_name in workbook.sheetnames:
-        print(f"🔄 Traitement de la feuille : {sheet_name}")
+        print(f"Traitement de la feuille : {sheet_name}")
         sheet = workbook[sheet_name]
         
         # Compter les colonnes avec des en-têtes
@@ -71,32 +71,32 @@ try:
                     
                     # Afficher quelques exemples de transformation
                     if headers_processed <= 10:
-                        print(f"  📝 Colonne {openpyxl.utils.get_column_letter(cell.column)}: '{original_value}' → '{cleaned_value}'")
+                        print(f"  Colonne {openpyxl.utils.get_column_letter(cell.column)}: '{original_value}' → '{cleaned_value}'")
                     elif headers_processed == 11:
-                        print(f"  📝 ... (et {sheet.max_column - 10} autres colonnes)")
+                        print(f"  ... (et {sheet.max_column - 10} autres colonnes)")
         
-        print(f"✅ {headers_processed} en-têtes nettoyés dans la feuille '{sheet_name}'")
+        print(f"{headers_processed} en-têtes nettoyés dans la feuille '{sheet_name}'")
     
     # 5. Enregistrer le fichier modifié
     output_filename = "6-clean-headers.xlsx"
     workbook.save(output_filename)
-    print(f"✅ Fichier sauvegardé sous : {output_filename}")
+    print(f"Fichier sauvegardé sous : {output_filename}")
     
     # 6. Afficher un résumé des transformations
-    print(f"\n📋 Règles de nettoyage appliquées :")
-    print(f"  ✓ Conversion en minuscules")
-    print(f"  ✓ Suppression des accents")
-    print(f"  ✓ Suppression des caractères spéciaux")
-    print(f"  ✓ Limitation à 10 caractères maximum")
-    print(f"  ✓ Conservation des préfixes pour éviter les collisions")
+    print(f"\nRègles de nettoyage appliquées :")
+    print(f"  Conversion en minuscules")
+    print(f"  Suppression des accents")
+    print(f"  Suppression des caractères spéciaux")
+    print(f"  Limitation à 10 caractères maximum")
+    print(f"  Conservation des préfixes pour éviter les collisions")
     
-    print("🎉 Nettoyage des en-têtes terminé avec succès !")
+    print("Nettoyage des en-têtes terminé avec succès !")
 
 except Exception as e:
-    print(f"❌ Erreur lors du traitement : {e}")
+    print(f"Erreur lors du traitement : {e}")
     exit(1)
 finally:
     # 7. Fermer le fichier Excel
     if 'workbook' in locals():
         workbook.close()
-    print("📁 Fichier fermé")
+    print("Fichier fermé")

@@ -8,7 +8,8 @@ Ce script automatise l'exécution complète de la chaîne de traitement :
 - Scripts 0-5 : Traitement Excel
 - Scripts 6-9 : Traitement InDesign
 - Script 10 : Traitement des images
-- Script 11 : Création du mapping pour Victoria
+- Script 11 : Création du mapping pour InDesign
+- Script 12 : Vérification de l'intégrité des données
 
 Fonctionnalités :
 ✓ Création automatique de l'environnement virtuel
@@ -21,7 +22,7 @@ Fonctionnalités :
 ✓ Mode verbose optionnel
 
 Usage:
-    python3 sircom_master.py [--verbose]
+    python3 sircom_master_script.py [--verbose]
 """
 
 import os
@@ -40,6 +41,7 @@ import logging
 # Configuration des chemins et paramètres
 VENV_NAME = "venv"
 SOURCE_FILE = "Sircom.xlsx"
+SCRIPTS_DIR = "scripts-2025"
 REQUIRED_PACKAGES = ["openpyxl", "pandas", "Pillow"]
 
 # Configuration par défaut du chemin des images (format POSIX pour InDesign 19.4+)
@@ -48,67 +50,67 @@ DEFAULT_IMAGE_PATH = "/Users/victoria/Documents/export-jpg-resize"
 # Liste des scripts à exécuter dans l'ordre
 SCRIPTS_CHAIN = [
     {
-        "script": "0-si-cellule-vide-na.py",
+        "script": "scripts-2025/0-si-cellule-vide-na.py",
         "description": "Normalisation des cellules vides",
         "output_file": "Sircom_vide_na.xlsx"
     },
     {
-        "script": "1-header_lettres_colonne.py", 
+        "script": "scripts-2025/1-header_lettres_colonne.py",
         "description": "Ajout des références de colonnes",
         "output_file": "1-header-lettres-colonne-excel-mapping-excel.xlsx"
     },
     {
-        "script": "2-image_id_adder.py",
+        "script": "scripts-2025/2-image_id_adder.py",
         "description": "Génération des identifiants d'images", 
         "output_file": "2-image-id-adder-excel-fusion.xlsx"
     },
     {
-        "script": "3-fusion_tri_region_departement.py",
+        "script": "scripts-2025/3-fusion_tri_region_departement.py",
         "description": "Tri géographique",
         "output_file": "3-fusion-tri-region-departement.xlsx" 
     },
     {
-        "script": "4-changer-date-format.py",
+        "script": "scripts-2025/4-changer-date-format.py",
         "description": "Formatage des dates",
         "output_file": "4-changer-date.xlsx"
     },
     {
-        "script": "5-livrable-final.py",
+        "script": "scripts-2025/5-livrable-final.py",
         "description": "Livrable Excel final",
         "output_file": "5-livrable-final-word.xlsx"
     },
     {
-        "script": "6-clean_headers_excel.py",
+        "script": "scripts-2025/6-clean_headers_excel.py",
         "description": "Nettoyage des en-têtes InDesign",
         "output_file": "6-clean-headers.xlsx"
     },
     {
-        "script": "7-add_pathimg_excel.py",
+        "script": "scripts-2025/7-add_pathimg_excel.py",
         "description": "Ajout des chemins d'images",
         "output_file": "7-add-pathimg.xlsx"
     },
     {
-        "script": "8-optimize_content_excel.py",
+        "script": "scripts-2025/8-optimize_content_excel.py",
         "description": "Optimisation du contenu",
         "output_file": "8-optimize-content.xlsx"
     },
     {
-        "script": "9-export_csv_utf16_final.py",
+        "script": "scripts-2025/9-export_csv_utf16_final.py",
         "description": "Export CSV final UTF-16",
         "output_file": "9-final-sircom-indesign-utf16.csv"
     },
     {
-        "script": "10-process-images.py",
+        "script": "scripts-2025/10-process-images.py",
         "description": "Traitement et renommage des images",
         "output_file": "export_images_id_dossier_rename_resize"
     },
     {
-        "script": "11-create_mapping_excel.py",
+        "script": "scripts-2025/11-create_mapping_excel.py",
         "description": "Création du mapping pour InDesign",
         "output_file": "mapping_colonnes_charles.xlsx"
     },
     {
-        "script": "12-verify_data_integrity.py",
+        "script": "scripts-2025/12-verify_data_integrity.py",
         "description": "Vérification de l'intégrité des données",
         "output_file": "validation"  # Pas de fichier physique, juste un placeholder pour validation
     }
@@ -344,7 +346,7 @@ class SircomMasterProcessor:
 
     def update_image_path_in_script(self):
         """Mettre à jour le chemin des images dans le script 7"""
-        script_path = "7-add_pathimg_excel.py"
+        script_path = os.path.join(SCRIPTS_DIR, "7-add_pathimg_excel.py")
         
         if self.image_path != DEFAULT_IMAGE_PATH:
             self.logger.info(f"🔧 Mise à jour du chemin d'images dans {script_path}")
@@ -640,8 +642,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples d'utilisation :
-  python3 sircom_master.py              # Exécution normale
-  python3 sircom_master.py --verbose    # Mode verbose avec logs détaillés
+  python3 sircom_master_script.py              # Exécution normale
+  python3 sircom_master_script.py --verbose    # Mode verbose avec logs détaillés
         """
     )
     

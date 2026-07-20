@@ -83,10 +83,10 @@ def setup_logging():
     
     logger = logging.getLogger(__name__)
     logger.info("="*80)
-    logger.info("🖼️  TRAITEMENT GÉNÉRIQUE DES IMAGES - MADE IN FRANCE 2025")
+    logger.info("TRAITEMENT GÉNÉRIQUE DES IMAGES - MADE IN FRANCE 2025")
     logger.info("="*80)
-    logger.info(f"📅 Date/heure de début : {datetime.now().strftime('%d/%m/%Y à %H:%M:%S')}")
-    logger.info(f"📝 Fichier de log : {log_filename}")
+    logger.info(f"Date/heure de début : {datetime.now().strftime('%d/%m/%Y à %H:%M:%S')}")
+    logger.info(f"Fichier de log : {log_filename}")
     
     return logger
 
@@ -115,7 +115,7 @@ def find_best_match(target_name, available_files, logger):
     # 2. Correspondance normalisée
     for filename in available_files:
         if normalize_filename(filename) == target_normalized:
-            logger.info(f"  🔄 Correspondance normalisée trouvée : {filename}")
+            logger.info(f"  Correspondance normalisée trouvée : {filename}")
             return filename
     
     # 3. Correspondance sans extension (pour les erreurs .pptx → .jpg)
@@ -123,7 +123,7 @@ def find_best_match(target_name, available_files, logger):
     for filename in available_files:
         file_base = os.path.splitext(normalize_filename(filename))[0]
         if file_base == target_base:
-            logger.info(f"  🔄 Correspondance par nom de base trouvée : {filename}")
+            logger.info(f"  Correspondance par nom de base trouvée : {filename}")
             return filename
     
     # 4. Correspondance partielle (contient le nom principal)
@@ -134,35 +134,35 @@ def find_best_match(target_name, available_files, logger):
             main_keyword = keywords[0]
             for filename in available_files:
                 if main_keyword.lower() in filename.lower():
-                    logger.info(f"  🔄 Correspondance partielle trouvée : {filename}")
+                    logger.info(f"  Correspondance partielle trouvée : {filename}")
                     return filename
     
     return None
 
 def check_prerequisites(logger):
     """Vérifier les prérequis"""
-    logger.info("🔍 VÉRIFICATION DES PRÉREQUIS")
+    logger.info("VÉRIFICATION DES PRÉREQUIS")
     
     # Vérifier le fichier Excel
     if not os.path.exists(EXCEL_FILE):
-        logger.error(f"❌ Fichier Excel manquant : {EXCEL_FILE}")
+        logger.error(f"Fichier Excel manquant : {EXCEL_FILE}")
         return False
-    logger.info(f"✅ Fichier Excel trouvé : {EXCEL_FILE}")
+    logger.info(f"Fichier Excel trouvé : {EXCEL_FILE}")
     
     # Vérifier le répertoire source des images
     if not os.path.exists(SOURCE_DIR):
-        logger.error(f"❌ Répertoire d'images manquant : {SOURCE_DIR}")
-        logger.error("💡 Veuillez créer le répertoire et y placer les images à traiter")
+        logger.error(f"Répertoire d'images manquant : {SOURCE_DIR}")
+        logger.error("Veuillez créer le répertoire et y placer les images à traiter")
         return False
-    logger.info(f"✅ Répertoire d'images trouvé : {SOURCE_DIR}")
+    logger.info(f"Répertoire d'images trouvé : {SOURCE_DIR}")
     
     # Vérifier qu'il y a des images dans le répertoire
     image_files = get_available_images(SOURCE_DIR)
     if not image_files:
-        logger.error(f"❌ Aucune image trouvée dans : {SOURCE_DIR}")
-        logger.error(f"💡 Extensions supportées : {', '.join(ALLOWED_EXTENSIONS)}")
+        logger.error(f"Aucune image trouvée dans : {SOURCE_DIR}")
+        logger.error(f"Extensions supportées : {', '.join(ALLOWED_EXTENSIONS)}")
         return False
-    logger.info(f"✅ {len(image_files)} images trouvées dans le répertoire source")
+    logger.info(f"{len(image_files)} images trouvées dans le répertoire source")
     
     return True
 
@@ -176,7 +176,7 @@ def read_excel_mapping(excel_file, logger):
 
     Retourne un dictionnaire : {ID_dossier: nom_image_source}
     """
-    logger.info(f"📖 Lecture du fichier Excel : {excel_file}")
+    logger.info(f"Lecture du fichier Excel : {excel_file}")
 
     try:
         # Lire le fichier Excel
@@ -184,12 +184,12 @@ def read_excel_mapping(excel_file, logger):
 
         # Utiliser les colonnes par nom (plus robuste)
         if 'f_id' not in df.columns or 'imageid' not in df.columns:
-            logger.error("❌ Colonnes f_id ou imageid non trouvées")
+            logger.error("Colonnes f_id ou imageid non trouvées")
             logger.error(f"   Colonnes disponibles : {list(df.columns)}")
             return {}
 
-        logger.info(f"📋 Colonne ID : f_id")
-        logger.info(f"📋 Colonne Image : imageid")
+        logger.info(f"Colonne ID : f_id")
+        logger.info(f"Colonne Image : imageid")
 
         # Créer le mapping
         mapping = {}
@@ -206,18 +206,18 @@ def read_excel_mapping(excel_file, logger):
                 mapping[str(dossier_id)] = str(image_name)
 
                 if len(mapping) <= 5:  # Afficher les 5 premiers
-                    logger.info(f"  ✅ Mapping : {dossier_id} → {image_name}")
+                    logger.info(f"  Mapping : {dossier_id} → {image_name}")
             else:
                 skipped += 1
 
-        logger.info(f"✅ Mapping créé avec {len(mapping)} correspondances")
+        logger.info(f"Mapping créé avec {len(mapping)} correspondances")
         if skipped > 0:
-            logger.info(f"⚠️  {skipped} lignes ignorées (pas d'image ou image invalide)")
+            logger.info(f"{skipped} lignes ignorées (pas d'image ou image invalide)")
 
         return mapping
 
     except Exception as e:
-        logger.error(f"❌ Erreur lors de la lecture du fichier Excel : {e}")
+        logger.error(f"Erreur lors de la lecture du fichier Excel : {e}")
         return {}
 
 def get_available_images(source_dir):
@@ -263,14 +263,14 @@ def process_and_rename_image(image_path, new_name, target_dir, logger):
             # Vérifier que le fichier a été créé
             if os.path.exists(out_path):
                 file_size = os.path.getsize(out_path)
-                logger.info(f"  ✅ Image traitée : {new_name} ({file_size:,} octets)")
+                logger.info(f"  Image traitée : {new_name} ({file_size:,} octets)")
                 return True, file_size
             else:
-                logger.error(f"  ❌ Fichier de sortie non créé : {new_name}")
+                logger.error(f"  Fichier de sortie non créé : {new_name}")
                 return False, 0
             
     except Exception as e:
-        logger.error(f"  ❌ ERREUR lors du traitement : {e}")
+        logger.error(f"  ERREUR lors du traitement : {e}")
         return False, 0
 
 def main():
@@ -281,7 +281,7 @@ def main():
     
     try:
         # En-tête
-        logger.info("🎨 PARAMÈTRES DE TRAITEMENT :")
+        logger.info("PARAMÈTRES DE TRAITEMENT :")
         logger.info(f"  - Largeur max : {MAX_WIDTH}px")
         logger.info(f"  - Qualité JPEG : {JPEG_QUALITY}%")
         logger.info(f"  - DPI : {DPI}")
@@ -290,26 +290,26 @@ def main():
         
         # Vérifications préliminaires
         if not check_prerequisites(logger):
-            logger.error("❌ Prérequis non satisfaits - Arrêt du traitement")
+            logger.error("Prérequis non satisfaits - Arrêt du traitement")
             return False
         
         # Lecture du mapping depuis Excel
         mapping = read_excel_mapping(EXCEL_FILE, logger)
         if not mapping:
-            logger.error("❌ Impossible de continuer sans mapping ID/image")
+            logger.error("Impossible de continuer sans mapping ID/image")
             return False
         
         # Récupération des images disponibles
         available_images = get_available_images(SOURCE_DIR)
-        logger.info(f"🖼️  {len(available_images)} images disponibles dans {SOURCE_DIR}")
+        logger.info(f"{len(available_images)} images disponibles dans {SOURCE_DIR}")
         
         # Créer le répertoire de destination
         Path(TARGET_DIR).mkdir(parents=True, exist_ok=True)
-        logger.info(f"📁 Répertoire de destination : {TARGET_DIR}")
+        logger.info(f"Répertoire de destination : {TARGET_DIR}")
         
         # Traitement des images selon le mapping
         logger.info("="*80)
-        logger.info("🚀 DÉBUT DU TRAITEMENT ET RENOMMAGE DES IMAGES")
+        logger.info("DÉBUT DU TRAITEMENT ET RENOMMAGE DES IMAGES")
         logger.info("="*80)
         
         success_count = 0
@@ -328,10 +328,10 @@ def main():
             matched_file = find_best_match(source_image_name, available_images.keys(), logger)
             
             if matched_file:
-                logger.info(f"🔄 Traitement : {matched_file} → {new_name}")
-                logger.info(f"  📍 ID Dossier : {dossier_id}")
+                logger.info(f"Traitement : {matched_file} → {new_name}")
+                logger.info(f"  ID Dossier : {dossier_id}")
                 if matched_file != source_image_name:
-                    logger.info(f"  📝 Nom dans Excel : {source_image_name}")
+                    logger.info(f"  Nom dans Excel : {source_image_name}")
                 
                 source_path = available_images[matched_file]
                 
@@ -343,7 +343,7 @@ def main():
                 else:
                     error_count += 1
             else:
-                logger.warning(f"⚠️  Image non trouvée : {source_image_name} (dossier {dossier_id})")
+                logger.warning(f"Image non trouvée : {source_image_name} (dossier {dossier_id})")
                 not_found_count += 1
         
         # Images non utilisées
@@ -355,43 +355,43 @@ def main():
         
         unused_images = [img for img in available_images.keys() if img not in used_images]
         if unused_images:
-            logger.warning("⚠️  IMAGES NON RÉFÉRENCÉES DANS EXCEL (non traitées) :")
+            logger.warning("IMAGES NON RÉFÉRENCÉES DANS EXCEL (non traitées) :")
             for img in unused_images:
-                logger.warning(f"  ⚠️  {img}")
+                logger.warning(f"  {img}")
         
         # Résumé final
         logger.info("="*80)
-        logger.info("📋 RÉSUMÉ DU TRAITEMENT")
+        logger.info("RÉSUMÉ DU TRAITEMENT")
         logger.info("="*80)
-        logger.info(f"✅ Images traitées avec succès : {success_count}")
-        logger.info(f"❌ Erreurs de traitement : {error_count}")
-        logger.info(f"⚠️  Images référencées mais non trouvées : {not_found_count}")
-        logger.info(f"📁 Répertoire de sortie : {TARGET_DIR}")
-        logger.info(f"💾 Espace disque utilisé : {total_size:,} octets ({total_size/1024/1024:.2f} MB)")
+        logger.info(f"Images traitées avec succès : {success_count}")
+        logger.info(f"Erreurs de traitement : {error_count}")
+        logger.info(f"Images référencées mais non trouvées : {not_found_count}")
+        logger.info(f"Répertoire de sortie : {TARGET_DIR}")
+        logger.info(f"Espace disque utilisé : {total_size:,} octets ({total_size/1024/1024:.2f} MB)")
         
         # Lister les fichiers dans le répertoire de destination
         if os.path.exists(TARGET_DIR):
             output_files = sorted(os.listdir(TARGET_DIR))
-            logger.info(f"\n📂 FICHIERS CRÉÉS DANS {TARGET_DIR} :")
+            logger.info(f"\nFICHIERS CRÉÉS DANS {TARGET_DIR} :")
             for file in output_files[:10]:  # Afficher les 10 premiers
                 logger.info(f"  - {file}")
             if len(output_files) > 10:
                 logger.info(f"  ... et {len(output_files) - 10} autres fichiers")
-            logger.info(f"📊 Total fichiers créés : {len(output_files)}")
+            logger.info(f"Total fichiers créés : {len(output_files)}")
         
         # Déterminer le succès
         if success_count > 0 and error_count == 0 and not_found_count == 0:
-            logger.info("🎉 TRAITEMENT TERMINÉ AVEC SUCCÈS !")
+            logger.info("TRAITEMENT TERMINÉ AVEC SUCCÈS !")
             return True
         elif success_count > 0:
-            logger.warning("⚠️  TRAITEMENT TERMINÉ AVEC DES AVERTISSEMENTS")
+            logger.warning("TRAITEMENT TERMINÉ AVEC DES AVERTISSEMENTS")
             return True
         else:
-            logger.error("❌ AUCUNE IMAGE N'A PU ÊTRE TRAITÉE")
+            logger.error("AUCUNE IMAGE N'A PU ÊTRE TRAITÉE")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Erreur critique : {e}")
+        logger.error(f"Erreur critique : {e}")
         return False
 
 if __name__ == "__main__":

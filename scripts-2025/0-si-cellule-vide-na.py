@@ -63,5 +63,5 @@ for sheet_name in input_workbook.sheetnames:
 # 7. Sauvegarder le nouveau fichier Excel avec les données modifiées et le formatage original
 input_workbook.save(output_filename)
 
-print(f"✅ Fichier sauvegardé sous : {output_filename}")
+print(f"Fichier sauvegardé sous : {output_filename}")
 print("Traitement terminé avec succès !")

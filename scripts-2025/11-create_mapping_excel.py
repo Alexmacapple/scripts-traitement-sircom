@@ -60,26 +60,26 @@ def get_csv_headers(filepath):
 def create_mapping():
     """Créer le mapping entre les colonnes Excel et CSV"""
     
-    print("📊 Création du mapping des colonnes...")
+    print("Création du mapping des colonnes...")
     
     # Lire les en-têtes Excel
     excel_file = "1-header-lettres-colonne-excel-mapping-excel.xlsx"
     if not os.path.exists(excel_file):
-        print(f"❌ Erreur : Le fichier {excel_file} n'existe pas")
-        print("💡 Assurez-vous d'avoir exécuté les scripts de traitement")
+        print(f"Erreur : Le fichier {excel_file} n'existe pas")
+        print("Assurez-vous d'avoir exécuté les scripts de traitement")
         return
 
     excel_headers = get_excel_headers(excel_file)
-    print(f"✅ {len(excel_headers)} colonnes Excel trouvées")
+    print(f"{len(excel_headers)} colonnes Excel trouvées")
 
     # Lire les en-têtes CSV
     csv_file = "9-final-sircom-indesign-utf16.csv"
     if not os.path.exists(csv_file):
-        print(f"❌ Erreur : Le fichier {csv_file} n'existe pas")
+        print(f"Erreur : Le fichier {csv_file} n'existe pas")
         return
     
     csv_headers = get_csv_headers(csv_file)
-    print(f"✅ {len(csv_headers)} colonnes CSV trouvées")
+    print(f"{len(csv_headers)} colonnes CSV trouvées")
     
     # Créer le mapping
     mapping_data = []
@@ -123,7 +123,7 @@ def create_mapping():
     # Sauvegarder en CSV
     csv_output = "mapping_colonnes_charles.csv"
     df.to_csv(csv_output, index=False, encoding='utf-8-sig')
-    print(f"✅ Fichier CSV créé : {csv_output}")
+    print(f"Fichier CSV créé : {csv_output}")
     
     # Sauvegarder en Excel avec formatage
     excel_output = "mapping_colonnes_charles.xlsx"
@@ -163,16 +163,16 @@ def create_mapping():
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
     
-    print(f"✅ Fichier Excel créé : {excel_output}")
+    print(f"Fichier Excel créé : {excel_output}")
     
     # Afficher un résumé
-    print(f"\n📋 Résumé du mapping :")
+    print(f"\nRésumé du mapping :")
     print(f"  - Total de colonnes : {len(mapping_data)}")
     print(f"  - Colonnes demandées par Charles : {len([m for m in mapping_data if m['Demandé par Charles'] == 'Oui'])}")
     print(f"  - Colonnes non mappées : {len([m for m in mapping_data if m['Colonne CSV Final'] == 'Non mappé'])}")
     
     # Afficher les colonnes demandées par Charles
-    print(f"\n🎯 Colonnes demandées par Charles :")
+    print(f"\nColonnes demandées par Charles :")
     for m in mapping_data:
         if m['Demandé par Charles'] == 'Oui':
             print(f"  - {m['Colonne Excel Original']} → {m['Colonne CSV Final']}")

@@ -16,24 +16,24 @@ file_path = "Sircom_vide_na.xlsx"
 
 # 2. Vérifier que le fichier source existe
 if not os.path.exists(file_path):
-    print(f"❌ Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
-    print("💡 Assurez-vous d'avoir exécuté le script '0-si-cellule-vide-na.py' au préalable.")
+    print(f"Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
+    print("Assurez-vous d'avoir exécuté le script '0-si-cellule-vide-na.py' au préalable.")
     exit(1)
 
-print(f"📂 Traitement du fichier : {file_path}")
+print(f"Traitement du fichier : {file_path}")
 
 # 3. Ouvrir le fichier Excel
 try:
     workbook = openpyxl.load_workbook(file_path)
-    print(f"✅ Fichier ouvert avec succès")
+    print(f"Fichier ouvert avec succès")
 except Exception as e:
-    print(f"❌ Erreur lors de l'ouverture du fichier : {e}")
+    print(f"Erreur lors de l'ouverture du fichier : {e}")
     exit(1)
 
 try:
     # 4. Parcourir tous les onglets
     for sheet_name in workbook.sheetnames:
-        print(f"🔄 Traitement de la feuille : {sheet_name}")
+        print(f"Traitement de la feuille : {sheet_name}")
         sheet = workbook[sheet_name]
         
         # Parcourir les en-têtes de colonnes (première ligne) et ajouter la lettre de colonne
@@ -43,18 +43,18 @@ try:
                     letter = openpyxl.utils.get_column_letter(cell.column)
                     original_value = str(cell.value)
                     cell.value = f"{letter}_{original_value}"
-                    print(f"  📝 Colonne {letter}: '{original_value}' → '{cell.value}'")
+                    print(f"  Colonne {letter}: '{original_value}' → '{cell.value}'")
     
     # 5. Enregistrer le fichier modifié
     output_filename = "1-header-lettres-colonne-excel-mapping-excel.xlsx"
     workbook.save(output_filename)
-    print(f"✅ Fichier sauvegardé sous : {output_filename}")
-    print("🎉 Modification terminée avec succès !")
+    print(f"Fichier sauvegardé sous : {output_filename}")
+    print("Modification terminée avec succès !")
 
 except Exception as e:
-    print(f"❌ Erreur lors du traitement : {e}")
+    print(f"Erreur lors du traitement : {e}")
     exit(1)
 finally:
     # 6. Fermer le fichier Excel
     workbook.close()
-    print("📁 Fichier fermé")
+    print("Fichier fermé")
