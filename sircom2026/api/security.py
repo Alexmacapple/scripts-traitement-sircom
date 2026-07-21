@@ -69,12 +69,17 @@ class AccessPolicy(Protocol):
 
 
 class LocalAccessPolicy:
+    def __init__(self, bind_host: str = "127.0.0.1") -> None:
+        self.bind_host = bind_host
+
     def authorize(
         self,
         actor: ActorContext,
         action: AccessAction,
         resource: AccessResource,
     ) -> AccessDecision:
+        if not _is_loopback_bind_host(self.bind_host):
+            return AccessDecision.deny("bind_host_not_loopback")
         return AccessDecision.allow()
 
 
@@ -118,3 +123,10 @@ def _string_path_param(request: Request, name: str) -> str | None:
     if value is None:
         return None
     return str(value)
+
+
+def _is_loopback_bind_host(bind_host: str) -> bool:
+    normalized = bind_host.strip().lower()
+    if normalized.startswith("[") and normalized.endswith("]"):
+        normalized = normalized[1:-1]
+    return normalized in {"127.0.0.1", "localhost", "::1"}

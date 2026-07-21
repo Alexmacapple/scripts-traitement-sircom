@@ -102,7 +102,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.settings_error = settings_error
-    app.state.access_policy = access_policy or LocalAccessPolicy()
+    app.state.access_policy = access_policy or LocalAccessPolicy(settings.bind_host)
     register_error_handlers(app)
     app.include_router(artifacts_router)
     app.include_router(lots_router)

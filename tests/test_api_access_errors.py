@@ -25,14 +25,14 @@ from sircom2026.app import create_app
 from sircom2026.config import load_settings
 
 
-def make_settings(tmpdir: Path):
-    return load_settings(
-        {
-            "SIRCOM_DATA_DIR": str(tmpdir / "data"),
-            "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
-            "SIRCOM_DISK_FREE_MIN_MB": "0",
-        }
-    )
+def make_settings(tmpdir: Path, **overrides: str):
+    env = {
+        "SIRCOM_DATA_DIR": str(tmpdir / "data"),
+        "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
+        "SIRCOM_DISK_FREE_MIN_MB": "0",
+    }
+    env.update(overrides)
+    return load_settings(env)
 
 
 @dataclass
@@ -78,6 +78,37 @@ class ApiAccessErrorsTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("limits", response.json())
+
+    def test_local_access_policy_refuses_non_loopback_bind_without_auth(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp), SIRCOM_BIND_HOST="0.0.0.0")
+            app = create_app(settings)
+
+            @app.get("/api/test/non-loopback/lots/{lot_id}")
+            async def non_loopback_probe(
+                _actor: ActorContext = Depends(require_action(AccessAction.LOT_READ)),
+            ) -> dict[str, str]:
+                return {"status": "visible"}
+
+            client = TestClient(app)
+            health_response = client.get("/health")
+            response = client.get("/api/test/non-loopback/lots/lot-expose-secret")
+
+        payload = response.json()
+        serialized = str(payload)
+        self.assertEqual(health_response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            payload,
+            {
+                "error": {
+                    "code": "SIRCOM_ACCESS_DENIED",
+                    "message": "Acces refuse.",
+                }
+            },
+        )
+        self.assertNotIn("lot-expose-secret", serialized)
+        self.assertNotIn(str(settings.data_dir), serialized)
 
     def test_policy_can_refuse_access_without_changing_route(self) -> None:
         policy = RecordingPolicy({AccessAction.CONFIG_READ})
