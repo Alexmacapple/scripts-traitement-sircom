@@ -146,14 +146,14 @@
 - [x] Placer `imageid` et `@pathimg` juste après `id_dossier`.
 - [x] Supprimer et compter les lignes sans `id_dossier`.
 - [x] Supprimer et compter les colonnes entièrement vides, même sélectionnées.
-- [ ] Normaliser les cellules :
-  - [ ] retours ligne convertis en `<br>` ;
-  - [ ] espaces début/fin supprimés ;
-  - [ ] espaces multiples réduits ;
-  - [ ] champs sensibles préservés en texte.
-- [ ] Convertir les dates valides en `dd/mm/yyyy` pour les colonnes détectées ou
+- [x] Normaliser les cellules :
+  - [x] retours ligne convertis en `<br>` ;
+  - [x] espaces début/fin supprimés ;
+  - [x] espaces multiples réduits ;
+  - [x] champs sensibles préservés en texte.
+- [x] Convertir les dates valides en `dd/mm/yyyy` pour les colonnes détectées ou
   confirmées comme dates.
-- [ ] Signaler les dates invalides ou absentes tout en gardant des cellules vides
+- [x] Signaler les dates invalides ou absentes tout en gardant des cellules vides
   dans le CSV final.
 - [ ] Implémenter la proposition de tri région puis département avec validation
   humaine.

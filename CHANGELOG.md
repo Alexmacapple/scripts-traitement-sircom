@@ -42,6 +42,10 @@
   `id_dossier`, planification worker après mapping validé, artefact JSON de
   table fusionnée, suppression comptée des lignes sans ID et des colonnes
   entièrement vides.
+- Implémentation du ticket 14 Sircom 2026 : normalisation du contenu après
+  fusion, conversion des retours ligne en `<br>`, trim/réduction des espaces,
+  dates valides en `dd/mm/yyyy`, alertes pour dates invalides ou absentes et
+  préservation texte des champs sensibles.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

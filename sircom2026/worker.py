@@ -24,6 +24,7 @@ class JobResult:
     output_fingerprint: str | None = None
     expected_input_fingerprint: str | None = None
     final_step_status: str | None = None
+    enqueue_next_steps: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -260,6 +261,24 @@ class LocalWorker:
                     run_id=job["run_id"],
                     with_warnings=job_result.with_warnings,
                 )
+                if job_result.enqueue_next_steps:
+                    from sircom2026.invalidation import step_input_fingerprint
+
+                    for next_step_key in job_result.enqueue_next_steps:
+                        next_input_fingerprint = step_input_fingerprint(
+                            repositories,
+                            lot_id=job["lot_id"],
+                            step_key=next_step_key,
+                        )
+                        enqueue_job(
+                            repositories,
+                            lot_id=job["lot_id"],
+                            step_key=next_step_key,
+                            idempotency_key=(
+                                f"{next_step_key}:{job['step_key']}:{job['run_id']}"
+                            ),
+                            input_fingerprint=next_input_fingerprint,
+                        )
             repositories.events.create(
                 lot_id=job["lot_id"],
                 step_key=job["step_key"],
