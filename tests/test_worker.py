@@ -208,6 +208,56 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertEqual(first["lease_owner"], "worker-a")
             self.assertEqual(first["lease_version"], 1)
 
+    def test_worker_uses_handler_order_when_jobs_share_timestamp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot priority")
+                repositories.steps.prepare_run(
+                    lot_id=lot["id"],
+                    step_key="inspection_images",
+                    run_id="run_inspection_priority",
+                    input_fingerprint="input_inspection",
+                )
+                repositories.jobs.create(
+                    lot_id=lot["id"],
+                    step_key="inspection_images",
+                    run_id="run_inspection_priority",
+                    idempotency_key="inspection:priority",
+                    job_id="job_a_inspection_priority",
+                )
+                repositories.steps.prepare_run(
+                    lot_id=lot["id"],
+                    step_key="verification_csv_indesign",
+                    run_id="run_csv_priority",
+                    input_fingerprint="input_csv",
+                )
+                repositories.jobs.create(
+                    lot_id=lot["id"],
+                    step_key="verification_csv_indesign",
+                    run_id="run_csv_priority",
+                    idempotency_key="csv:priority",
+                    job_id="job_z_csv_priority",
+                )
+                repositories.connection.execute(
+                    "UPDATE jobs SET created_at = ?, updated_at = ? WHERE lot_id = ?",
+                    ("2026-07-21T00:00:00+00:00", "2026-07-21T00:00:00+00:00", lot["id"]),
+                )
+
+            worker = LocalWorker(
+                database,
+                {
+                    "verification_csv_indesign": lambda _context: JobResult(),
+                    "inspection_images": lambda _context: JobResult(),
+                },
+                worker_id="worker-priority",
+                lease_seconds=60,
+            )
+            leased = worker.acquire_next()
+
+            self.assertIsNotNone(leased)
+            self.assertEqual(leased.step_key, "verification_csv_indesign")
+
     def test_lease_prevents_two_connections_from_acquiring_the_same_job(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             sqlite_path = Path(tmp) / "sircom.sqlite3"

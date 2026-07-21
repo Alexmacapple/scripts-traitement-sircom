@@ -52,6 +52,7 @@ from sircom2026.mapping import (
     save_profile_from_validated_mapping,
     validate_mapping,
 )
+from sircom2026.reports import ReportsNotReady, get_persisted_reports
 from sircom2026.sorting import (
     SortDecisionError,
     get_sort_payload,
@@ -799,6 +800,41 @@ async def read_lot_csv_export(
     return {
         "preview": result["preview"],
         "artifact": mapping_artifact_response(result["artifact"], lot_id),
+    }
+
+
+@router.get("/{lot_id}/reports")
+async def read_lot_reports(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.session() as repositories:
+        try:
+            reports = get_persisted_reports(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+        except ReportsNotReady as exc:
+            raise ApiError(
+                409,
+                "SIRCOM_REPORTS_NOT_READY",
+                "Rapports non disponibles.",
+            ) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {
+        "business_report_artifact": mapping_artifact_response(
+            reports.business_artifact,
+            lot_id,
+        ),
+        "technical_report_artifact": mapping_artifact_response(
+            reports.technical_artifact,
+            lot_id,
+        ),
     }
 
 

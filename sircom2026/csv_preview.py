@@ -109,6 +109,12 @@ def validate_csv_preview(
         input_fingerprint=preview["input_fingerprint"],
     )
     if existing is not None:
+        _enqueue_ready_auto_steps(
+            repositories,
+            lot_id=lot_id,
+            source_step_key=CSV_PREVIEW_STEP_KEY,
+            source_run_id=str(existing["csv_artifact"]["run_id"]),
+        )
         return CsvPreviewValidationResult(
             preview=existing["preview"],
             preview_artifact=existing["preview_artifact"],
@@ -287,6 +293,12 @@ def validate_csv_preview(
             "status": "termine_avec_alertes" if public_preview["warnings"] else "termine",
             "step_key": CSV_PREVIEW_STEP_KEY,
         },
+    )
+    _enqueue_ready_auto_steps(
+        repositories,
+        lot_id=lot_id,
+        source_step_key=CSV_PREVIEW_STEP_KEY,
+        source_run_id=run_id,
     )
     return CsvPreviewValidationResult(
         preview=public_preview,
@@ -674,6 +686,35 @@ def _require_export_testable(repositories: Repositories, *, lot_id: str) -> None
             "SIRCOM_CSV_EXPORT_PREREQUISITES_MISSING",
             "L'export CSV n'a pas encore tous ses prérequis testables.",
             details={"missing_steps": missing},
+        )
+
+
+def _enqueue_ready_auto_steps(
+    repositories: Repositories,
+    *,
+    lot_id: str,
+    source_step_key: str,
+    source_run_id: str,
+) -> None:
+    from sircom2026.pipeline import ready_auto_enqueue_step_keys
+    from sircom2026.worker import enqueue_job
+
+    for step_key in ready_auto_enqueue_step_keys(
+        repositories,
+        lot_id=lot_id,
+        source_step_key=source_step_key,
+    ):
+        input_fingerprint = step_input_fingerprint(
+            repositories,
+            lot_id=lot_id,
+            step_key=step_key,
+        )
+        enqueue_job(
+            repositories,
+            lot_id=lot_id,
+            step_key=step_key,
+            idempotency_key=f"{step_key}:{source_step_key}:{source_run_id}",
+            input_fingerprint=input_fingerprint,
         )
 
 

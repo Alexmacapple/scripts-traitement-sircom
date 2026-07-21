@@ -960,9 +960,20 @@ class JobsRepository:
         now = _now()
         lease_until = _now_plus(seconds=lease_seconds)
         step_filter = ""
+        priority_order = "jobs.created_at ASC, jobs.id ASC"
         params: list[Any] = [now]
         if step_keys is not None:
             step_filter = f"AND jobs.step_key IN ({_placeholders(len(step_keys))})"
+            params.extend(step_keys)
+            priority_cases = " ".join(
+                f"WHEN ? THEN {index}"
+                for index, _step_key in enumerate(step_keys)
+            )
+            priority_order = (
+                "jobs.created_at ASC, "
+                f"CASE jobs.step_key {priority_cases} ELSE {len(step_keys)} END ASC, "
+                "jobs.id ASC"
+            )
             params.extend(step_keys)
         row = self.connection.execute(
             f"""
@@ -985,7 +996,7 @@ class JobsRepository:
               AND etapes.status NOT IN ('annule', 'termine', 'termine_avec_alertes', 'bloque')
               AND etapes.current_run_id = jobs.run_id
               {step_filter}
-            ORDER BY jobs.created_at ASC, jobs.id ASC
+            ORDER BY {priority_order}
             LIMIT 1
             """,
             tuple(params),

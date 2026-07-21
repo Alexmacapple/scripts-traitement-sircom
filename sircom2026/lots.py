@@ -82,6 +82,7 @@ EVENT_TYPE_LABELS = {
     "images.inspection_completed": "Images inspectées",
     "images.manual_resolutions_saved": "Résolutions images enregistrées",
     "images.matching_completed": "Images associées",
+    "reports.generated": "Rapports générés",
     "lot.created": "Lot créé",
     "lot.deleted": "Suppression logique demandée",
     "artifact.commit_rejected": "Commit d'artefact refusé",

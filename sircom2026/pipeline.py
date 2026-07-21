@@ -24,7 +24,7 @@ V1_INVALIDATION_DAG: dict[str, tuple[str, ...]] = {
     "purge_retention": (),
 }
 V1_EXTERNAL_STEP_KEYS = ("purge_retention",)
-V1_AUTO_ENQUEUE_STEP_KEYS = ("matching_images",)
+V1_AUTO_ENQUEUE_STEP_KEYS = ("matching_images", "rapports")
 V1_AUTO_ENQUEUE_PARENT_STATUSES = ("termine", "termine_avec_alertes")
 
 
