@@ -246,7 +246,10 @@ class WebSocleTest(unittest.TestCase):
         self.assertIn('class="fr-footer__bottom"', html)
         self.assertIn("Accessibilité : non auditée", html)
         self.assertIn("/static/dsfr/1.14.4/dsfr.min.css", html)
+        self.assertIn("/static/dsfr/1.14.4/utility/icons/icons.min.css", html)
         self.assertIn("/static/dsfr/1.14.4/dsfr.module.min.js", html)
+        self.assertIn('class="fr-callout fr-icon-info-line"', html)
+        self.assertNotIn("fr-icon-information-line", html)
         self.assertNotIn("cdn.jsdelivr.net", html)
         self.assertNotIn('href="#"', html)
         self.assertNotIn("conforme RGAA", html)
@@ -256,24 +259,38 @@ class WebSocleTest(unittest.TestCase):
             client = TestClient(create_app(make_settings(Path(tmp))))
 
             css_response = client.get("/static/dsfr/1.14.4/dsfr.min.css")
+            icons_response = client.get("/static/dsfr/1.14.4/utility/icons/icons.min.css")
             js_response = client.get("/static/dsfr/1.14.4/dsfr.module.min.js")
 
         self.assertEqual(css_response.status_code, 200)
         self.assertIn("fr-header", css_response.text)
+        self.assertEqual(icons_response.status_code, 200)
+        self.assertIn("fr-icon-info-line", icons_response.text)
         self.assertEqual(js_response.status_code, 200)
 
     def test_local_dsfr_css_references_existing_assets(self) -> None:
         dsfr_root = Path(__file__).parents[1] / "sircom2026" / "static" / "dsfr" / "1.14.4"
-        css = (dsfr_root / "dsfr.min.css").read_text(encoding="utf-8")
-        referenced_paths = set()
+        css_files = [dsfr_root / "dsfr.min.css", dsfr_root / "utility" / "icons" / "icons.min.css"]
+        missing_paths = []
 
-        for match in re.finditer(r"url\(([^)]+)\)", css):
-            raw_url = match.group(1).strip().strip("\"'")
-            if raw_url.startswith("data:") or "://" in raw_url:
-                continue
-            referenced_paths.add(raw_url)
+        for css_file in css_files:
+            css = css_file.read_text(encoding="utf-8")
+            referenced_paths = set()
+            for match in re.finditer(r"url\(([^)]+)\)", css):
+                raw_url = match.group(1).strip().strip("\"'")
+                if raw_url.startswith("data:") or "://" in raw_url:
+                    continue
+                referenced_paths.add(raw_url)
+            missing_paths.extend(
+                f"{css_file.relative_to(dsfr_root)} -> {path}"
+                for path in referenced_paths
+                if not (css_file.parent / path).exists()
+            )
 
-        missing_paths = sorted(path for path in referenced_paths if not (dsfr_root / path).exists())
+        self.assertIn(
+            "fr--info-line.svg",
+            (dsfr_root / "utility" / "icons" / "icons.min.css").read_text(encoding="utf-8"),
+        )
         self.assertEqual(missing_paths, [])
 
 
