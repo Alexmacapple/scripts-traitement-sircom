@@ -125,7 +125,7 @@
   déplacer la logique métier dans la route.
 - [x] Persister le diagnostic Excel et les problèmes structurés sans exposer de
   valeurs métier.
-- [ ] Vérifier que les refus V1 produisent un message avec titre, cause,
+- [x] Vérifier que les refus V1 produisent un message avec titre, cause,
   emplacement, action et détails techniques dépliables.
 - [ ] Implémenter le mapping par défaut avec toutes les colonnes de tous les
   onglets utiles.

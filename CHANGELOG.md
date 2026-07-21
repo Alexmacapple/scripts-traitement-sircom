@@ -31,6 +31,9 @@
   worker local, résultat JSON persisté comme artefact, route
   `GET /api/lots/{lot_id}/excel/diagnostic` et problèmes structurés
   bloquants/alertes/informations.
+- Implémentation du ticket 11 Sircom 2026 : panneau DSFR de diagnostic Excel
+  dans le détail de lot, messages actionnables par niveau, détails techniques
+  dépliables et preuves UI/API sur Excels synthétiques refusés ou avec alertes.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

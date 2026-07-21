@@ -56,6 +56,7 @@ V1_STEPS = (
 STEP_DEFINITIONS_BY_KEY = {step.key: step for step in V1_STEPS}
 STEP_ORDER = {step.key: index for index, step in enumerate(V1_STEPS)}
 STEP_DONE_STATUSES = {"termine", "termine_avec_alertes", "ignore"}
+EXCEL_DIAGNOSTIC_STEP_KEY = "diagnostic_excel"
 PROBLEM_SEVERITY_LABELS = {
     "bloquant": "Bloquant",
     "alerte": "Alerte",
@@ -213,11 +214,16 @@ def serialize_lot(
     serialized_steps = [serialize_step(step) for step in sorted_steps(steps)]
     serialized_problems = [serialize_problem(problem) for problem in problems or []]
     serialized_events = [serialize_event(event) for event in events or []]
+    excel_diagnostic = build_excel_diagnostic_view(
+        steps=serialized_steps,
+        problems=serialized_problems,
+    )
     return {
         **serialize_lot_summary(lot),
         "steps": serialized_steps,
         "problems": serialized_problems,
         "problem_groups": group_problems_by_severity(serialized_problems),
+        "excel_diagnostic": excel_diagnostic,
         "events": serialized_events,
         "counters": {
             **lot_counters(lot),
@@ -269,6 +275,134 @@ def serialize_step(step: dict[str, Any]) -> dict[str, Any]:
         "actions": {
             "can_retry": step["status"] in {"echoue", "bloque", "invalide"},
         },
+    }
+
+
+def build_excel_diagnostic_view(
+    *,
+    steps: list[dict[str, Any]],
+    problems: list[dict[str, Any]],
+) -> dict[str, Any]:
+    step = next(
+        (candidate for candidate in steps if candidate["key"] == EXCEL_DIAGNOSTIC_STEP_KEY),
+        None,
+    )
+    diagnostic_problems = [
+        problem
+        for problem in problems
+        if problem["step_key"] == EXCEL_DIAGNOSTIC_STEP_KEY
+    ]
+    groups = group_problems_by_severity(diagnostic_problems)
+    counts = {
+        severity: len(group["items"])
+        for severity, group in groups.items()
+    }
+    status = str(step["status"]) if step else "non_demarre"
+    summary = excel_diagnostic_summary(status, counts)
+    return {
+        "step": step,
+        "status": status,
+        "status_label": (
+            str(step["status_label"])
+            if step
+            else STEP_STATUS_LABELS["non_demarre"]
+        ),
+        "problems": diagnostic_problems,
+        "problem_groups": groups,
+        "counts": counts,
+        "has_problems": bool(diagnostic_problems),
+        **summary,
+    }
+
+
+def excel_diagnostic_summary(
+    status: str,
+    counts: dict[str, int],
+) -> dict[str, Any]:
+    if status == "bloque" or counts["bloquant"]:
+        return {
+            "alert_class": "error",
+            "badge_class": "error",
+            "title": "Excel refusé",
+            "cause": (
+                "La transformation est bloquée tant que les problèmes bloquants "
+                "restent ouverts."
+            ),
+            "action": "Corriger le fichier Excel puis déposer une nouvelle version.",
+            "note": None,
+            "can_continue": False,
+        }
+    if status == "en_cours":
+        return {
+            "alert_class": "info",
+            "badge_class": "info",
+            "title": "Diagnostic Excel en cours",
+            "cause": "Le fichier Excel est en cours d'analyse.",
+            "action": "Attendre la fin du traitement, puis actualiser la page.",
+            "note": "Diagnostic non disponible tant que le worker n'a pas terminé.",
+            "can_continue": False,
+        }
+    if status == "termine_avec_alertes" or (status == "termine" and counts["alerte"]):
+        return {
+            "alert_class": "warning",
+            "badge_class": "warning",
+            "title": "Excel importable avec alertes",
+            "cause": (
+                "Aucun problème bloquant n'empêche la transformation, mais des "
+                "alertes doivent être vérifiées."
+            ),
+            "action": "Vous pouvez continuer jusqu'au prochain point de validation.",
+            "note": None,
+            "can_continue": True,
+        }
+    if status == "termine":
+        return {
+            "alert_class": "success",
+            "badge_class": "success",
+            "title": "Excel importable",
+            "cause": "Aucun problème bloquant n'a été détecté.",
+            "action": "Continuer vers le prochain point de validation.",
+            "note": None,
+            "can_continue": True,
+        }
+    if status in {"pret", "invalide"}:
+        return {
+            "alert_class": "info",
+            "badge_class": "info",
+            "title": "Diagnostic Excel en attente",
+            "cause": "Le fichier Excel est déposé et le diagnostic est prêt à être lancé.",
+            "action": "Attendre la fin du traitement, puis actualiser la page.",
+            "note": "Diagnostic non disponible tant que le worker n'a pas terminé.",
+            "can_continue": False,
+        }
+    if status == "echoue":
+        return {
+            "alert_class": "error",
+            "badge_class": "error",
+            "title": "Diagnostic Excel échoué",
+            "cause": "Le diagnostic s'est interrompu sur une erreur technique.",
+            "action": "Relancer le diagnostic ou consulter les logs techniques.",
+            "note": None,
+            "can_continue": False,
+        }
+    if status == "annule":
+        return {
+            "alert_class": "warning",
+            "badge_class": "warning",
+            "title": "Diagnostic Excel annulé",
+            "cause": "Le traitement du diagnostic a été arrêté.",
+            "action": "Relancer le diagnostic si le lot doit continuer.",
+            "note": None,
+            "can_continue": False,
+        }
+    return {
+        "alert_class": "info",
+        "badge_class": "info",
+        "title": "Diagnostic Excel non démarré",
+        "cause": "Aucun Excel n'a encore été déposé pour ce lot.",
+        "action": "Déposer un fichier Excel pour lancer le diagnostic.",
+        "note": None,
+        "can_continue": False,
     }
 
 

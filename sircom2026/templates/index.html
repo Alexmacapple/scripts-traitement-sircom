@@ -246,6 +246,110 @@
                 </section>
               {% endif %}
 
+              {% set excel_diagnostic = selected_lot.excel_diagnostic if selected_lot.excel_diagnostic is defined else none %}
+              {% if excel_diagnostic %}
+                <section class="fr-mt-5v" aria-labelledby="excel-diagnostic-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="excel-diagnostic-title">Diagnostic Excel</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      <p class="fr-badge fr-badge--{{ excel_diagnostic.badge_class }} fr-badge--sm">
+                        {{ excel_diagnostic.status_label }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="fr-alert fr-alert--{{ excel_diagnostic.alert_class }} fr-mt-2v" role="alert">
+                    <h4 class="fr-alert__title">{{ excel_diagnostic.title }}</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      {{ excel_diagnostic.cause }}
+                    </p>
+                    <p class="fr-mb-1v">
+                      <strong>Action attendue :</strong>
+                      {{ excel_diagnostic.action }}
+                    </p>
+                    {% if excel_diagnostic.note %}
+                      <p class="fr-text--sm fr-mb-0">{{ excel_diagnostic.note }}</p>
+                    {% endif %}
+                  </div>
+
+                  {% if excel_diagnostic.has_problems %}
+                    <ul class="fr-badges-group fr-mt-3v" aria-label="Synthèse des problèmes Excel">
+                      {% for _severity, group in excel_diagnostic.problem_groups.items() %}
+                        <li>
+                          <p class="fr-badge fr-badge--{{ group['alert_class'] }} fr-badge--sm">
+                            {{ group['label'] }} : {{ excel_diagnostic.counts[group['severity']] }}
+                          </p>
+                        </li>
+                      {% endfor %}
+                    </ul>
+
+                    {% for _severity, group in excel_diagnostic.problem_groups.items() %}
+                      {% if group['items'] %}
+                        <section class="fr-mt-4v" aria-labelledby="excel-diagnostic-{{ group['severity'] }}-title">
+                          <h4 id="excel-diagnostic-{{ group['severity'] }}-title">
+                            {{ group['label'] }}
+                          </h4>
+                          <ul class="fr-raw-list">
+                            {% for problem in group['items'] %}
+                              <li class="fr-py-3v">
+                                <p class="fr-mb-1v">
+                                  <span class="fr-badge fr-badge--{{ problem.alert_class }} fr-badge--sm">
+                                    {{ problem.severity_label }}
+                                  </span>
+                                  <strong>{{ problem.title }}</strong>
+                                </p>
+                                <p class="fr-mb-1v">
+                                  <strong>Cause :</strong>
+                                  {{ problem.cause }}
+                                </p>
+                                <p class="fr-mb-1v">
+                                  <strong>Emplacement :</strong>
+                                  {{ problem.location_label }}
+                                </p>
+                                <p class="fr-mb-1v">
+                                  <strong>Action attendue :</strong>
+                                  {{ problem.action }}
+                                </p>
+                                {% if problem.technical_items %}
+                                  <div class="fr-accordions-group fr-mt-2v">
+                                    <section class="fr-accordion">
+                                      <h5 class="fr-accordion__title">
+                                        <button
+                                          class="fr-accordion__btn"
+                                          aria-expanded="false"
+                                          aria-controls="diagnostic-tech-{{ problem.id }}"
+                                          type="button"
+                                        >
+                                          Détails techniques
+                                        </button>
+                                      </h5>
+                                      <div class="fr-collapse" id="diagnostic-tech-{{ problem.id }}">
+                                        <dl class="fr-mt-2v">
+                                          {% for key, value in problem.technical_items %}
+                                            <dt>{{ key }}</dt>
+                                            <dd>{{ value }}</dd>
+                                          {% endfor %}
+                                        </dl>
+                                      </div>
+                                    </section>
+                                  </div>
+                                {% endif %}
+                                <p class="fr-text--xs fr-mt-1v fr-mb-0">
+                                  Code {{ problem.code }}.
+                                </p>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </section>
+                      {% endif %}
+                    {% endfor %}
+                  {% endif %}
+                </section>
+              {% endif %}
+
               <h3 class="fr-mt-5v">Timeline</h3>
               <ol class="fr-raw-list">
                 {% for step in selected_lot.steps %}
@@ -277,7 +381,7 @@
                 {% if selected_lot.problems %}
                   {% for _severity, group in selected_lot.problem_groups.items() %}
                     {% if group['items'] %}
-                      <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-3v">
+                      <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-3v" role="alert">
                         <h4 class="fr-alert__title">{{ group['label'] }}</h4>
                         <ul class="fr-raw-list">
                           {% for problem in group['items'] %}

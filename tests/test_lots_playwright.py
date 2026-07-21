@@ -163,6 +163,10 @@ class LotsPlaywrightTest(unittest.TestCase):
                 self.assertEqual(worker_result.outcome, "succeeded")
                 page.goto(page.url, wait_until="networkidle")
                 self.assertTrue(page.get_by_text("Excel diagnostiqué").first.is_visible())
+                self.assertTrue(
+                    page.get_by_role("heading", name="Diagnostic Excel").is_visible()
+                )
+                self.assertTrue(page.get_by_text("Excel importable").first.is_visible())
                 self.assertTrue(page.get_by_role("heading", name="Timeline").is_visible())
                 assert_png_screenshot(self, page.screenshot(full_page=True))
 

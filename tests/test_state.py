@@ -15,6 +15,7 @@ from sircom2026.state import (
     fail_step,
     record_problem,
     require_human_validation,
+    transition_step,
 )
 
 
@@ -122,6 +123,37 @@ class BusinessStateTest(unittest.TestCase):
                 detail["problem_groups"]["alerte"]["items"][0]["technical"],
                 {"hidden_columns": 1},
             )
+
+    def test_excel_diagnostic_view_keeps_non_final_status_before_warnings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot diagnostic en cours")
+                transition_step(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="diagnostic_excel",
+                    status="en_cours",
+                    run_id="run_diag_current",
+                )
+                record_problem(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="diagnostic_excel",
+                    run_id="run_diag_current",
+                    severity="alerte",
+                    code="SIRCOM_EXCEL_ID_BLANK_ROWS",
+                    title="Lignes sans id_dossier",
+                    cause="Certaines lignes n'ont pas d'id_dossier.",
+                    action="Compléter ces identifiants ou accepter leur suppression.",
+                    location={"onglet": "Dossiers", "colonne": "A"},
+                    technical={"rows_count": 1},
+                )
+                detail = get_lot_detail(repositories, lot["id"])
+
+            excel_diagnostic = detail["excel_diagnostic"]
+            self.assertEqual(excel_diagnostic["title"], "Diagnostic Excel en cours")
+            self.assertFalse(excel_diagnostic["can_continue"])
 
     def test_human_validation_sets_step_and_lot_to_action_requise(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

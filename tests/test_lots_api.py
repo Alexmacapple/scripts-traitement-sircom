@@ -19,6 +19,8 @@ from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import V1_STEPS
 from sircom2026.state import record_problem, require_human_validation
+from sircom2026.synthetic_excels import create_synthetic_excels
+from sircom2026.worker_runner import run_worker_once
 
 
 def make_settings(tmpdir: Path):
@@ -245,6 +247,7 @@ class LotsUiTest(unittest.TestCase):
             lot = client.post("/api/lots", json={"title": "Lot ancien rendu"}).json()["lot"]
             lot_id = lot["id"]
             legacy_lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
+            legacy_lot.pop("excel_diagnostic", None)
             for step in legacy_lot["steps"]:
                 step.pop("actions", None)
 
@@ -254,6 +257,7 @@ class LotsUiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Lot ancien rendu", response.text)
         self.assertIn("Timeline", response.text)
+        self.assertNotIn("Diagnostic Excel", response.text)
 
     def test_home_ui_hides_delete_for_deleted_lot_and_structures_errors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -331,6 +335,111 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("Problème enregistré", html)
         self.assertIn("Validation humaine attendue", html)
         self.assertNotIn(str(Path(tmp)), html)
+
+    def test_home_ui_renders_excel_diagnostic_pending_state_after_upload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            client = TestClient(create_app(make_settings(tmpdir)))
+            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            lot_id = client.post("/api/lots", json={"title": "Lot diagnostic attente"}).json()[
+                "lot"
+            ]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file(fixtures["valid_multi_tabs"]),
+                headers={"X-Idempotency-Key": "ui-diagnostic-pending"},
+            )
+            response = client.get(f"/?lot_id={lot_id}")
+
+        html = response.text
+        self.assertEqual(upload.status_code, 202)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Diagnostic Excel", html)
+        self.assertIn("Diagnostic Excel en attente", html)
+        self.assertIn("Le fichier Excel est déposé et le diagnostic est prêt à être lancé.", html)
+        self.assertIn("Attendre la fin du traitement, puis actualiser la page.", html)
+        self.assertIn("Diagnostic non disponible tant que le worker n&#39;a pas terminé.", html)
+        self.assertNotIn(str(tmpdir), html)
+
+    def test_home_ui_renders_refused_excel_diagnostic_without_hiding_other_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["multiple_blockers"])
+            lot_id = client.post("/api/lots", json={"title": "Lot Excel refuse"}).json()[
+                "lot"
+            ]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file(fixtures["multiple_blockers"]),
+                headers={"X-Idempotency-Key": "ui-diagnostic-refused"},
+            )
+            worker_result = run_worker_once(settings=settings)
+            response = client.get(f"/?lot_id={lot_id}")
+
+        html = response.text
+        self.assertEqual(upload.status_code, 202)
+        self.assertEqual(worker_result.outcome, "succeeded")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Excel refusé", html)
+        self.assertIn('class="fr-alert fr-alert--error fr-mt-2v" role="alert"', html)
+        self.assertIn("La transformation est bloquée tant que les problèmes bloquants restent ouverts.", html)
+        self.assertIn("Corriger le fichier Excel puis déposer une nouvelle version.", html)
+        self.assertIn("Bloquant", html)
+        self.assertIn("Colonne id_dossier absente", html)
+        self.assertIn("Colonnes masquées détectées", html)
+        self.assertIn("Formules détectées", html)
+        self.assertIn("Cause :", html)
+        self.assertIn("Emplacement :", html)
+        self.assertIn("Action attendue :", html)
+        self.assertIn("Détails techniques", html)
+        self.assertIn("fr-accordions-group", html)
+        self.assertNotIn("Produit formule", html)
+        self.assertNotIn(str(tmpdir), html)
+
+    def test_home_ui_renders_non_blocking_excel_alerts_and_information(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            lot_id = client.post("/api/lots", json={"title": "Lot Excel alertes"}).json()[
+                "lot"
+            ]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file(fixtures["valid_multi_tabs"]),
+                headers={"X-Idempotency-Key": "ui-diagnostic-alerts"},
+            )
+            worker_result = run_worker_once(settings=settings)
+            response = client.get(f"/?lot_id={lot_id}")
+
+        html = response.text
+        self.assertEqual(upload.status_code, 202)
+        self.assertEqual(worker_result.outcome, "succeeded")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Excel importable avec alertes", html)
+        self.assertIn("Vous pouvez continuer jusqu&#39;au prochain point de validation.", html)
+        self.assertIn("Alerte", html)
+        self.assertIn("Information", html)
+        self.assertIn("Lignes sans id_dossier", html)
+        self.assertIn("Onglet vide ignoré", html)
+        self.assertNotIn("Excel refusé", html)
+        self.assertNotIn(str(tmpdir), html)
+
+
+def excel_file(path: Path) -> dict[str, tuple[str, bytes, str]]:
+    return {
+        "file": (
+            path.name,
+            path.read_bytes(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    }
 
 
 if __name__ == "__main__":
