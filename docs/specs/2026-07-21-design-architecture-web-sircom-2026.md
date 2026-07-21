@@ -181,6 +181,9 @@ Variables minimales :
 - `SIRCOM_WORKER_ENABLED`
 - `SIRCOM_WORKER_ID`
 - `SIRCOM_MAX_ACTIVE_JOBS`
+- `SIRCOM_WORKER_POLL_SECONDS`
+- `SIRCOM_WORKER_LEASE_TTL_SECONDS`
+- `SIRCOM_WORKER_HEARTBEAT_SECONDS`
 - `SIRCOM_DISK_FREE_MIN_MB`
 
 Valeurs V1 recommandées :
@@ -199,6 +202,9 @@ Valeurs V1 recommandées :
 - worker local : activé ;
 - worker ID : `local-1` ;
 - jobs actifs maximum : `1` ;
+- poll worker : `2` secondes ;
+- TTL de lease worker : `300` secondes ;
+- heartbeat worker : `30` secondes ;
 - disque libre minimal : `5120` MiB.
 
 Tests :

@@ -85,7 +85,7 @@
   - [x] `artefacts` ;
   - [x] `evenements` ;
   - [x] `problemes`.
-- [ ] Ajouter les contraintes d'unicité et clés étrangères nécessaires pour
+- [x] Ajouter les contraintes d'unicité et clés étrangères nécessaires pour
   empêcher deux jobs actifs incompatibles.
 - [x] Implémenter les repositories lots, étapes, jobs, artefacts, événements et
   problèmes.
@@ -103,10 +103,10 @@
   - [x] événements techniques persistés séparément des problèmes métier ;
   - [x] rendu DSFR minimal des problèmes par niveau et des événements récents.
 - [ ] Implémenter le worker local minimal :
-  - [ ] acquisition de lease ;
-  - [ ] `run_id` par étape ;
-  - [ ] progression persistée ;
-  - [ ] annulation coopérative ;
+  - [x] acquisition de lease ;
+  - [x] `run_id` par étape ;
+  - [x] progression persistée ;
+  - [x] annulation coopérative ;
   - [ ] retry avec invalidation aval.
 - [x] Tester les transitions `action_requise`, `bloque`, `termine`,
   `termine_avec_alertes`, `echoue` et `annule`.

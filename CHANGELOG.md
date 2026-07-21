@@ -16,6 +16,9 @@
 - Implémentation du ticket 06 Sircom 2026 : transitions de statuts métier,
   problèmes structurés avec cause/action, événements séparés, compteurs ouverts
   et rendu DSFR minimal des problèmes et événements dans le détail de lot.
+- Implémentation du ticket 07 Sircom 2026 : worker local SQLite, acquisition par
+  lease, `run_id`, fencing, idempotence de soumission, progression persistée,
+  annulation coopérative et runner CLI `scripts-2026/run_worker_once.py`.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

@@ -26,6 +26,9 @@ class Settings:
     worker_enabled: bool
     worker_id: str
     max_active_jobs: int
+    worker_poll_seconds: int
+    worker_lease_ttl_seconds: int
+    worker_heartbeat_seconds: int
     disk_free_min_mb: int
     sqlite_busy_timeout_ms: int
     artifact_pending_ttl_seconds: int
@@ -39,6 +42,9 @@ class Settings:
             "worker": {
                 "enabled": self.worker_enabled,
                 "max_active_jobs": self.max_active_jobs,
+                "poll_seconds": self.worker_poll_seconds,
+                "lease_ttl_seconds": self.worker_lease_ttl_seconds,
+                "heartbeat_seconds": self.worker_heartbeat_seconds,
             },
             "disk": {"free_min_mb": self.disk_free_min_mb},
             "artifacts": {"pending_ttl_seconds": self.artifact_pending_ttl_seconds},
@@ -70,6 +76,19 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         worker_enabled=_bool(values, "SIRCOM_WORKER_ENABLED", True),
         worker_id=_text(values, "SIRCOM_WORKER_ID", "local-1"),
         max_active_jobs=_int(values, "SIRCOM_MAX_ACTIVE_JOBS", 1, minimum=1),
+        worker_poll_seconds=_int(values, "SIRCOM_WORKER_POLL_SECONDS", 2, minimum=1),
+        worker_lease_ttl_seconds=_int(
+            values,
+            "SIRCOM_WORKER_LEASE_TTL_SECONDS",
+            300,
+            minimum=1,
+        ),
+        worker_heartbeat_seconds=_int(
+            values,
+            "SIRCOM_WORKER_HEARTBEAT_SECONDS",
+            30,
+            minimum=1,
+        ),
         disk_free_min_mb=_int(values, "SIRCOM_DISK_FREE_MIN_MB", 5120, minimum=0),
         sqlite_busy_timeout_ms=_int(values, "SIRCOM_SQLITE_BUSY_TIMEOUT_MS", 5000, minimum=0),
         artifact_pending_ttl_seconds=_int(

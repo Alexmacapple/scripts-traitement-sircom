@@ -84,6 +84,9 @@ class SettingsTest(unittest.TestCase):
         self.assertTrue(settings.worker_enabled)
         self.assertEqual(settings.worker_id, "local-1")
         self.assertEqual(settings.max_active_jobs, 1)
+        self.assertEqual(settings.worker_poll_seconds, 2)
+        self.assertEqual(settings.worker_lease_ttl_seconds, 300)
+        self.assertEqual(settings.worker_heartbeat_seconds, 30)
         self.assertEqual(settings.disk_free_min_mb, 5120)
         self.assertEqual(settings.sqlite_busy_timeout_ms, 5000)
         self.assertEqual(settings.artifact_pending_ttl_seconds, 3600)
@@ -105,6 +108,9 @@ class SettingsTest(unittest.TestCase):
                 "SIRCOM_WORKER_ENABLED": "false",
                 "SIRCOM_WORKER_ID": "worker-test",
                 "SIRCOM_MAX_ACTIVE_JOBS": "2",
+                "SIRCOM_WORKER_POLL_SECONDS": "5",
+                "SIRCOM_WORKER_LEASE_TTL_SECONDS": "120",
+                "SIRCOM_WORKER_HEARTBEAT_SECONDS": "10",
                 "SIRCOM_DISK_FREE_MIN_MB": "128",
                 "SIRCOM_SQLITE_BUSY_TIMEOUT_MS": "2500",
                 "SIRCOM_ARTIFACT_PENDING_TTL_SECONDS": "60",
@@ -126,6 +132,9 @@ class SettingsTest(unittest.TestCase):
         self.assertFalse(settings.worker_enabled)
         self.assertEqual(settings.worker_id, "worker-test")
         self.assertEqual(settings.max_active_jobs, 2)
+        self.assertEqual(settings.worker_poll_seconds, 5)
+        self.assertEqual(settings.worker_lease_ttl_seconds, 120)
+        self.assertEqual(settings.worker_heartbeat_seconds, 10)
         self.assertEqual(settings.disk_free_min_mb, 128)
         self.assertEqual(settings.sqlite_busy_timeout_ms, 2500)
         self.assertEqual(settings.artifact_pending_ttl_seconds, 60)
@@ -134,6 +143,9 @@ class SettingsTest(unittest.TestCase):
         invalid_envs = [
             {"SIRCOM_PORT": "0"},
             {"SIRCOM_MAX_ACTIVE_JOBS": "0"},
+            {"SIRCOM_WORKER_POLL_SECONDS": "0"},
+            {"SIRCOM_WORKER_LEASE_TTL_SECONDS": "0"},
+            {"SIRCOM_WORKER_HEARTBEAT_SECONDS": "0"},
             {"SIRCOM_DISK_FREE_MIN_MB": "-1"},
             {"SIRCOM_SQLITE_BUSY_TIMEOUT_MS": "-1"},
             {"SIRCOM_ARTIFACT_PENDING_TTL_SECONDS": "0"},

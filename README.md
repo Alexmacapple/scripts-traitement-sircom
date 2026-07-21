@@ -13,9 +13,9 @@ Ce dépôt couvre deux usages complémentaires.
 La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Côté 2026, le
 socle FastAPI local est lancé : configuration, santé, politique d'accès, erreurs
 API structurées, schéma SQLite, lots, store d'artefacts, statuts métier,
-événements séparés, problèmes structurés et premiers écrans DSFR. Les traitements
-Excel, images, CSV, rapports et package restent à brancher par tickets
-successifs.
+événements séparés, problèmes structurés, worker local SQLite et premiers écrans
+DSFR. Les traitements Excel, images, CSV, rapports et package restent à brancher
+par tickets successifs.
 
 ## Sources locales utiles
 
@@ -173,6 +173,16 @@ Routes utiles :
 - `/docs`
 - `/openapi.json`
 
+Worker local :
+
+```bash
+.venv/bin/python scripts-2026/run_worker_once.py --once
+```
+
+La commande initialise la base SQLite et exécute une acquisition unique. Tant
+que les handlers métier des tickets suivants ne sont pas branchés, elle sort
+normalement en `idle`.
+
 ### Initialiser l'environnement local
 
 ```bash
@@ -207,7 +217,8 @@ masquée, formule et en-tête multi-ligne.
 ```bash
 .venv/bin/python -m unittest tests.test_excel_diagnostic
 .venv/bin/python -m unittest tests.test_web_socle tests.test_api_access_errors \
-  tests.test_database tests.test_lots_api tests.test_artifacts tests.test_state
+  tests.test_database tests.test_lots_api tests.test_artifacts tests.test_state \
+  tests.test_worker
 SIRCOM_RUN_PLAYWRIGHT=1 .venv/bin/python -m unittest tests.test_lots_playwright
 ```
 

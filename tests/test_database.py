@@ -87,7 +87,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 ).fetchone()
                 user_version = connection.execute("PRAGMA user_version").fetchone()[0]
                 self.assertEqual(migration["version"], SCHEMA_VERSION)
-                self.assertEqual(migration["name"], "problem_cause_action")
+                self.assertEqual(migration["name"], "active_job_per_step")
                 self.assertEqual(user_version, SCHEMA_VERSION)
 
                 for table in ("lots", "etapes", "jobs", "artefacts", "evenements", "problemes"):
@@ -103,6 +103,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                         "idx_etapes_lot_status",
                         "idx_jobs_status_lease",
                         "idx_jobs_lot_step",
+                        "idx_jobs_active_lot_step",
                         "idx_artefacts_lot_status",
                         "idx_artefacts_lot_step_run",
                         "idx_evenements_lot_created",
@@ -189,6 +190,84 @@ class DatabaseMigrationTest(unittest.TestCase):
                 ).fetchone()[0]
                 self.assertEqual(migration_count, SCHEMA_VERSION)
                 self.assertIn("jobs", table_names(connection))
+            finally:
+                connection.close()
+
+    def test_migration_v4_expires_duplicate_active_jobs_before_unique_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sqlite_path = Path(tmp) / "sircom.sqlite3"
+            migrate_database(sqlite_path)
+
+            connection = connect_sqlite(sqlite_path)
+            try:
+                connection.execute("DROP INDEX idx_jobs_active_lot_step")
+                connection.execute("DELETE FROM schema_migrations WHERE version = 4")
+                connection.execute("PRAGMA user_version = 3")
+                connection.execute(
+                    """
+                    INSERT INTO lots (id, created_at, updated_at, status, title)
+                    VALUES (
+                        'lot_migrate', '2026-07-21T00:00:00+00:00',
+                        '2026-07-21T00:00:00+00:00', 'brouillon', 'Lot migration'
+                    )
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO etapes (
+                        id, created_at, updated_at, lot_id, step_key, status,
+                        current_run_id
+                    )
+                    VALUES (
+                        'step_migrate', '2026-07-21T00:00:00+00:00',
+                        '2026-07-21T00:00:00+00:00', 'lot_migrate',
+                        'diagnostic_excel', 'pret', 'run_old'
+                    )
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO jobs (
+                        id, created_at, updated_at, lot_id, step_key, status,
+                        run_id, idempotency_key
+                    )
+                    VALUES (
+                        'job_old', '2026-07-21T00:00:00+00:00',
+                        '2026-07-21T00:00:00+00:00', 'lot_migrate',
+                        'diagnostic_excel', 'queued', 'run_old', 'idem_old'
+                    )
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO jobs (
+                        id, created_at, updated_at, lot_id, step_key, status,
+                        run_id, idempotency_key
+                    )
+                    VALUES (
+                        'job_new', '2026-07-21T00:01:00+00:00',
+                        '2026-07-21T00:01:00+00:00', 'lot_migrate',
+                        'diagnostic_excel', 'queued', 'run_new', 'idem_new'
+                    )
+                    """
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            migrate_database(sqlite_path)
+
+            connection = connect_sqlite(sqlite_path)
+            try:
+                statuses = {
+                    row["id"]: row["status"]
+                    for row in connection.execute(
+                        "SELECT id, status FROM jobs ORDER BY id"
+                    )
+                }
+                self.assertEqual(statuses["job_old"], "queued")
+                self.assertEqual(statuses["job_new"], "expired")
+                self.assertIn("idx_jobs_active_lot_step", index_names(connection))
             finally:
                 connection.close()
 
@@ -300,6 +379,14 @@ class DatabaseMigrationTest(unittest.TestCase):
                         step_key="diagnostic_excel",
                         run_id="run_2",
                         idempotency_key="idem_1",
+                    )
+
+                with self.assertRaises(sqlite3.IntegrityError):
+                    repos.jobs.create(
+                        lot_id=lot["id"],
+                        step_key="diagnostic_excel",
+                        run_id="run_3",
+                        idempotency_key="idem_2",
                     )
 
     def test_repositories_create_read_and_rollback_transactionally(self) -> None:

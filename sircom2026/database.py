@@ -7,12 +7,12 @@ import uuid
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 LOGGER = logging.getLogger(__name__)
 
 LOT_STATUSES = (
@@ -158,6 +158,7 @@ EXPECTED_INDEXES = {
     "idx_etapes_lot_status",
     "idx_jobs_status_lease",
     "idx_jobs_lot_step",
+    "idx_jobs_active_lot_step",
     "idx_artefacts_lot_status",
     "idx_artefacts_lot_step_run",
     "idx_evenements_lot_created",
@@ -188,6 +189,12 @@ TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "steps_total",
     "warning_code",
     "active_jobs",
+    "attempt",
+    "lease_version",
+    "progress_current",
+    "progress_total",
+    "reason",
+    "worker_id",
 }
 ACTIVE_JOB_STATUSES = ("queued", "leased", "running")
 COMMITTABLE_JOB_STATUSES = ("leased", "running")
@@ -274,6 +281,8 @@ def migrate_database(path: Path, *, busy_timeout_ms: int = 5000) -> None:
             _apply_schema_v2(connection)
         if current_version < 3:
             _apply_schema_v3(connection)
+        if current_version < 4:
+            _apply_schema_v4(connection)
         _validate_schema(connection)
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         connection.commit()
@@ -382,6 +391,18 @@ class LotsRepository:
         self.connection.execute(
             "UPDATE lots SET status = ?, updated_at = ? WHERE id = ?",
             (status, _now(), lot_id),
+        )
+        return self.get_required(lot_id)
+
+    def request_cancel(self, lot_id: str) -> dict[str, Any]:
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE lots
+            SET cancel_requested_at = COALESCE(cancel_requested_at, ?), updated_at = ?
+            WHERE id = ?
+            """,
+            (now, now, lot_id),
         )
         return self.get_required(lot_id)
 
@@ -574,8 +595,8 @@ class JobsRepository:
     ) -> dict[str, Any]:
         _validate_choice("job status", status, JOB_STATUSES)
         lot = LotsRepository(self.connection).get_required(lot_id)
-        if lot["status"] in {"supprime", "purge"}:
-            raise ValueError("Cannot create a job for a deleted lot.")
+        if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
+            raise ValueError("Cannot create a job for a canceled or deleted lot.")
         now = _now()
         row_id = job_id or _new_id("job")
         self.connection.execute(
@@ -598,6 +619,36 @@ class JobsRepository:
         if row is None:
             raise KeyError(job_id)
         return row
+
+    def get_by_idempotency_key(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        idempotency_key: str,
+    ) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            """
+            SELECT * FROM jobs
+            WHERE lot_id = ? AND step_key = ? AND idempotency_key = ?
+            """,
+            (lot_id, step_key, idempotency_key),
+        )
+
+    def get_active_for_step(self, *, lot_id: str, step_key: str) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            f"""
+            SELECT * FROM jobs
+            WHERE jobs.lot_id = ?
+              AND step_key = ?
+              AND status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (lot_id, step_key),
+        )
 
     def get_committable_by_run(
         self,
@@ -630,11 +681,301 @@ class JobsRepository:
             tuple(params),
         )
 
+    def get_owned_committable(
+        self,
+        *,
+        job_id: str,
+        worker_id: str,
+        run_id: str,
+        lease_version: int,
+    ) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            f"""
+            SELECT jobs.* FROM jobs
+            JOIN etapes
+              ON etapes.lot_id = jobs.lot_id
+             AND etapes.step_key = jobs.step_key
+            JOIN lots
+              ON lots.id = jobs.lot_id
+            WHERE jobs.id = ?
+              AND jobs.lease_owner = ?
+              AND jobs.run_id = ?
+              AND jobs.lease_version = ?
+              AND jobs.status IN ({_check_in(COMMITTABLE_JOB_STATUSES)})
+              AND jobs.lease_until IS NOT NULL
+              AND jobs.lease_until > ?
+              AND etapes.current_run_id = jobs.run_id
+              AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})
+            LIMIT 1
+            """,
+            (job_id, worker_id, run_id, lease_version, _now()),
+        )
+
     def update_status(self, job_id: str, status: str) -> dict[str, Any]:
         _validate_choice("job status", status, JOB_STATUSES)
+        now = _now()
+        is_started = 1 if status in {"leased", "running"} else 0
+        is_finished = 1 if status in {"succeeded", "failed", "canceled"} else 0
         self.connection.execute(
-            "UPDATE jobs SET status = ?, updated_at = ? WHERE id = ?",
-            (status, _now(), job_id),
+            """
+            UPDATE jobs
+            SET
+                status = ?,
+                updated_at = ?,
+                started_at = CASE
+                    WHEN ? THEN COALESCE(started_at, ?)
+                    ELSE started_at
+                END,
+                finished_at = CASE
+                    WHEN ? THEN COALESCE(finished_at, ?)
+                    ELSE finished_at
+                END
+            WHERE id = ?
+            """,
+            (status, now, is_started, now, is_finished, now, job_id),
+        )
+        return self.get_required(job_id)
+
+    def acquire_next(
+        self,
+        *,
+        worker_id: str,
+        lease_seconds: int,
+        max_active_jobs: int = 1,
+        step_keys: tuple[str, ...] | None = None,
+    ) -> dict[str, Any] | None:
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be greater than 0.")
+        if max_active_jobs <= 0:
+            raise ValueError("max_active_jobs must be greater than 0.")
+        if step_keys is not None and not step_keys:
+            return None
+
+        self.expire_stale_leases()
+        if self.count_processing() >= max_active_jobs:
+            return None
+        now = _now()
+        lease_until = _now_plus(seconds=lease_seconds)
+        step_filter = ""
+        params: list[Any] = [now]
+        if step_keys is not None:
+            step_filter = f"AND jobs.step_key IN ({_placeholders(len(step_keys))})"
+            params.extend(step_keys)
+        row = self.connection.execute(
+            f"""
+            SELECT jobs.id
+            FROM jobs
+            JOIN lots
+              ON lots.id = jobs.lot_id
+            JOIN etapes
+              ON etapes.lot_id = jobs.lot_id
+             AND etapes.step_key = jobs.step_key
+            WHERE (
+                  jobs.status = 'queued'
+                  OR (
+                      jobs.status = 'expired'
+                      AND jobs.lease_until IS NOT NULL
+                      AND jobs.lease_until <= ?
+                  )
+              )
+              AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})
+              AND etapes.status NOT IN ('annule', 'termine', 'termine_avec_alertes', 'bloque')
+              AND etapes.current_run_id = jobs.run_id
+              {step_filter}
+            ORDER BY jobs.created_at ASC, jobs.id ASC
+            LIMIT 1
+            """,
+            tuple(params),
+        ).fetchone()
+        if row is None:
+            return None
+
+        cursor = self.connection.execute(
+            """
+            UPDATE jobs
+            SET
+                status = 'leased',
+                lease_owner = ?,
+                lease_version = lease_version + 1,
+                lease_until = ?,
+                heartbeat_at = ?,
+                started_at = COALESCE(started_at, ?),
+                attempt = attempt + 1,
+                updated_at = ?
+            WHERE id = ?
+              AND status IN ('queued', 'expired')
+            """,
+            (worker_id, lease_until, now, now, now, row["id"]),
+        )
+        if cursor.rowcount != 1:
+            return None
+        return self.get_required(row["id"])
+
+    def count_processing(self) -> int:
+        row = self.connection.execute(
+            f"""
+            SELECT COUNT(*) FROM jobs
+            JOIN lots
+              ON lots.id = jobs.lot_id
+            WHERE jobs.status IN ({_check_in(COMMITTABLE_JOB_STATUSES)})
+              AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})
+            """
+        ).fetchone()
+        return int(row[0])
+
+    def mark_running(
+        self,
+        *,
+        job_id: str,
+        worker_id: str,
+        run_id: str,
+        lease_version: int,
+    ) -> dict[str, Any] | None:
+        now = _now()
+        cursor = self.connection.execute(
+            """
+            UPDATE jobs
+            SET
+                status = 'running',
+                started_at = COALESCE(started_at, ?),
+                heartbeat_at = ?,
+                updated_at = ?
+            WHERE id = ?
+              AND lease_owner = ?
+              AND run_id = ?
+              AND lease_version = ?
+              AND status = 'leased'
+              AND lease_until IS NOT NULL
+              AND lease_until > ?
+              AND EXISTS (
+                  SELECT 1 FROM etapes
+                  WHERE etapes.lot_id = jobs.lot_id
+                    AND etapes.step_key = jobs.step_key
+                    AND etapes.current_run_id = jobs.run_id
+              )
+            """,
+            (now, now, now, job_id, worker_id, run_id, lease_version, now),
+        )
+        if cursor.rowcount != 1:
+            return None
+        return self.get_required(job_id)
+
+    def heartbeat(
+        self,
+        *,
+        job_id: str,
+        worker_id: str,
+        run_id: str,
+        lease_version: int,
+        lease_seconds: int,
+    ) -> dict[str, Any] | None:
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be greater than 0.")
+        now = _now()
+        cursor = self.connection.execute(
+            f"""
+            UPDATE jobs
+            SET lease_until = ?, heartbeat_at = ?, updated_at = ?
+            WHERE id = ?
+              AND lease_owner = ?
+              AND run_id = ?
+              AND lease_version = ?
+              AND status IN ({_check_in(COMMITTABLE_JOB_STATUSES)})
+              AND lease_until IS NOT NULL
+              AND lease_until > ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM etapes
+                  JOIN lots
+                    ON lots.id = etapes.lot_id
+                  WHERE etapes.lot_id = jobs.lot_id
+                    AND etapes.step_key = jobs.step_key
+                    AND etapes.current_run_id = jobs.run_id
+                    AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})
+              )
+            """,
+            (
+                _now_plus(seconds=lease_seconds),
+                now,
+                now,
+                job_id,
+                worker_id,
+                run_id,
+                lease_version,
+                now,
+            ),
+        )
+        if cursor.rowcount != 1:
+            return None
+        return self.get_required(job_id)
+
+    def update_progress(
+        self,
+        *,
+        job_id: str,
+        worker_id: str,
+        run_id: str,
+        lease_version: int,
+        current: int,
+        total: int,
+        lease_seconds: int,
+    ) -> dict[str, Any] | None:
+        if current < 0 or total < 0 or current > total:
+            raise ValueError("progress must satisfy 0 <= current <= total.")
+        job = self.heartbeat(
+            job_id=job_id,
+            worker_id=worker_id,
+            run_id=run_id,
+            lease_version=lease_version,
+            lease_seconds=lease_seconds,
+        )
+        if job is None:
+            return None
+        self.connection.execute(
+            """
+            UPDATE etapes
+            SET progress_current = ?, progress_total = ?, updated_at = ?
+            WHERE lot_id = ? AND step_key = ?
+            """,
+            (current, total, _now(), job["lot_id"], job["step_key"]),
+        )
+        return self.get_required(job_id)
+
+    def finish_owned(
+        self,
+        *,
+        job_id: str,
+        worker_id: str,
+        run_id: str,
+        lease_version: int,
+        status: str,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> dict[str, Any] | None:
+        if status not in {"succeeded", "failed", "canceled"}:
+            raise ValueError("Owned job can only finish as succeeded, failed or canceled.")
+        if self.get_owned_committable(
+            job_id=job_id,
+            worker_id=worker_id,
+            run_id=run_id,
+            lease_version=lease_version,
+        ) is None:
+            return None
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE jobs
+            SET
+                status = ?,
+                finished_at = COALESCE(finished_at, ?),
+                heartbeat_at = ?,
+                error_code = ?,
+                error_message = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (status, now, now, error_code, error_message, now, job_id),
         )
         return self.get_required(job_id)
 
@@ -1097,6 +1438,65 @@ def _apply_schema_v3(connection: sqlite3.Connection) -> None:
     )
 
 
+def _apply_schema_v4(connection: sqlite3.Connection) -> None:
+    _expire_duplicate_active_jobs(connection)
+    connection.execute(
+        f"""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_active_lot_step
+        ON jobs(lot_id, step_key)
+        WHERE status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+        """
+    )
+    connection.execute(
+        "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+        (4, "active_job_per_step", _now()),
+    )
+
+
+def _expire_duplicate_active_jobs(connection: sqlite3.Connection) -> None:
+    rows = connection.execute(
+        f"""
+        SELECT lot_id, step_key, COUNT(*) AS active_count
+        FROM jobs
+        WHERE status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+        GROUP BY lot_id, step_key
+        HAVING active_count > 1
+        """
+    ).fetchall()
+    now = _now()
+    for row in rows:
+        keep = connection.execute(
+            f"""
+            SELECT jobs.id FROM jobs
+            JOIN etapes
+              ON etapes.lot_id = jobs.lot_id
+             AND etapes.step_key = jobs.step_key
+            WHERE jobs.lot_id = ?
+              AND jobs.step_key = ?
+              AND jobs.status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+            ORDER BY
+              CASE WHEN jobs.run_id = etapes.current_run_id THEN 0 ELSE 1 END,
+              jobs.created_at DESC,
+              jobs.id DESC
+            LIMIT 1
+            """,
+            (row["lot_id"], row["step_key"]),
+        ).fetchone()
+        if keep is None:
+            continue
+        connection.execute(
+            f"""
+            UPDATE jobs
+            SET status = 'expired', updated_at = ?
+            WHERE lot_id = ?
+              AND step_key = ?
+              AND id != ?
+              AND status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+            """,
+            (now, row["lot_id"], row["step_key"], keep["id"]),
+        )
+
+
 def _refuse_partial_unversioned_schema(connection: sqlite3.Connection) -> None:
     managed_tables = _existing_managed_tables(connection)
     if managed_tables:
@@ -1183,6 +1583,10 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def _now_plus(*, seconds: int) -> str:
+    return (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat(timespec="seconds")
+
+
 def _new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex}"
 
@@ -1208,6 +1612,12 @@ def _json_technical_payload(payload: Mapping[str, Any]) -> str:
 
 def _check_in(values: tuple[str, ...]) -> str:
     return ", ".join(f"'{value}'" for value in values)
+
+
+def _placeholders(count: int) -> str:
+    if count <= 0:
+        raise ValueError("count must be greater than 0.")
+    return ", ".join("?" for _index in range(count))
 
 
 def _validate_choice(label: str, value: str, allowed_values: tuple[str, ...]) -> None:
