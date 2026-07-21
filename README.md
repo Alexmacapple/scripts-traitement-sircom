@@ -144,6 +144,25 @@ python3 scripts-2025/<script-numéroté>.py
 Les outils 2026 ne remplacent pas encore la chaîne 2025. Ils servent à préparer
 la future interface web et à tester l'import Excel multi-onglets.
 
+### Lancer le socle web local
+
+Le socle FastAPI 2026 expose les routes de santé, la configuration visible et un
+shell HTML minimal aligné DSFR avec limites.
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[test]"
+.venv/bin/python -m uvicorn sircom2026.app:app --host 127.0.0.1 --port 8000
+```
+
+Routes utiles :
+
+- `GET /health`
+- `GET /health/ready`
+- `GET /api/config/limits`
+- `/docs`
+- `/openapi.json`
+
 ### Initialiser l'environnement local
 
 ```bash

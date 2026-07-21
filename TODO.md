@@ -61,17 +61,17 @@
 
 ## Prochain incrément - Socle web local
 
-- [ ] Créer le squelette FastAPI minimal sans routes stub de succès.
-- [ ] Ajouter `pyproject.toml` pour FastAPI, tests et runtime local.
-- [ ] Ajouter `.sircom2026-data/` au `.gitignore`.
-- [ ] Implémenter la configuration `sircom2026.config` :
-  - [ ] `SIRCOM_DATA_DIR` ;
-  - [ ] `SIRCOM_SQLITE_PATH` ;
-  - [ ] limites Excel, zip, images et disque ;
-  - [ ] `SIRCOM_INDESIGN_IMAGE_ROOT` ;
-  - [ ] bind host, port et worker activable.
-- [ ] Implémenter `GET /health`, `GET /health/ready` et OpenAPI.
-- [ ] Tester `/health/ready` avec répertoire de données temporaire, SQLite et
+- [x] Créer le squelette FastAPI minimal sans routes stub de succès.
+- [x] Ajouter `pyproject.toml` pour FastAPI, tests et runtime local.
+- [x] Ajouter `.sircom2026-data/` au `.gitignore`.
+- [x] Implémenter la configuration `sircom2026.config` :
+  - [x] `SIRCOM_DATA_DIR` ;
+  - [x] `SIRCOM_SQLITE_PATH` ;
+  - [x] limites Excel, zip, images et disque ;
+  - [x] `SIRCOM_INDESIGN_IMAGE_ROOT` ;
+  - [x] bind host, port et worker activable.
+- [x] Implémenter `GET /health`, `GET /health/ready` et OpenAPI.
+- [x] Tester `/health/ready` avec répertoire de données temporaire, SQLite et
   seuil d'espace disque.
 
 ## Orchestration et stockage

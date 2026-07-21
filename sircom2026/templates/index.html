@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">
+    <title>{{ app_name }}</title>
+    <link rel="icon" href="{{ dsfr_assets_path }}/favicon/favicon.svg" type="image/svg+xml">
+    <link rel="shortcut icon" href="{{ dsfr_assets_path }}/favicon/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="{{ dsfr_assets_path }}/dsfr.min.css">
+  </head>
+  <body>
+    <div class="fr-skiplinks">
+      <nav class="fr-container" aria-label="Accès rapide">
+        <ul class="fr-skiplinks__list">
+          <li>
+            <a class="fr-link" href="#contenu">Accéder au contenu</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <header class="fr-header" role="banner">
+      <div class="fr-header__body">
+        <div class="fr-container">
+          <div class="fr-header__body-row">
+            <div class="fr-header__brand fr-enlarge-link">
+              <div class="fr-header__brand-top">
+                <div class="fr-header__navbar">
+                  <button
+                    id="header-menu-button"
+                    class="fr-btn--menu fr-btn"
+                    data-fr-opened="false"
+                    aria-controls="header-menu"
+                    aria-haspopup="menu"
+                    title="Menu"
+                    type="button"
+                  >
+                    Menu
+                  </button>
+                </div>
+              </div>
+              <div class="fr-header__service">
+                <a href="/" title="Accueil - {{ app_name }}">{{ app_name }}</a>
+                <p class="fr-header__service-tagline">Interface locale de préparation Sircom</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fr-header__menu fr-modal" id="header-menu" aria-labelledby="header-menu-button">
+        <div class="fr-container">
+          <button class="fr-btn--close fr-btn" aria-controls="header-menu" title="Fermer" type="button">
+            Fermer
+          </button>
+          <nav class="fr-nav" role="navigation" aria-label="Navigation principale">
+            <ul class="fr-nav__list">
+              <li class="fr-nav__item">
+                <a class="fr-nav__link" href="/" aria-current="page">Accueil</a>
+              </li>
+              <li class="fr-nav__item">
+                <a class="fr-nav__link" href="/docs">API</a>
+              </li>
+              <li class="fr-nav__item">
+                <a class="fr-nav__link" href="/health">Santé</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main id="contenu" tabindex="-1">
+      <div class="fr-container fr-py-8v">
+        <div class="fr-grid-row fr-grid-row--gutters">
+          <div class="fr-col-12 fr-col-lg-8">
+            <h1>{{ app_name }}</h1>
+            <p class="fr-text--lg">Socle applicatif local.</p>
+          </div>
+          <div class="fr-col-12 fr-col-lg-4">
+            <div class="fr-callout fr-icon-information-line">
+              <h2 class="fr-callout__title">État</h2>
+              <p class="fr-callout__text">Version {{ app_version }}.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="fr-footer" role="contentinfo">
+      <div class="fr-container">
+        <div class="fr-footer__body">
+          <div class="fr-footer__brand">
+            <p>{{ app_name }}</p>
+          </div>
+          <div class="fr-footer__content">
+            <p class="fr-footer__content-desc">
+              Prototype local. Accessibilité non auditée. Données personnelles et mentions légales à finaliser avant publication.
+            </p>
+            <ul class="fr-footer__content-list">
+              <li class="fr-footer__content-item">
+                <a class="fr-footer__content-link" href="/openapi.json">OpenAPI</a>
+              </li>
+              <li class="fr-footer__content-item">
+                <a class="fr-footer__content-link" href="/health/ready">Readiness</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="fr-footer__bottom">
+          <ul class="fr-footer__bottom-list">
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="/plan-du-site">Plan du site</a>
+            </li>
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="/accessibilite">Accessibilité : non auditée</a>
+            </li>
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="/mentions-legales">Mentions légales</a>
+            </li>
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="/donnees-personnelles">Données personnelles</a>
+            </li>
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="/gestion-cookies">Gestion des cookies</a>
+            </li>
+          </ul>
+          <div class="fr-footer__bottom-copy">
+            <p>Application locale. Contenus et mentions à finaliser avant publication.</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="{{ dsfr_assets_path }}/dsfr.module.min.js"></script>
+    <script nomodule src="{{ dsfr_assets_path }}/dsfr.nomodule.min.js"></script>
+  </body>
+</html>

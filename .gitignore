@@ -58,7 +58,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.sircom2026-data/
 .claude/outputs/
+*.egg-info/
 .DS_Store
 .DS_Store?
 ._*

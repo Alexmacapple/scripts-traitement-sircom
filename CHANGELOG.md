@@ -2,6 +2,9 @@
 
 ## 2026-07-21
 
+- Implémentation du ticket 01 Sircom 2026 : socle FastAPI local, configuration
+  `SIRCOM_*`, routes `/health`, `/health/ready`, `/api/config/limits`, OpenAPI,
+  shell Jinja/DSFR minimal et tests ciblés.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.
