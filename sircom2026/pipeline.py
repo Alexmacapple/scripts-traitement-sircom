@@ -24,6 +24,15 @@ V1_INVALIDATION_DAG: dict[str, tuple[str, ...]] = {
     "purge_retention": (),
 }
 V1_EXTERNAL_STEP_KEYS = ("purge_retention",)
+V1_WORKER_STEP_KEYS = (
+    "diagnostic_excel",
+    "fusion_multi_onglets",
+    "normalisation_contenu",
+    "verification_csv_indesign",
+    "inspection_images",
+    "matching_images",
+    "rapports",
+)
 V1_AUTO_ENQUEUE_STEP_KEYS = ("matching_images", "rapports")
 V1_AUTO_ENQUEUE_PARENT_STATUSES = ("termine", "termine_avec_alertes")
 

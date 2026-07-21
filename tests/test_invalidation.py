@@ -320,6 +320,36 @@ class InvalidationContractTest(unittest.TestCase):
                         idempotency_key="retry:diag:deleted",
                     )
 
+    def test_retry_is_refused_for_human_validation_steps(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot human retry")
+                mapping = repositories.steps.get_by_lot_key(lot["id"], "mapping")
+                if mapping is None:
+                    self.fail("Expected mapping step to exist.")
+                repositories.steps.update_status(mapping["id"], "invalide")
+
+                with self.assertRaises(RetryNotAllowedError):
+                    retry_step(
+                        repositories,
+                        lot_id=lot["id"],
+                        step_key="mapping",
+                        idempotency_key="retry:mapping:not-worker",
+                    )
+
+            with database.session() as repositories:
+                jobs_count = repositories.connection.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM jobs
+                    WHERE lot_id = ? AND step_key = ?
+                    """,
+                    (lot["id"], "mapping"),
+                ).fetchone()[0]
+
+            self.assertEqual(jobs_count, 0)
+
     def test_retry_route_returns_structured_result_and_reuses_idempotency_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = load_settings(

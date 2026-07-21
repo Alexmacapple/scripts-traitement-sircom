@@ -1038,17 +1038,24 @@
               {% endif %}
 
               {% set reports_payload = selected_lot.reports if selected_lot.reports is defined else none %}
-              {% if reports_payload %}
-                <section class="fr-mt-5v" aria-labelledby="reports-title">
-                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
-                    <div class="fr-col">
-                      <h3 id="reports-title">Rapports</h3>
-                    </div>
-                    <div class="fr-col-auto">
-                      <p class="fr-badge fr-badge--success fr-badge--sm">Prêts</p>
-                    </div>
+              {% set reports_step = selected_lot.steps | selectattr("key", "equalto", "rapports") | first %}
+              <section class="fr-mt-5v" aria-labelledby="reports-title">
+                <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                  <div class="fr-col">
+                    <h3 id="reports-title">Rapports</h3>
                   </div>
+                  <div class="fr-col-auto">
+                    {% if reports_payload %}
+                      <p class="fr-badge fr-badge--success fr-badge--sm">Prêts</p>
+                    {% else %}
+                      <p class="fr-badge fr-badge--info fr-badge--sm">
+                        {{ reports_step.status_label if reports_step else "Non démarrée" }}
+                      </p>
+                    {% endif %}
+                  </div>
+                </div>
 
+                {% if reports_payload %}
                   <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
                     <div class="fr-col-6 fr-col-md-3">
                       <dt>Métier</dt>
@@ -1078,8 +1085,19 @@
                       </a>
                     </li>
                   </ul>
-                </section>
-              {% endif %}
+                {% else %}
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Rapports en attente</h4>
+                    <p class="fr-mb-1v">
+                      Les rapports seront générés après validation de l'aperçu CSV
+                      et traitement des images disponibles.
+                    </p>
+                    <p class="fr-text--sm fr-mb-0">
+                      Le rapport technique ne contient pas de valeurs métier.
+                    </p>
+                  </div>
+                {% endif %}
+              </section>
 
               <h3 class="fr-mt-5v">Timeline</h3>
               <ol class="fr-raw-list">

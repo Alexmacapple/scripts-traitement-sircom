@@ -11,6 +11,7 @@ from sircom2026.database import ACTIVE_JOB_STATUSES, LOT_WRITE_BLOCKED_STATUSES,
 from sircom2026.pipeline import (
     V1_INVALIDATION_DAG,
     V1_INVALIDATION_PARENTS,
+    V1_WORKER_STEP_KEYS,
     downstream_step_keys,
     UnknownStepError,
 )
@@ -303,6 +304,8 @@ def retry_step(
 
     if step["status"] not in RETRYABLE_STEP_STATUSES:
         raise RetryNotAllowedError("Cette etape ne peut pas etre relancee dans son etat courant.")
+    if step_key not in V1_WORKER_STEP_KEYS:
+        raise RetryNotAllowedError("Cette etape attend une action utilisateur, pas un worker.")
 
     input_fingerprint = step_input_fingerprint(
         repositories,

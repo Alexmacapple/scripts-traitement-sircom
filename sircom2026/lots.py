@@ -56,6 +56,15 @@ V1_STEPS = (
 STEP_DEFINITIONS_BY_KEY = {step.key: step for step in V1_STEPS}
 STEP_ORDER = {step.key: index for index, step in enumerate(V1_STEPS)}
 STEP_DONE_STATUSES = {"termine", "termine_avec_alertes", "ignore"}
+UI_WORKER_RETRY_STEP_KEYS = {
+    "diagnostic_excel",
+    "fusion_multi_onglets",
+    "normalisation_contenu",
+    "verification_csv_indesign",
+    "inspection_images",
+    "matching_images",
+    "rapports",
+}
 EXCEL_DIAGNOSTIC_STEP_KEY = "diagnostic_excel"
 PROBLEM_SEVERITY_LABELS = {
     "bloquant": "Bloquant",
@@ -297,7 +306,10 @@ def serialize_step(step: dict[str, Any]) -> dict[str, Any]:
             "output": step["output_fingerprint"],
         },
         "actions": {
-            "can_retry": step["status"] in {"echoue", "bloque", "invalide"},
+            "can_retry": (
+                step["status"] in {"echoue", "bloque", "invalide"}
+                and step["step_key"] in UI_WORKER_RETRY_STEP_KEYS
+            ),
         },
     }
 
