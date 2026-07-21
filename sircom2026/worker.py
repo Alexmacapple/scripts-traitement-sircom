@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sircom2026.database import Database, Repositories
+from sircom2026.pipeline import FINGERPRINT_REQUIRED_STEP_KEYS
 from sircom2026.state import complete_step, transition_step
 
 
@@ -20,6 +21,8 @@ class WorkerLeaseLost(RuntimeError):
 @dataclass(frozen=True)
 class JobResult:
     with_warnings: bool = False
+    output_fingerprint: str | None = None
+    expected_input_fingerprint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -35,6 +38,7 @@ class LeasedJob:
     step_key: str
     run_id: str
     lease_version: int
+    input_fingerprint: str | None = None
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> LeasedJob:
@@ -44,6 +48,7 @@ class LeasedJob:
             step_key=str(row["step_key"]),
             run_id=str(row["run_id"]),
             lease_version=int(row["lease_version"]),
+            input_fingerprint=row.get("step_input_fingerprint"),
         )
 
 
@@ -200,6 +205,20 @@ class LocalWorker:
 
     def finish_success(self, leased_job: LeasedJob, result: JobResult | None = None) -> bool:
         job_result = result or JobResult()
+        expected_input_fingerprint = (
+            job_result.expected_input_fingerprint
+            if job_result.expected_input_fingerprint is not None
+            else leased_job.input_fingerprint
+        )
+        if (
+            leased_job.step_key in FINGERPRINT_REQUIRED_STEP_KEYS
+            and expected_input_fingerprint is None
+        ):
+            self.record_rejected_finish(
+                leased_job,
+                reason="input_fingerprint_missing",
+            )
+            return False
         with self.database.transaction() as repositories:
             job = repositories.jobs.finish_owned(
                 job_id=leased_job.job_id,
@@ -207,6 +226,7 @@ class LocalWorker:
                 run_id=leased_job.run_id,
                 lease_version=leased_job.lease_version,
                 status="succeeded",
+                expected_input_fingerprint=expected_input_fingerprint,
             )
             if job is None:
                 _record_finish_rejected(
@@ -215,6 +235,13 @@ class LocalWorker:
                     reason="lease_or_run_not_current",
                 )
                 return False
+            if job_result.output_fingerprint is not None:
+                repositories.steps.set_output_fingerprint(
+                    lot_id=job["lot_id"],
+                    step_key=job["step_key"],
+                    output_fingerprint=job_result.output_fingerprint,
+                    run_id=job["run_id"],
+                )
             complete_step(
                 repositories,
                 lot_id=job["lot_id"],
@@ -362,6 +389,7 @@ def enqueue_job(
     step_key: str,
     idempotency_key: str,
     run_id: str | None = None,
+    input_fingerprint: str | None = None,
 ) -> EnqueuedJob:
     existing = repositories.jobs.get_by_idempotency_key(
         lot_id=lot_id,
@@ -376,13 +404,23 @@ def enqueue_job(
         return EnqueuedJob(active_job, created=False)
 
     next_run_id = run_id or _new_run_id()
-    transition_step(
-        repositories,
+    repositories.steps.prepare_run(
         lot_id=lot_id,
         step_key=step_key,
-        status="pret",
+        run_id=next_run_id,
+        input_fingerprint=input_fingerprint,
+    )
+    repositories.events.create(
+        lot_id=lot_id,
+        step_key=step_key,
         run_id=next_run_id,
         event_type="step.ready",
+        payload={
+            "input_fingerprint": input_fingerprint,
+            "run_id": next_run_id,
+            "status": "pret",
+            "step_key": step_key,
+        },
     )
     job = repositories.jobs.create(
         lot_id=lot_id,
@@ -403,6 +441,9 @@ def enqueue_job(
             "step_key": step_key,
         },
     )
+    from sircom2026.state import recompute_lot_status
+
+    recompute_lot_status(repositories, lot_id)
     return EnqueuedJob(job, created=True)
 
 

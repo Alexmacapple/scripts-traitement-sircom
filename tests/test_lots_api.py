@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from dataclasses import dataclass, field
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -237,6 +238,22 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("/static/app.js", html)
         self.assertNotIn('href="#"', html)
         self.assertNotIn(str(Path(tmp)), html)
+
+    def test_home_ui_tolerates_steps_without_retry_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+            lot = client.post("/api/lots", json={"title": "Lot ancien rendu"}).json()["lot"]
+            lot_id = lot["id"]
+            legacy_lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
+            for step in legacy_lot["steps"]:
+                step.pop("actions", None)
+
+            with patch("sircom2026.app.get_lot_detail", return_value=legacy_lot):
+                response = client.get(f"/?lot_id={lot_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Lot ancien rendu", response.text)
+        self.assertIn("Timeline", response.text)
 
     def test_home_ui_hides_delete_for_deleted_lot_and_structures_errors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

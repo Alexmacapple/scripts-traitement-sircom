@@ -102,16 +102,17 @@
     détails techniques ;
   - [x] événements techniques persistés séparément des problèmes métier ;
   - [x] rendu DSFR minimal des problèmes par niveau et des événements récents.
-- [ ] Implémenter le worker local minimal :
+- [x] Implémenter le worker local minimal :
   - [x] acquisition de lease ;
   - [x] `run_id` par étape ;
   - [x] progression persistée ;
   - [x] annulation coopérative ;
-  - [ ] retry avec invalidation aval.
+  - [x] retry avec invalidation aval.
 - [x] Tester les transitions `action_requise`, `bloque`, `termine`,
   `termine_avec_alertes`, `echoue` et `annule`.
-- [ ] Tester les transitions worker complètes `non_demarre`, `pret`,
-  `en_cours`, `ignore` et `invalide` pendant les tickets 07 et 08.
+- [ ] Tester la transition `ignore` quand un ticket métier l'introduira ;
+  `non_demarre`, `pret`, `en_cours` et `invalide` sont couverts par les tickets
+  07 et 08.
 
 ## Import Excel et mapping
 

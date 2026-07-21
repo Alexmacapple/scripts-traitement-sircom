@@ -98,6 +98,7 @@ class LocalWorkerTest(unittest.TestCase):
                     step_key="diagnostic_excel",
                     idempotency_key="diagnostic:1",
                     run_id="run_diag_1",
+                    input_fingerprint="input_upload_1",
                 )
 
             def handler(context: WorkerJobContext) -> JobResult:
@@ -128,6 +129,7 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertEqual(job["lease_owner"], "worker-a")
             self.assertEqual(step["status"], "termine")
             self.assertEqual(step["current_run_id"], "run_diag_1")
+            self.assertEqual(step["input_fingerprint"], "input_upload_1")
             self.assertEqual(step["progress_current"], 2)
             self.assertEqual(step["progress_total"], 2)
             self.assertIn("job.acquired", event_types)
@@ -536,6 +538,130 @@ class LocalWorkerTest(unittest.TestCase):
 
             with self.assertRaises(WorkerLeaseLost):
                 context.set_progress(1, 2)
+
+    def test_changed_input_fingerprint_rejects_worker_finish(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot fingerprint")
+                queued = enqueue_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="verification_csv_indesign",
+                    idempotency_key="csv-contract:1",
+                    run_id="run_csv_1",
+                    input_fingerprint="input_old",
+                )
+
+            worker = LocalWorker(
+                database,
+                {"verification_csv_indesign": lambda _context: JobResult()},
+                worker_id="worker-a",
+                lease_seconds=60,
+            )
+            leased = worker.acquire_next()
+            if leased is None:
+                self.fail("Expected a leased job.")
+            self.assertEqual(leased.input_fingerprint, "input_old")
+            self.assertTrue(worker.start_job(leased))
+
+            with database.transaction() as repositories:
+                repositories.connection.execute(
+                    """
+                    UPDATE etapes
+                    SET input_fingerprint = ?
+                    WHERE lot_id = ? AND step_key = ?
+                    """,
+                    ("input_new", lot["id"], "verification_csv_indesign"),
+                )
+
+            finished = worker.finish_success(leased, JobResult(output_fingerprint="output_old"))
+
+            with database.session() as repositories:
+                job = repositories.jobs.get_required(queued.job["id"])
+                step = repositories.steps.get_by_lot_key(lot["id"], "verification_csv_indesign")
+                event_types = {
+                    row["event_type"]
+                    for row in repositories.events.list_for_lot(lot["id"], limit=20)
+                }
+
+            self.assertFalse(finished)
+            self.assertEqual(job["status"], "running")
+            self.assertEqual(step["status"], "en_cours")
+            self.assertEqual(step["output_fingerprint"], None)
+            self.assertIn("job.finish_rejected", event_types)
+
+    def test_dependent_step_without_input_fingerprint_cannot_finish(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot missing fingerprint")
+                queued = enqueue_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="mapping",
+                    idempotency_key="mapping:no-input",
+                    run_id="run_mapping_no_input",
+                )
+
+            worker = LocalWorker(
+                database,
+                {"mapping": lambda _context: JobResult(output_fingerprint="output_mapping")},
+                worker_id="worker-a",
+                lease_seconds=60,
+            )
+            result = worker.run_once()
+
+            with database.session() as repositories:
+                job = repositories.jobs.get_required(queued.job["id"])
+                step = repositories.steps.get_by_lot_key(lot["id"], "mapping")
+                events = repositories.events.list_for_lot(lot["id"], limit=20)
+
+            self.assertEqual(result.outcome, "rejected")
+            self.assertEqual(job["status"], "running")
+            self.assertEqual(step["status"], "en_cours")
+            self.assertEqual(step["output_fingerprint"], None)
+            self.assertTrue(
+                any(
+                    event["event_type"] == "job.finish_rejected"
+                    and "input_fingerprint_missing" in event["payload_json"]
+                    for event in events
+                )
+            )
+
+    def test_worker_success_persists_output_fingerprint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot output fingerprint")
+                enqueue_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="verification_csv_indesign",
+                    idempotency_key="csv-contract:2",
+                    run_id="run_csv_2",
+                    input_fingerprint="input_current",
+                )
+
+            worker = LocalWorker(
+                database,
+                {
+                    "verification_csv_indesign": lambda _context: JobResult(
+                        output_fingerprint="output_current"
+                    )
+                },
+                worker_id="worker-a",
+                lease_seconds=60,
+            )
+            result = worker.run_once()
+
+            with database.session() as repositories:
+                step = repositories.steps.get_by_lot_key(lot["id"], "verification_csv_indesign")
+
+            self.assertEqual(result.outcome, "succeeded")
+            self.assertEqual(step["status"], "termine")
+            self.assertEqual(step["input_fingerprint"], "input_current")
+            self.assertEqual(step["output_fingerprint"], "output_current")
 
     def test_cancellation_request_is_observed_between_substeps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

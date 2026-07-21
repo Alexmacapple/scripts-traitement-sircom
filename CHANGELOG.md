@@ -19,6 +19,10 @@
 - Implémentation du ticket 07 Sircom 2026 : worker local SQLite, acquisition par
   lease, `run_id`, fencing, idempotence de soumission, progression persistée,
   annulation coopérative et runner CLI `scripts-2026/run_worker_once.py`.
+- Implémentation du ticket 08 Sircom 2026 : DAG d'invalidation V1 centralisé,
+  fingerprints SHA-256 de JSON canonique, relance idempotente d'étape échouée,
+  invalidation aval, artefacts/problèmes obsolètes, route
+  `POST /api/lots/{lot_id}/retry` et action DSFR minimale de relance.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

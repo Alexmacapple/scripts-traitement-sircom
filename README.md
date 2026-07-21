@@ -13,9 +13,10 @@ Ce dépôt couvre deux usages complémentaires.
 La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Côté 2026, le
 socle FastAPI local est lancé : configuration, santé, politique d'accès, erreurs
 API structurées, schéma SQLite, lots, store d'artefacts, statuts métier,
-événements séparés, problèmes structurés, worker local SQLite et premiers écrans
-DSFR. Les traitements Excel, images, CSV, rapports et package restent à brancher
-par tickets successifs.
+événements séparés, problèmes structurés, worker local SQLite, relance avec
+invalidation aval par fingerprints et premiers écrans DSFR. Les traitements
+Excel, images, CSV, rapports et package restent à brancher par tickets
+successifs.
 
 ## Sources locales utiles
 
@@ -168,6 +169,7 @@ Routes utiles :
 - `POST /api/lots`
 - `GET /api/lots`
 - `GET /api/lots/{lot_id}`
+- `POST /api/lots/{lot_id}/retry`
 - `DELETE /api/lots/{lot_id}`
 - `GET /api/lots/{lot_id}/downloads/{artifact_id}`
 - `/docs`
@@ -218,7 +220,7 @@ masquée, formule et en-tête multi-ligne.
 .venv/bin/python -m unittest tests.test_excel_diagnostic
 .venv/bin/python -m unittest tests.test_web_socle tests.test_api_access_errors \
   tests.test_database tests.test_lots_api tests.test_artifacts tests.test_state \
-  tests.test_worker
+  tests.test_worker tests.test_invalidation
 SIRCOM_RUN_PLAYWRIGHT=1 .venv/bin/python -m unittest tests.test_lots_playwright
 ```
 

@@ -84,8 +84,12 @@ EVENT_TYPE_LABELS = {
     "job.succeeded": "Job terminé",
     "lot.cancel_requested": "Annulation du lot demandée",
     "problem.recorded": "Problème enregistré",
+    "retry.requested": "Relance demandée",
+    "step.input_changed": "Input modifié",
+    "step.invalidated": "Étape invalidée",
     "step.ready": "Étape prête",
     "step.status_changed": "Statut d'étape modifié",
+    "step.validation_snapshot_frozen": "Validation figée",
     "step.completed": "Étape terminée",
     "step.validation_required": "Validation humaine attendue",
     "step.blocked": "Étape bloquée",
@@ -256,6 +260,13 @@ def serialize_step(step: dict[str, Any]) -> dict[str, Any]:
         "started_at": step["started_at"],
         "finished_at": step["finished_at"],
         "invalidated_at": step["invalidated_at"],
+        "fingerprints": {
+            "input": step["input_fingerprint"],
+            "output": step["output_fingerprint"],
+        },
+        "actions": {
+            "can_retry": step["status"] in {"echoue", "bloque", "invalide"},
+        },
     }
 
 

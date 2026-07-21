@@ -1,6 +1,7 @@
 const messageBox = document.querySelector("#ui-message");
 const createLotForm = document.querySelector("#create-lot-form");
 const deleteLotButton = document.querySelector("#delete-lot-button");
+const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
 
@@ -93,3 +94,32 @@ if (deleteLotButton) {
     }
   });
 }
+
+retryButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    const lotId = button.dataset.retryLotId;
+    const stepKey = button.dataset.retryStepKey;
+    if (!lotId || !stepKey || button.disabled) return;
+
+    button.disabled = true;
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/retry`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+        body: JSON.stringify({ step_key: stepKey }),
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      button.disabled = false;
+      showError(
+        "Relance impossible",
+        error.message,
+        "Verifier l'etat du lot puis reessayer."
+      );
+    }
+  });
+});

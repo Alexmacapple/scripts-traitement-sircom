@@ -224,6 +224,18 @@
                     <div class="fr-col-auto">
                       <span class="fr-badge fr-badge--sm">{{ step.status_label }}</span>
                     </div>
+                    {% if step.actions is defined and step.actions.can_retry %}
+                      <div class="fr-col-auto">
+                        <button
+                          class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left"
+                          type="button"
+                          data-retry-lot-id="{{ selected_lot.id }}"
+                          data-retry-step-key="{{ step.key }}"
+                        >
+                          Relancer
+                        </button>
+                      </div>
+                    {% endif %}
                   </li>
                 {% endfor %}
               </ol>

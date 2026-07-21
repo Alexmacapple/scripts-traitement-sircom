@@ -190,10 +190,15 @@ TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "warning_code",
     "active_jobs",
     "attempt",
+    "input_fingerprint",
+    "invalidated_steps_count",
     "lease_version",
+    "obsolete_artifacts_count",
+    "output_fingerprint",
     "progress_current",
     "progress_total",
     "reason",
+    "source_step_key",
     "worker_id",
 }
 ACTIVE_JOB_STATUSES = ("queued", "leased", "running")
@@ -578,6 +583,110 @@ class StepsRepository:
         )
         return self.get_required(step_id)
 
+    def prepare_run(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        run_id: str,
+        input_fingerprint: str | None = None,
+    ) -> dict[str, Any]:
+        step = self.get_by_lot_key(lot_id, step_key)
+        if step is None:
+            raise KeyError(f"{lot_id}:{step_key}")
+        lot_status = LotsRepository(self.connection).get_required(lot_id)["status"]
+        if lot_status in LOT_WRITE_BLOCKED_STATUSES:
+            raise ValueError("Cannot prepare a run for a canceled or deleted lot.")
+
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE etapes
+            SET
+                status = 'pret',
+                current_run_id = ?,
+                input_fingerprint = ?,
+                output_fingerprint = NULL,
+                progress_current = 0,
+                progress_total = 0,
+                started_at = NULL,
+                finished_at = NULL,
+                invalidated_at = NULL,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (run_id, input_fingerprint, now, step["id"]),
+        )
+        return self.get_required(step["id"])
+
+    def mark_invalidated(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+    ) -> dict[str, Any]:
+        step = self.get_by_lot_key(lot_id, step_key)
+        if step is None:
+            raise KeyError(f"{lot_id}:{step_key}")
+        lot_status = LotsRepository(self.connection).get_required(lot_id)["status"]
+        if lot_status in LOT_WRITE_BLOCKED_STATUSES:
+            raise ValueError("Cannot invalidate a step for a canceled or deleted lot.")
+
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE etapes
+            SET
+                status = 'invalide',
+                current_run_id = NULL,
+                input_fingerprint = NULL,
+                output_fingerprint = NULL,
+                progress_current = 0,
+                progress_total = 0,
+                started_at = NULL,
+                finished_at = NULL,
+                invalidated_at = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (now, now, step["id"]),
+        )
+        return self.get_required(step["id"])
+
+    def set_output_fingerprint(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        output_fingerprint: str,
+        input_fingerprint: str | None = None,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        step = self.get_by_lot_key(lot_id, step_key)
+        if step is None:
+            raise KeyError(f"{lot_id}:{step_key}")
+        lot_status = LotsRepository(self.connection).get_required(lot_id)["status"]
+        if lot_status in LOT_WRITE_BLOCKED_STATUSES:
+            raise ValueError("Cannot update a fingerprint for a canceled or deleted lot.")
+        current_run_id = step["current_run_id"]
+        if run_id is not None and current_run_id is not None and current_run_id != run_id:
+            raise ValueError("Fingerprint run_id does not match the current step run_id.")
+
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE etapes
+            SET
+                current_run_id = COALESCE(?, current_run_id),
+                input_fingerprint = COALESCE(?, input_fingerprint),
+                output_fingerprint = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (run_id, input_fingerprint, output_fingerprint, now, step["id"]),
+        )
+        return self.get_required(step["id"])
+
 
 class JobsRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -657,9 +766,11 @@ class JobsRepository:
         step_key: str,
         run_id: str,
         lease_version: int,
+        expected_input_fingerprint: str | None = None,
     ) -> dict[str, Any] | None:
         params: list[Any] = [lot_id, step_key, run_id, _now()]
         params.append(lease_version)
+        params.extend([expected_input_fingerprint, expected_input_fingerprint])
         return _fetch_one(
             self.connection,
             f"""
@@ -675,6 +786,7 @@ class JobsRepository:
               AND jobs.lease_until > ?
               AND etapes.current_run_id = jobs.run_id
               AND jobs.lease_version = ?
+              AND (? IS NULL OR etapes.input_fingerprint = ?)
             ORDER BY jobs.created_at DESC
             LIMIT 1
             """,
@@ -688,6 +800,7 @@ class JobsRepository:
         worker_id: str,
         run_id: str,
         lease_version: int,
+        expected_input_fingerprint: str | None = None,
     ) -> dict[str, Any] | None:
         return _fetch_one(
             self.connection,
@@ -706,10 +819,19 @@ class JobsRepository:
               AND jobs.lease_until IS NOT NULL
               AND jobs.lease_until > ?
               AND etapes.current_run_id = jobs.run_id
+              AND (? IS NULL OR etapes.input_fingerprint = ?)
               AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})
             LIMIT 1
             """,
-            (job_id, worker_id, run_id, lease_version, _now()),
+            (
+                job_id,
+                worker_id,
+                run_id,
+                lease_version,
+                _now(),
+                expected_input_fingerprint,
+                expected_input_fingerprint,
+            ),
         )
 
     def update_status(self, job_id: str, status: str) -> dict[str, Any]:
@@ -810,7 +932,7 @@ class JobsRepository:
         )
         if cursor.rowcount != 1:
             return None
-        return self.get_required(row["id"])
+        return self._get_with_step_input(row["id"])
 
     def count_processing(self) -> int:
         row = self.connection.execute(
@@ -952,6 +1074,7 @@ class JobsRepository:
         status: str,
         error_code: str | None = None,
         error_message: str | None = None,
+        expected_input_fingerprint: str | None = None,
     ) -> dict[str, Any] | None:
         if status not in {"succeeded", "failed", "canceled"}:
             raise ValueError("Owned job can only finish as succeeded, failed or canceled.")
@@ -960,6 +1083,7 @@ class JobsRepository:
             worker_id=worker_id,
             run_id=run_id,
             lease_version=lease_version,
+            expected_input_fingerprint=expected_input_fingerprint,
         ) is None:
             return None
         now = _now()
@@ -978,6 +1102,22 @@ class JobsRepository:
             (status, now, now, error_code, error_message, now, job_id),
         )
         return self.get_required(job_id)
+
+    def _get_with_step_input(self, job_id: str) -> dict[str, Any]:
+        row = self.connection.execute(
+            """
+            SELECT jobs.*, etapes.input_fingerprint AS step_input_fingerprint
+            FROM jobs
+            JOIN etapes
+              ON etapes.lot_id = jobs.lot_id
+             AND etapes.step_key = jobs.step_key
+            WHERE jobs.id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(job_id)
+        return dict(row)
 
     def expire_stale_leases(self) -> int:
         cursor = self.connection.execute(
@@ -1129,6 +1269,26 @@ class ArtifactsRepository:
                 (status, now, now, artifact_id),
             )
         return self.get_required(artifact_id)
+
+    def mark_obsolete_for_steps(self, *, lot_id: str, step_keys: tuple[str, ...]) -> int:
+        if not step_keys:
+            return 0
+        now = _now()
+        cursor = self.connection.execute(
+            f"""
+            UPDATE artefacts
+            SET
+                status = 'obsolete',
+                obsoleted_at = COALESCE(obsoleted_at, ?),
+                updated_at = ?
+            WHERE lot_id = ?
+              AND step_key IN ({_placeholders(len(step_keys))})
+              AND status IN ('pending', 'committed')
+            """,
+            (now, now, lot_id, *step_keys),
+        )
+        LotsRepository(self.connection).refresh_artifact_counters(lot_id)
+        return cursor.rowcount
 
 
 class EventsRepository:
@@ -1377,6 +1537,23 @@ class ProblemsRepository:
             (lot_id, severity),
         ).fetchone()
         return int(row[0])
+
+    def mark_open_obsolete_for_steps(self, *, lot_id: str, step_keys: tuple[str, ...]) -> int:
+        if not step_keys:
+            return 0
+        now = _now()
+        cursor = self.connection.execute(
+            f"""
+            UPDATE problemes
+            SET status = 'obsolete', updated_at = ?
+            WHERE lot_id = ?
+              AND step_key IN ({_placeholders(len(step_keys))})
+              AND status = 'open'
+            """,
+            (now, lot_id, *step_keys),
+        )
+        LotsRepository(self.connection).refresh_problem_counters(lot_id)
+        return cursor.rowcount
 
 
 def _ensure_schema_migrations_table(connection: sqlite3.Connection) -> None:
