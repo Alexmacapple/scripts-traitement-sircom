@@ -27,6 +27,7 @@ class Settings:
     worker_id: str
     max_active_jobs: int
     disk_free_min_mb: int
+    sqlite_busy_timeout_ms: int
 
     def public_limits(self) -> dict[str, object]:
         return {
@@ -68,6 +69,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         worker_id=_text(values, "SIRCOM_WORKER_ID", "local-1"),
         max_active_jobs=_int(values, "SIRCOM_MAX_ACTIVE_JOBS", 1, minimum=1),
         disk_free_min_mb=_int(values, "SIRCOM_DISK_FREE_MIN_MB", 5120, minimum=0),
+        sqlite_busy_timeout_ms=_int(values, "SIRCOM_SQLITE_BUSY_TIMEOUT_MS", 5000, minimum=0),
     )
 
 

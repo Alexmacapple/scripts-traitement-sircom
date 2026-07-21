@@ -85,6 +85,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.worker_id, "local-1")
         self.assertEqual(settings.max_active_jobs, 1)
         self.assertEqual(settings.disk_free_min_mb, 5120)
+        self.assertEqual(settings.sqlite_busy_timeout_ms, 5000)
 
     def test_environment_overrides(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -104,6 +105,7 @@ class SettingsTest(unittest.TestCase):
                 "SIRCOM_WORKER_ID": "worker-test",
                 "SIRCOM_MAX_ACTIVE_JOBS": "2",
                 "SIRCOM_DISK_FREE_MIN_MB": "128",
+                "SIRCOM_SQLITE_BUSY_TIMEOUT_MS": "2500",
             }
 
             settings = load_settings(env)
@@ -123,12 +125,14 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.worker_id, "worker-test")
         self.assertEqual(settings.max_active_jobs, 2)
         self.assertEqual(settings.disk_free_min_mb, 128)
+        self.assertEqual(settings.sqlite_busy_timeout_ms, 2500)
 
     def test_invalid_configuration_values(self) -> None:
         invalid_envs = [
             {"SIRCOM_PORT": "0"},
             {"SIRCOM_MAX_ACTIVE_JOBS": "0"},
             {"SIRCOM_DISK_FREE_MIN_MB": "-1"},
+            {"SIRCOM_SQLITE_BUSY_TIMEOUT_MS": "-1"},
             {"SIRCOM_WORKER_ENABLED": "maybe"},
             {"SIRCOM_DATA_DIR": ""},
         ]

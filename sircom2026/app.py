@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,6 +19,7 @@ from sircom2026.api.security import (
     require_action,
 )
 from sircom2026.config import ConfigError, Settings, load_settings
+from sircom2026.database import connect_sqlite
 
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -151,15 +151,15 @@ def _check_data_dir(settings: Settings) -> ReadinessCheck:
 
 
 def _check_sqlite(settings: Settings) -> ReadinessCheck:
-    connection: sqlite3.Connection | None = None
+    connection = None
     try:
-        settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        connection = sqlite3.connect(settings.sqlite_path)
+        connection = connect_sqlite(
+            settings.sqlite_path,
+            busy_timeout_ms=settings.sqlite_busy_timeout_ms,
+        )
         connection.execute("SELECT 1")
-    except sqlite3.Error:
+    except Exception:
         return ReadinessCheck("sqlite", False, "SIRCOM_SQLITE_UNAVAILABLE")
-    except OSError:
-        return ReadinessCheck("sqlite", False, "SIRCOM_SQLITE_PATH_UNAVAILABLE")
     finally:
         if connection is not None:
             connection.close()
