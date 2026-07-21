@@ -13,6 +13,14 @@
 - Déplacement du journal de cadrage `cuisine-moi` vers `docs/cuisine-moi/` et mise à jour des références Markdown.
 - Réécriture de `README.md` sans emojis en guide d'ensemble Sircom 2025/2026 : flux 2025, outils 2026, règles métier verrouillées, artefacts et vérifications.
 - Refonte de `TODO.md` en feuille de route structurée : terminé, priorité 0, socle FastAPI, orchestration, import Excel, CSV, images, package, exploitation et recette.
+- Publication locale de `docs/tickets/2026-07-21-tickets-implementation-sircom-2026.md` avec 23 tickets `ready-for-agent`, dépendances explicites, frontier initiale et matrice de couverture des specs.
+- Renforcement du fichier de tickets avec passes avocat du diable et connu-inconnu, clarification des dépendances upload/invalidation et des critères du socle FastAPI.
+- Découpage des tickets Sircom 2026 en fichiers Markdown unitaires dans `docs/tickets/2026-07-21-sircom-2026/`, avec index principal et README de dossier.
+- Revue de chaque ticket unitaire avec passe connu-inconnu et avocat du diable,
+  puis renforcement ciblé des critères d'acceptation sensibles.
+- Passe finale anti-tension LLM sur les tickets : renommage du libellé de
+  dépendance en `Dépend de`, fermeture des formulations ambiguës et fixation des
+  noms d'artefacts rapport/package V1.
 
 ## 2026-07-20
 

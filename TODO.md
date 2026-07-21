@@ -25,30 +25,31 @@
 
 ## Priorité 0 - Verrouiller avant codage lourd
 
-- [ ] Découper les specs fonctionnelle, orchestration et architecture en tickets
+- [x] Découper les specs fonctionnelle, orchestration et architecture en tickets
   unitaires, avec preuve observable pour chaque ticket.
-- [ ] Transformer les quatre risques bloquants de la spec d'architecture en
+- [x] Transformer les quatre risques bloquants de la spec d'architecture en
   critères d'acceptation explicites :
-  - [ ] cohérence SQLite/disque et `ArtifactStore` atomique ;
-  - [ ] idempotence worker, `run_id`, leases et double soumission ;
-  - [ ] frontière `AccessPolicy` / `ActorContext` prête pour le futur VPS ;
-  - [ ] oracle CSV exécutable avant writer final.
-- [ ] Trancher la stack frontend V1 : templates FastAPI/Jinja + DSFR et
+  - [x] cohérence SQLite/disque et `ArtifactStore` atomique ;
+  - [x] idempotence worker, `run_id`, leases et double soumission ;
+  - [x] frontière `AccessPolicy` / `ActorContext` prête pour le futur VPS ;
+  - [x] oracle CSV exécutable avant writer final.
+- [x] Relire chaque ticket unitaire avec une passe connu-inconnu et avocat du
+  diable.
+- [x] Trancher la stack frontend V1 : templates FastAPI/Jinja + DSFR et
   JavaScript minimal par défaut, sauf décision explicite contraire.
-- [ ] Définir précisément `export testable` comme checklist bloquante du package
+- [x] Définir précisément `export testable` comme checklist bloquante du package
   final.
-- [ ] Définir le format du rapport téléchargeable et la liste exacte des fichiers
+- [x] Définir le format du rapport téléchargeable et la liste exacte des fichiers
   du package final au-delà du minimum décidé.
-- [ ] Trancher la politique V1 pour les zips images avec sous-dossiers : refus,
+- [x] Trancher la politique V1 pour les zips images avec sous-dossiers : refus,
   avertissement ou extraction encadrée.
-- [ ] Décider la stratégie HEIC : support testé, refus clair ou dépendance
-  optionnelle documentée.
+- [x] Encadrer la décision HEIC dans le ticket 19 : support testé, refus clair
+  ou dépendance optionnelle documentée.
 
 ## Prochain incrément - Socle web local
 
 - [ ] Créer le squelette FastAPI minimal sans routes stub de succès.
-- [ ] Ajouter `pyproject.toml` ou fichier de dépendances équivalent pour
-  FastAPI, tests et runtime local.
+- [ ] Ajouter `pyproject.toml` pour FastAPI, tests et runtime local.
 - [ ] Ajouter `.sircom2026-data/` au `.gitignore`.
 - [ ] Implémenter la configuration `sircom2026.config` :
   - [ ] `SIRCOM_DATA_DIR` ;
@@ -175,6 +176,8 @@
   - [ ] orientation EXIF appliquée.
 - [ ] Tester l'écart Mac/VPS pour Pillow, profils ICC, EXIF, transparence et
   support HEIC décidé.
+- [ ] Exécuter le spike HEIC du ticket 19 et reporter la décision dans les
+  formats images acceptés.
 
 ## Package, rapports et exploitation
 
