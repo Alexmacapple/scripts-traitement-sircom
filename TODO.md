@@ -116,10 +116,13 @@
 
 ## Import Excel et mapping
 
-- [ ] Brancher `sircom2026.excel_diagnostic` à la route d'upload Excel FastAPI
-  sans déplacer la logique métier dans la route.
-- [ ] Refuser les uploads Excel trop gros, extension invalide ou type non
-  exploitable.
+- [x] Ajouter la route d'upload Excel FastAPI avec stockage artefact source et
+  planification du job `diagnostic_excel`, sans exécuter le diagnostic dans la
+  requête HTTP.
+- [x] Refuser les uploads Excel trop gros, extension invalide ou archive
+  illisible avec erreurs structurées.
+- [ ] Brancher `sircom2026.excel_diagnostic` au job `diagnostic_excel` sans
+  déplacer la logique métier dans la route.
 - [ ] Persister le diagnostic Excel et les problèmes structurés sans exposer de
   valeurs métier.
 - [ ] Vérifier que les refus V1 produisent un message avec titre, cause,

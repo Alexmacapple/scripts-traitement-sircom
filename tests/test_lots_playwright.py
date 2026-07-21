@@ -15,6 +15,7 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from openpyxl import Workbook
 import uvicorn
 
 from sircom2026.app import create_app
@@ -147,6 +148,15 @@ class LotsPlaywrightTest(unittest.TestCase):
                 self.assertTrue(
                     page.get_by_role("heading", name="Lot Playwright Desktop").is_visible()
                 )
+                workbook_path = server.tmp_path / "playwright-upload.xlsx"
+                write_workbook(workbook_path)
+                page.get_by_label("Fichier Excel").set_input_files(str(workbook_path))
+                page.get_by_role("button", name="Déposer l'Excel").click()
+                page.wait_for_load_state("networkidle")
+
+                self.assertTrue(page.get_by_text("Terminée").first.is_visible())
+                self.assertTrue(page.get_by_text("Prête").first.is_visible())
+                self.assertTrue(page.get_by_text("Excel déposé").first.is_visible())
                 self.assertTrue(page.get_by_role("heading", name="Timeline").is_visible())
                 assert_png_screenshot(self, page.screenshot(full_page=True))
 
@@ -189,6 +199,16 @@ class LotsPlaywrightTest(unittest.TestCase):
 def assert_png_screenshot(test_case: unittest.TestCase, screenshot: bytes) -> None:
     test_case.assertTrue(screenshot.startswith(b"\x89PNG\r\n\x1a\n"))
     test_case.assertGreater(len(screenshot), 10_000)
+
+
+def write_workbook(path: Path) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Produits"
+    sheet.append(["id_dossier", "nom_produit"])
+    sheet.append(["DOSSIER-1", "Produit Playwright"])
+    workbook.save(path)
+    workbook.close()
 
 
 if __name__ == "__main__":

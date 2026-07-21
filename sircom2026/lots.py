@@ -72,6 +72,7 @@ EVENT_LEVEL_LABELS = {
     "error": "Erreur",
 }
 EVENT_TYPE_LABELS = {
+    "excel.uploaded": "Excel déposé",
     "lot.created": "Lot créé",
     "lot.deleted": "Suppression logique demandée",
     "artifact.commit_rejected": "Commit d'artefact refusé",

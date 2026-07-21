@@ -23,6 +23,10 @@
   fingerprints SHA-256 de JSON canonique, relance idempotente d'étape échouée,
   invalidation aval, artefacts/problèmes obsolètes, route
   `POST /api/lots/{lot_id}/retry` et action DSFR minimale de relance.
+- Implémentation du ticket 09 Sircom 2026 : route
+  `POST /api/lots/{lot_id}/excel`, validation taille/extension/archive,
+  stockage de l'Excel source via `ArtifactStore`, invalidation aval,
+  planification de `diagnostic_excel` et formulaire DSFR d'upload.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

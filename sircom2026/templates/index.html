@@ -214,6 +214,38 @@
                 </div>
               </dl>
 
+              {% if selected_lot.status not in ["supprime", "purge", "annule"] %}
+                <section class="fr-mt-5v" aria-labelledby="excel-upload-title">
+                  {% set excel_max_mb = limits.excel.max_mb if limits is defined else 50 %}
+                  <h3 id="excel-upload-title">Déposer l'Excel</h3>
+                  <form
+                    id="excel-upload-form"
+                    data-excel-upload-lot-id="{{ selected_lot.id }}"
+                    enctype="multipart/form-data"
+                  >
+                    <div class="fr-upload-group">
+                      <label class="fr-label" for="excel-file">
+                        Fichier Excel
+                        <span class="fr-hint-text">
+                          Formats acceptés : .xlsx, .xlsm. Taille maximale :
+                          {{ excel_max_mb }} Mo.
+                        </span>
+                      </label>
+                      <input
+                        class="fr-upload"
+                        id="excel-file"
+                        name="file"
+                        type="file"
+                        accept=".xlsx,.xlsm"
+                      >
+                    </div>
+                    <button class="fr-btn fr-icon-upload-line fr-btn--icon-left" type="submit">
+                      Déposer l'Excel
+                    </button>
+                  </form>
+                </section>
+              {% endif %}
+
               <h3 class="fr-mt-5v">Timeline</h3>
               <ol class="fr-raw-list">
                 {% for step in selected_lot.steps %}

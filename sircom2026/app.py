@@ -99,6 +99,7 @@ def create_app(
                 "app_version": __version__,
                 "dsfr_assets_path": DSFR_ASSETS_PATH,
                 "dsfr_version": DSFR_VERSION,
+                "limits": app.state.settings.public_limits(),
                 **load_index_context(app.state.settings, app.state.settings_error, lot_id),
             },
         )

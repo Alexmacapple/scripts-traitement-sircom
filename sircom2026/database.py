@@ -720,6 +720,51 @@ class JobsRepository:
         )
         return self.get_required(row_id)
 
+    def create_owned_running(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        run_id: str,
+        idempotency_key: str,
+        lease_owner: str,
+        lease_seconds: int,
+        job_id: str | None = None,
+    ) -> dict[str, Any]:
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be greater than 0.")
+        job = self.create(
+            lot_id=lot_id,
+            step_key=step_key,
+            run_id=run_id,
+            idempotency_key=idempotency_key,
+            status="running",
+            job_id=job_id,
+        )
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE jobs
+            SET
+                lease_owner = ?,
+                lease_version = 1,
+                lease_until = ?,
+                heartbeat_at = ?,
+                started_at = COALESCE(started_at, ?),
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                lease_owner,
+                _now_plus(seconds=lease_seconds),
+                now,
+                now,
+                now,
+                job["id"],
+            ),
+        )
+        return self.get_required(job["id"])
+
     def get(self, job_id: str) -> dict[str, Any] | None:
         return _fetch_one(self.connection, "SELECT * FROM jobs WHERE id = ?", (job_id,))
 
@@ -1243,6 +1288,28 @@ class ArtifactsRepository:
             self.connection,
             "SELECT * FROM artefacts WHERE lot_id = ? AND id = ?",
             (lot_id, artifact_id),
+        )
+
+    def get_for_step_run_role(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        run_id: str,
+        role: str,
+    ) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            """
+            SELECT * FROM artefacts
+            WHERE lot_id = ?
+              AND step_key = ?
+              AND run_id = ?
+              AND role = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (lot_id, step_key, run_id, role),
         )
 
     def update_status(self, artifact_id: str, status: str) -> dict[str, Any]:

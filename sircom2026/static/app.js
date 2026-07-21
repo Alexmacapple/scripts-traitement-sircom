@@ -1,9 +1,11 @@
 const messageBox = document.querySelector("#ui-message");
 const createLotForm = document.querySelector("#create-lot-form");
 const deleteLotButton = document.querySelector("#delete-lot-button");
+const excelUploadForm = document.querySelector("#excel-upload-form");
 const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
+let excelUploadInFlight = false;
 
 function showError(title, cause, action) {
   if (!messageBox) return;
@@ -90,6 +92,48 @@ if (deleteLotButton) {
         "Suppression impossible",
         error.message,
         "Verifier l'etat du lot puis reessayer."
+      );
+    }
+  });
+}
+
+if (excelUploadForm) {
+  excelUploadForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (excelUploadInFlight) return;
+
+    const lotId = excelUploadForm.dataset.excelUploadLotId;
+    const fileInput = excelUploadForm.querySelector("#excel-file");
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+    if (!lotId || !file) {
+      showError(
+        "Dépôt impossible",
+        "Aucun fichier Excel n'a été sélectionné.",
+        "Sélectionner un fichier .xlsx ou .xlsm, puis réessayer."
+      );
+      return;
+    }
+
+    excelUploadInFlight = true;
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/excel`, {
+        method: "POST",
+        headers: {
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+        body: formData,
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      excelUploadInFlight = false;
+      showError(
+        "Dépôt impossible",
+        error.message,
+        "Vérifier le fichier Excel puis réessayer."
       );
     }
   });
