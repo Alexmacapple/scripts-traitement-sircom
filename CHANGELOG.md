@@ -8,6 +8,8 @@
 - Implémentation du ticket 04 Sircom 2026 : création de lots, étapes V1
   initialisées, consultation paginée, suppression logique, annulation
   coopérative des jobs actifs et timeline UI DSFR.
+- Ajout d'une preuve Playwright opt-in pour l'UI lots desktop/mobile : création,
+  sélection, timeline visible et suppression logique.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.
