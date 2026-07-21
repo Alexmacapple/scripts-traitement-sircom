@@ -55,6 +55,11 @@
 - Implémentation du ticket 17 Sircom 2026 : aperçu CSV avec en-têtes finaux,
   premières lignes, suppressions et alertes, validation humaine idempotente,
   export final UTF-16 téléchargeable et blocage si les empreintes amont changent.
+- Implémentation du ticket 18 Sircom 2026 : upload d'un zip images unique par
+  lot, stockage artefact source, inspection zip par worker, refus des chemins
+  dangereux et images en sous-dossier, limites taille/nombre, détection des
+  doublons normalisés, alerte zip sans image traitable, statut API/UI et tests
+  de sécurité zip.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

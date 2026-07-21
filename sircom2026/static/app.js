@@ -2,6 +2,7 @@ const messageBox = document.querySelector("#ui-message");
 const createLotForm = document.querySelector("#create-lot-form");
 const deleteLotButton = document.querySelector("#delete-lot-button");
 const excelUploadForm = document.querySelector("#excel-upload-form");
+const imageUploadForm = document.querySelector("#image-upload-form");
 const mappingForm = document.querySelector("#mapping-form");
 const mappingProfileForm = document.querySelector("#mapping-profile-form");
 const applyMappingProfileButtons = document.querySelectorAll("[data-apply-mapping-profile-id]");
@@ -11,6 +12,7 @@ const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
 let excelUploadInFlight = false;
+let imageUploadInFlight = false;
 let mappingInFlight = false;
 let sortInFlight = false;
 let csvPreviewInFlight = false;
@@ -142,6 +144,48 @@ if (excelUploadForm) {
         "Dépôt impossible",
         error.message,
         "Vérifier le fichier Excel puis réessayer."
+      );
+    }
+  });
+}
+
+if (imageUploadForm) {
+  imageUploadForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (imageUploadInFlight) return;
+
+    const lotId = imageUploadForm.dataset.imageUploadLotId;
+    const fileInput = imageUploadForm.querySelector("#image-zip-file");
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+    if (!lotId || !file) {
+      showError(
+        "Dépôt impossible",
+        "Aucun zip images n'a été sélectionné.",
+        "Sélectionner un fichier .zip, puis réessayer."
+      );
+      return;
+    }
+
+    imageUploadInFlight = true;
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/images`, {
+        method: "POST",
+        headers: {
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+        body: formData,
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      imageUploadInFlight = false;
+      showError(
+        "Dépôt zip impossible",
+        error.message,
+        "Vérifier le zip images puis réessayer."
       );
     }
   });

@@ -28,6 +28,16 @@ class ReadableArtifact:
 
 
 @dataclass(frozen=True)
+class PreparedArtifactFile:
+    artifact_id: str
+    relative_path: str
+    final_path: Path
+    sha256: str
+    size_bytes: int
+    mime_type: str
+
+
+@dataclass(frozen=True)
 class ArtifactReconciliation:
     orphan_files: int = 0
     missing_files: int = 0
@@ -143,6 +153,82 @@ class ArtifactStore:
             )
         except Exception:
             temp_path.unlink(missing_ok=True)
+            raise
+
+    def prepare_file_for_commit(
+        self,
+        *,
+        lot_id: str,
+        filename: str,
+        source_path: Path,
+        sha256: str,
+        size_bytes: int,
+        artifact_id: str | None = None,
+        mime_type: str | None = None,
+    ) -> PreparedArtifactFile:
+        row_id = artifact_id or _new_artifact_id()
+        safe_lot_id = safe_path_part(lot_id, "lot_id")
+        safe_row_id = safe_path_part(row_id, "artifact_id")
+        internal_filename = internal_artifact_filename(safe_row_id, filename)
+        relative_path = f"lots/{safe_lot_id}/artifacts/{safe_row_id}/{internal_filename}"
+        final_path = self.path_for(relative_path)
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(source_path, final_path)
+        return PreparedArtifactFile(
+            artifact_id=row_id,
+            relative_path=relative_path,
+            final_path=final_path,
+            sha256=sha256,
+            size_bytes=size_bytes,
+            mime_type=mime_type or guess_media_type(internal_filename),
+        )
+
+    def create_committed_from_prepared_file(
+        self,
+        repositories: Repositories,
+        *,
+        lot_id: str,
+        step_key: str,
+        run_id: str,
+        kind: str,
+        role: str,
+        prepared_file: PreparedArtifactFile,
+        metadata: dict[str, Any] | None = None,
+        lease_version: int,
+    ) -> dict[str, Any]:
+        try:
+            lot = repositories.lots.get_required(lot_id)
+            if lot["status"] in {"supprime", "purge"}:
+                raise ArtifactUnavailableError("Deleted lots cannot receive artifacts.")
+            self._require_active_job(
+                repositories,
+                lot_id=lot_id,
+                step_key=step_key,
+                run_id=run_id,
+                lease_version=lease_version,
+            )
+            artifact = repositories.artifacts.create(
+                lot_id=lot_id,
+                step_key=step_key,
+                run_id=run_id,
+                kind=kind,
+                role=role,
+                relative_path=prepared_file.relative_path,
+                sha256=prepared_file.sha256,
+                size_bytes=prepared_file.size_bytes,
+                mime_type=prepared_file.mime_type,
+                metadata=metadata,
+                status="pending",
+                artifact_id=prepared_file.artifact_id,
+            )
+            committed = repositories.artifacts.update_status(
+                artifact["id"],
+                _CURRENT_ARTIFACT_STATUS,
+            )
+            repositories.lots.refresh_artifact_counters(lot_id)
+            return committed
+        except Exception:
+            prepared_file.final_path.unlink(missing_ok=True)
             raise
 
     def open_for_read(

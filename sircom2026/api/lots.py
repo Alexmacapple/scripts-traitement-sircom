@@ -21,6 +21,14 @@ from sircom2026.excel_diagnostic_pipeline import (
     get_persisted_excel_diagnostic,
 )
 from sircom2026.excel_upload import ExcelUploadError, upload_excel_for_lot
+from sircom2026.images import (
+    ImageInspectionNotReady,
+    ImageZipUploadError,
+    get_persisted_image_inspection,
+    prepare_image_zip_artifact_for_commit,
+    prepare_image_zip_upload_temp,
+    upload_prepared_image_zip_for_lot,
+)
 from sircom2026.invalidation import RetryNotAllowedError, UnknownStepError, retry_step
 from sircom2026.lots import (
     create_lot_with_steps,
@@ -254,6 +262,134 @@ async def read_lot_excel_diagnostic(
     artifact = persisted.artifact
     return {
         "diagnostic": persisted.diagnostic,
+        "problems": problems,
+        "problem_groups": group_problems_by_severity(problems),
+        "artifact": {
+            "id": artifact["id"],
+            "kind": artifact["kind"],
+            "role": artifact["role"],
+            "status": artifact["status"],
+            "size_bytes": artifact["size_bytes"],
+            "sha256": artifact["sha256"],
+            "mime_type": artifact["mime_type"],
+            "download_url": f"/api/lots/{lot_id}/downloads/{artifact['id']}",
+        },
+    }
+
+
+@router.post("/{lot_id}/images", status_code=202)
+async def upload_lot_images(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    file: Annotated[UploadFile, File()],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    idempotency_key = idempotency_key_from_request(request)
+    if idempotency_key is None:
+        idempotency_key = f"upload_images:{uuid.uuid4().hex}"
+
+    prepared = None
+    prepared_artifact = None
+    artifact_registered = False
+    try:
+        prepared = prepare_image_zip_upload_temp(
+            settings=settings,
+            lot_id=lot_id,
+            filename=file.filename,
+            source_file=file.file,
+        )
+        prepared_artifact = prepare_image_zip_artifact_for_commit(
+            settings=settings,
+            lot_id=lot_id,
+            prepared=prepared,
+        )
+        with database.transaction() as repositories:
+            result = upload_prepared_image_zip_for_lot(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                prepared=prepared,
+                prepared_artifact=prepared_artifact,
+                content_type=file.content_type,
+                idempotency_key=idempotency_key,
+            )
+            lot = get_lot_detail(repositories, lot_id)
+        artifact_registered = result.artifact["id"] == prepared_artifact.artifact_id
+    except ImageZipUploadError as exc:
+        raise ApiError(
+            exc.status_code,
+            exc.code,
+            exc.message,
+            details=exc.details,
+        ) from exc
+    except (KeyError, ValueError) as exc:
+        raise lot_not_found() from exc
+    finally:
+        if prepared is not None:
+            prepared.path.unlink(missing_ok=True)
+        if prepared_artifact is not None and not artifact_registered:
+            prepared_artifact.final_path.unlink(missing_ok=True)
+
+    artifact = result.artifact
+    job = result.inspection_job
+    return {
+        "lot": lot,
+        "artifact": {
+            "id": artifact["id"],
+            "kind": artifact["kind"],
+            "role": artifact["role"],
+            "status": artifact["status"],
+            "size_bytes": artifact["size_bytes"],
+            "sha256": artifact["sha256"],
+            "mime_type": artifact["mime_type"],
+            "download_url": f"/api/lots/{lot_id}/downloads/{artifact['id']}",
+        },
+        "job": {
+            "id": job["id"],
+            "step_key": job["step_key"],
+            "run_id": job["run_id"],
+            "status": job["status"],
+            "created": result.inspection_job_created,
+        },
+        "invalidated_steps": list(result.invalidated_steps),
+    }
+
+
+@router.get("/{lot_id}/images/status")
+async def read_lot_images_status(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.transaction() as repositories:
+        try:
+            persisted = get_persisted_image_inspection(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+            problems = [
+                serialize_problem(problem)
+                for problem in repositories.problems.list_for_lot(lot_id, limit=100)
+                if problem["step_key"] == "inspection_images"
+                and problem["run_id"] == persisted.artifact["run_id"]
+            ]
+        except ImageInspectionNotReady as exc:
+            raise ApiError(
+                409,
+                "SIRCOM_IMAGE_INSPECTION_NOT_READY",
+                "Inspection images non disponible.",
+            ) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+    artifact = persisted.artifact
+    return {
+        "inspection": persisted.inspection,
         "problems": problems,
         "problem_groups": group_problems_by_severity(problems),
         "artifact": {

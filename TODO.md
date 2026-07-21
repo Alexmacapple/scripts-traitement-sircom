@@ -180,13 +180,13 @@
   absentes ou mal nommées.
 - [ ] Ajouter des noms d'onglets longs et des cas de collisions de mapping
   multi-onglets.
-- [ ] Implémenter l'upload d'un seul zip images par lot.
-- [ ] Sécuriser l'inspection zip :
-  - [ ] refus `zip slip` ;
-  - [ ] bornes taille zip, taille décompressée, nombre d'images et taille image ;
-  - [ ] normalisation des noms ;
-  - [ ] fichiers cachés ignorés ou signalés selon politique ;
-  - [ ] logs sans valeurs métier sensibles.
+- [x] Implémenter l'upload d'un seul zip images par lot.
+- [x] Sécuriser l'inspection zip :
+  - [x] refus `zip slip` ;
+  - [x] bornes taille zip, taille décompressée, nombre d'images et taille image ;
+  - [x] normalisation des noms ;
+  - [x] fichiers cachés ignorés ou signalés selon politique ;
+  - [x] logs sans valeurs métier sensibles.
 - [ ] Implémenter le matching images :
   - [ ] correspondance par nom original si disponible ;
   - [ ] fallback par `id_dossier` normalisé ;

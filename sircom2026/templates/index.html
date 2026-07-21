@@ -246,6 +246,116 @@
                 </section>
               {% endif %}
 
+              {% if selected_lot.status not in ["supprime", "purge", "annule"] %}
+                <section class="fr-mt-5v" aria-labelledby="image-upload-title">
+                  {% set zip_max_mb = limits.zip.max_mb if limits is defined else 1024 %}
+                  {% set unzipped_max_mb = limits.zip.max_unzipped_mb if limits is defined else 3072 %}
+                  {% set image_max_count = limits.images.max_count if limits is defined else 1500 %}
+                  {% set image_max_mb = limits.images.max_mb if limits is defined else 50 %}
+                  <h3 id="image-upload-title">Déposer le zip images</h3>
+                  <form
+                    id="image-upload-form"
+                    data-image-upload-lot-id="{{ selected_lot.id }}"
+                    enctype="multipart/form-data"
+                  >
+                    <div class="fr-upload-group">
+                      <label class="fr-label" for="image-zip-file">
+                        Zip images
+                        <span class="fr-hint-text">
+                          Format accepté : .zip. Taille maximale :
+                          {{ zip_max_mb }} Mo. Images attendues à la racine ;
+                          {{ image_max_count }} images maximum, {{ image_max_mb }} Mo par image,
+                          {{ unzipped_max_mb }} Mo après décompression.
+                        </span>
+                      </label>
+                      <input
+                        class="fr-upload"
+                        id="image-zip-file"
+                        name="file"
+                        type="file"
+                        accept=".zip"
+                      >
+                    </div>
+                    <button class="fr-btn fr-icon-upload-line fr-btn--icon-left" type="submit">
+                      Déposer le zip images
+                    </button>
+                  </form>
+                </section>
+              {% endif %}
+
+              {% set image_inspection = selected_lot.image_inspection if selected_lot.image_inspection is defined else none %}
+              {% if image_inspection %}
+                <section class="fr-mt-5v" aria-labelledby="image-inspection-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="image-inspection-title">Inspection images</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      {% if image_inspection.inspectable %}
+                        <p class="fr-badge fr-badge--success fr-badge--sm">Zip inspectable</p>
+                      {% else %}
+                        <p class="fr-badge fr-badge--error fr-badge--sm">Zip refusé</p>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Images</dt>
+                      <dd>{{ image_inspection.image_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Entrées</dt>
+                      <dd>{{ image_inspection.entries_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Fichiers</dt>
+                      <dd>{{ image_inspection.files_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Ignorées</dt>
+                      <dd>{{ image_inspection.ignored_entries_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Décompressé</dt>
+                      <dd>{{ image_inspection.total_uncompressed_bytes }} octets</dd>
+                    </div>
+                  </dl>
+
+                  {% if image_inspection.images %}
+                    <div class="fr-table fr-table--bordered fr-mt-3v">
+                      <div class="fr-table__wrapper">
+                        <div class="fr-table__container">
+                          <div class="fr-table__content">
+                            <table>
+                              <caption>Images détectées à la racine du zip</caption>
+                              <thead>
+                                <tr>
+                                  <th scope="col">Nom</th>
+                                  <th scope="col">Format</th>
+                                  <th scope="col">Taille</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for image in image_inspection.images %}
+                                  <tr>
+                                    <td>{{ image.name }}</td>
+                                    <td>{{ image.extension }}</td>
+                                    <td>{{ image.size_bytes }} octets</td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% else %}
+                    <p class="fr-mt-3v">Aucune image traitable détectée.</p>
+                  {% endif %}
+                </section>
+              {% endif %}
+
               {% set excel_diagnostic = selected_lot.excel_diagnostic if selected_lot.excel_diagnostic is defined else none %}
               {% if excel_diagnostic %}
                 <section class="fr-mt-5v" aria-labelledby="excel-diagnostic-title">

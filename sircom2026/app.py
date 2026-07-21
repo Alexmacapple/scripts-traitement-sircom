@@ -28,6 +28,7 @@ from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import ConfigError, Settings, load_settings
 from sircom2026.csv_preview import CsvPreviewError, get_csv_preview_payload
 from sircom2026.database import Database, SchemaVersionError, connect_sqlite
+from sircom2026.images import ImageInspectionNotReady, get_persisted_image_inspection
 from sircom2026.lots import get_lot_detail, list_lots
 from sircom2026.mapping import MappingError, get_mapping_payload
 from sircom2026.sorting import SortDecisionError, get_sort_payload
@@ -241,6 +242,14 @@ def load_index_context(
                         )
                     except CsvPreviewError:
                         selected_lot["csv_preview"] = None
+                    try:
+                        selected_lot["image_inspection"] = get_persisted_image_inspection(
+                            repositories,
+                            settings=settings,
+                            lot_id=lot_id,
+                        ).inspection
+                    except ImageInspectionNotReady:
+                        selected_lot["image_inspection"] = None
                     context["selected_lot"] = selected_lot
                 except KeyError:
                     context["ui_error"] = ui_error(

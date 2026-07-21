@@ -78,6 +78,8 @@ EVENT_TYPE_LABELS = {
     "fusion.completed": "Fusion multi-onglets terminée",
     "csv_contract.verified": "Contrat CSV vérifié",
     "csv.preview_validated": "Aperçu CSV validé",
+    "image_zip.uploaded": "Zip images déposé",
+    "images.inspection_completed": "Images inspectées",
     "lot.created": "Lot créé",
     "lot.deleted": "Suppression logique demandée",
     "artifact.commit_rejected": "Commit d'artefact refusé",
@@ -531,6 +533,9 @@ def format_location(location: dict[str, Any]) -> str:
     column = location.get("colonne") or location.get("column") or location.get("column_letter")
     row = location.get("ligne") or location.get("row")
     artifact_id = location.get("artifact_id")
+    archive = location.get("archive")
+    if archive:
+        parts.append(str(archive))
     if sheet:
         parts.append(f"Onglet {sheet}")
     if column:

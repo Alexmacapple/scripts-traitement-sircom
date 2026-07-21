@@ -1,6 +1,6 @@
 # 18 - Upload zip images et inspection sécurisée
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 05, 08.
 
@@ -9,22 +9,22 @@ et produire un bilan structuré.
 
 Critères d'acceptation :
 
-- [ ] Un seul zip images est accepté par lot.
-- [ ] L'extension et la signature zip sont contrôlées.
-- [ ] Les tailles compressée, décompressée, nombre de fichiers et taille par
+- [x] Un seul zip images est accepté par lot.
+- [x] L'extension et la signature zip sont contrôlées.
+- [x] Les tailles compressée, décompressée, nombre de fichiers et taille par
       image sont contrôlées.
-- [ ] Les chemins absolus, `..`, noms vides et caractères de contrôle sont
+- [x] Les chemins absolus, `..`, noms vides et caractères de contrôle sont
       refusés.
-- [ ] Les doublons de noms après normalisation Unicode/casse sont détectés et
+- [x] Les doublons de noms après normalisation Unicode/casse sont détectés et
       signalés.
-- [ ] Les images à la racine sont listées.
-- [ ] Toute image placée dans un sous-dossier du zip est refusée en V1 avec
+- [x] Les images à la racine sont listées.
+- [x] Toute image placée dans un sous-dossier du zip est refusée en V1 avec
       message actionnable ; seuls les fichiers système explicitement ignorables
       (`__MACOSX/`, `.DS_Store`) peuvent être écartés sans bloquer.
-- [ ] Un zip sans image traitable produit une alerte non bloquante pour le CSV.
-- [ ] L'inspection nettoie le répertoire temporaire du lot en cas d'échec.
-- [ ] Un nouvel upload zip invalide le traitement images et le package.
-- [ ] Tests pour zip valide, signature invalide, traversal, sous-dossier seul,
+- [x] Un zip sans image traitable produit une alerte non bloquante pour le CSV.
+- [x] L'inspection nettoie le répertoire temporaire du lot en cas d'échec.
+- [x] Un nouvel upload zip invalide le traitement images et le package.
+- [x] Tests pour zip valide, signature invalide, traversal, sous-dossier seul,
       zip mixte racine/sous-dossier, doublons normalisés, zip vide et zip trop
       gros.
 
@@ -36,6 +36,12 @@ Hors périmètre :
 Preuve attendue :
 
 - tests de sécurité zip.
+
+Preuve produite :
+
+- `.venv/bin/python -m unittest tests.test_image_upload`
+- `.venv/bin/python -m unittest`
+- `git diff --check`
 
 ---
 
