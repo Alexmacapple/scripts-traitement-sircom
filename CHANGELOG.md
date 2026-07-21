@@ -12,6 +12,9 @@
 - Mise à jour des tickets unitaires : tous les tickets sont `ready-for-agent`
   côté cadrage, tout en conservant la frontier d'exécution au ticket 01 puis le
   graphe de dépendances.
+- Ajout des garde-fous d'implémentation dans `docs/agents/` : prompt verrouillé
+  pour le ticket 01, template de review post-ticket et exclusion des sorties
+  locales `.claude/outputs/`.
 - Ajout des rapports de vérification globale GLM et SOL, puis synthèse
   GLM/SOL/Codex pour arbitrer le lancement de l'implémentation Sircom 2026.
 - Application du patch documentaire P0 avant ticket 01 : defaults V1

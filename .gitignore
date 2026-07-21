@@ -58,6 +58,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.claude/outputs/
 .DS_Store
 .DS_Store?
 ._*

@@ -54,6 +54,8 @@
   sémantique CSV/package.
 - [x] Formaliser le contrat UI DSFR V1 : shell, écrans métier, composants,
   états, messages, formulaires, responsive et vérifications minimales.
+- [x] Ajouter les garde-fous d'implémentation agent : prompt verrouillé ticket
+  01 et template de review post-ticket.
 - [ ] Clarifier avec le Sircom le couplage gabarit InDesign 2026 : nouveaux noms
   `id_dossier`/mapping ou réemploi des champs 2025.
 
