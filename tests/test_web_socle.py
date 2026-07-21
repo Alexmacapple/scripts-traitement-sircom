@@ -6,6 +6,7 @@ import stat
 import tempfile
 import unittest
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,6 +21,40 @@ class DiskUsage:
     total: int
     used: int
     free: int
+
+
+@dataclass
+class HtmlElement:
+    tag: str
+    attrs: dict[str, str]
+
+
+class ShellHtmlParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.elements: list[HtmlElement] = []
+        self.elements_by_id: dict[str, HtmlElement] = {}
+        self.asset_paths: list[str] = []
+        self.anchor_refs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr_map = {name: value or "" for name, value in attrs}
+        element = HtmlElement(tag=tag, attrs=attr_map)
+        self.elements.append(element)
+
+        element_id = attr_map.get("id")
+        if element_id:
+            self.elements_by_id[element_id] = element
+
+        if tag == "a":
+            href = attr_map.get("href", "")
+            if href.startswith("#"):
+                self.anchor_refs.append(href[1:])
+
+        for key in ("href", "src"):
+            path = attr_map.get(key, "")
+            if path.startswith("/static/"):
+                self.asset_paths.append(path)
 
 
 def make_settings(tmpdir: Path, **overrides: str):
@@ -240,6 +275,7 @@ class WebSocleTest(unittest.TestCase):
         self.assertIn("République<br>Française", html)
         self.assertIn('id="header-menu-button"', html)
         self.assertIn('aria-controls="header-menu"', html)
+        self.assertIn('aria-haspopup="dialog"', html)
         self.assertIn(
             '<div class="fr-header__menu fr-modal" id="header-menu" role="dialog" aria-labelledby="header-menu-button">',
             html,
@@ -248,6 +284,7 @@ class WebSocleTest(unittest.TestCase):
             '<div class="fr-header__menu fr-modal" id="header-menu" aria-labelledby="header-menu-button">',
             html,
         )
+        self.assertNotIn('<nav class="fr-nav" role="navigation"', html)
         self.assertIn('class="fr-btn--close fr-btn"', html)
         self.assertIn('<main id="contenu"', html)
         self.assertIn('<footer class="fr-footer" role="contentinfo">', html)
@@ -261,6 +298,67 @@ class WebSocleTest(unittest.TestCase):
         self.assertNotIn("cdn.jsdelivr.net", html)
         self.assertNotIn('href="#"', html)
         self.assertNotIn("conforme RGAA", html)
+
+    def test_shell_html_has_valid_local_references_and_popup_semantics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            response = client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        parser = ShellHtmlParser()
+        parser.feed(response.text)
+
+        labelledby_violations = []
+        disallowed_generic_roles = {
+            "",
+            "caption",
+            "code",
+            "deletion",
+            "emphasis",
+            "generic",
+            "insertion",
+            "paragraph",
+            "presentation",
+            "strong",
+            "subscript",
+            "superscript",
+        }
+        for element in parser.elements:
+            role = element.attrs.get("role", "")
+            if element.tag == "div" and "aria-labelledby" in element.attrs and role in disallowed_generic_roles:
+                labelledby_violations.append(element.attrs)
+        self.assertEqual(labelledby_violations, [])
+
+        missing_controls = [
+            element.attrs
+            for element in parser.elements
+            if element.attrs.get("aria-controls") and element.attrs["aria-controls"] not in parser.elements_by_id
+        ]
+        missing_labelledby = [
+            element.attrs
+            for element in parser.elements
+            for ref in element.attrs.get("aria-labelledby", "").split()
+            if ref and ref not in parser.elements_by_id
+        ]
+        missing_anchors = [anchor for anchor in parser.anchor_refs if anchor not in parser.elements_by_id]
+
+        self.assertEqual(missing_controls, [])
+        self.assertEqual(missing_labelledby, [])
+        self.assertEqual(missing_anchors, [])
+
+        menu_button = parser.elements_by_id["header-menu-button"]
+        header_menu = parser.elements_by_id["header-menu"]
+        self.assertEqual(menu_button.attrs["aria-haspopup"], "dialog")
+        self.assertEqual(menu_button.attrs["aria-controls"], "header-menu")
+        self.assertEqual(header_menu.attrs["role"], "dialog")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+            missing_assets = [
+                path for path in parser.asset_paths if client.get(path).status_code != 200
+            ]
+        self.assertEqual(missing_assets, [])
 
     def test_local_dsfr_static_assets_are_served(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
