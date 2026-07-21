@@ -190,6 +190,7 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
     return JobResult(
         with_warnings=has_alerts,
         output_fingerprint=output_fingerprint,
+        require_next_validations=("package_final",),
     )
 
 

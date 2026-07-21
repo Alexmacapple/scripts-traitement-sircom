@@ -181,6 +181,7 @@ TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "duration_ms",
     "error_code",
     "free_mb",
+    "has_image_warnings",
     "job_id",
     "level",
     "lot_id",

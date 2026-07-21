@@ -64,6 +64,7 @@ UI_WORKER_RETRY_STEP_KEYS = {
     "inspection_images",
     "matching_images",
     "rapports",
+    "package_final",
 }
 EXCEL_DIAGNOSTIC_STEP_KEY = "diagnostic_excel"
 PROBLEM_SEVERITY_LABELS = {
@@ -91,6 +92,8 @@ EVENT_TYPE_LABELS = {
     "images.inspection_completed": "Images inspectées",
     "images.manual_resolutions_saved": "Résolutions images enregistrées",
     "images.matching_completed": "Images associées",
+    "package.generated": "Package final généré",
+    "package.requested": "Génération du package demandée",
     "reports.generated": "Rapports générés",
     "lot.created": "Lot créé",
     "lot.deleted": "Suppression logique demandée",
@@ -137,6 +140,7 @@ VISIBLE_TECHNICAL_DETAIL_KEYS = {
     "error_code",
     "expected_sha256",
     "free_mb",
+    "has_image_warnings",
     "hidden_columns",
     "date_issues_count",
     "required_mb",

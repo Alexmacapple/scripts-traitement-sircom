@@ -32,6 +32,7 @@ from sircom2026.image_matching import ImageMatchingNotReady, get_persisted_image
 from sircom2026.images import ImageInspectionNotReady, get_persisted_image_inspection
 from sircom2026.lots import get_lot_detail, list_lots
 from sircom2026.mapping import MappingError, get_mapping_payload
+from sircom2026.package import PackageNotReady, get_persisted_package
 from sircom2026.reports import ReportsNotReady, get_persisted_reports
 from sircom2026.sorting import SortDecisionError, get_sort_payload
 
@@ -299,6 +300,23 @@ def load_index_context(
                         }
                     except ReportsNotReady:
                         selected_lot["reports"] = None
+                    try:
+                        package = get_persisted_package(
+                            repositories,
+                            settings=settings,
+                            lot_id=lot_id,
+                        )
+                        selected_lot["package"] = {
+                            "artifact": {
+                                **package.artifact,
+                                "download_url": (
+                                    f"/api/lots/{lot_id}/downloads/"
+                                    f"{package.artifact['id']}"
+                                ),
+                            },
+                        }
+                    except PackageNotReady:
+                        selected_lot["package"] = None
                     context["selected_lot"] = selected_lot
                 except KeyError:
                     context["ui_error"] = ui_error(

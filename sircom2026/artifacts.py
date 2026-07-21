@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import mimetypes
 import os
 import re
@@ -448,6 +449,11 @@ def internal_artifact_filename(artifact_id: str, source_filename: str) -> str:
 
 
 def download_filename(artifact: dict[str, Any]) -> str:
+    metadata = _json_dict(artifact.get("metadata_json"))
+    explicit_filename = metadata.get("download_filename")
+    if isinstance(explicit_filename, str) and explicit_filename.strip():
+        return safe_artifact_filename(explicit_filename)
+
     extension = Path(artifact["relative_path"]).suffix
     base = safe_artifact_filename(f"{artifact['role'] or artifact['kind']}{extension}")
     return base
@@ -467,6 +473,16 @@ def sha256_file(path: Path) -> str:
 
 def _new_artifact_id() -> str:
     return f"artifact_{uuid.uuid4().hex}"
+
+
+def _json_dict(value: object) -> dict[str, Any]:
+    if not isinstance(value, str) or not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _mark_artifact_obsolete_with_problem(

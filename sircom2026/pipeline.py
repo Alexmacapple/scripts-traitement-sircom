@@ -32,6 +32,7 @@ V1_WORKER_STEP_KEYS = (
     "inspection_images",
     "matching_images",
     "rapports",
+    "package_final",
 )
 V1_AUTO_ENQUEUE_STEP_KEYS = ("matching_images", "rapports")
 V1_AUTO_ENQUEUE_PARENT_STATUSES = ("termine", "termine_avec_alertes")

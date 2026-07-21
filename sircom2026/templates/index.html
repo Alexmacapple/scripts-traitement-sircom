@@ -1099,6 +1099,70 @@
                 {% endif %}
               </section>
 
+              {% set package_payload = selected_lot.package if selected_lot.package is defined else none %}
+              {% set package_step = selected_lot.steps | selectattr("key", "equalto", "package_final") | first %}
+              <section class="fr-mt-5v" aria-labelledby="package-title">
+                <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                  <div class="fr-col">
+                    <h3 id="package-title">Package final</h3>
+                  </div>
+                  <div class="fr-col-auto">
+                    {% if package_payload %}
+                      <p class="fr-badge fr-badge--success fr-badge--sm">Prêt</p>
+                    {% else %}
+                      <p class="fr-badge fr-badge--info fr-badge--sm">
+                        {{ package_step.status_label if package_step else "Non démarrée" }}
+                      </p>
+                    {% endif %}
+                  </div>
+                </div>
+
+                {% if package_payload %}
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Zip</dt>
+                      <dd>{{ package_payload.artifact.size_bytes }} octets</dd>
+                    </div>
+                  </dl>
+
+                  <p class="fr-mt-3v">
+                    <a
+                      class="fr-btn fr-icon-download-line fr-btn--icon-left"
+                      href="{{ package_payload.artifact.download_url }}"
+                    >
+                      Télécharger le package final
+                    </a>
+                  </p>
+                {% elif reports_payload %}
+                  <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
+                    <h4 class="fr-alert__title">Validation finale attendue</h4>
+                    <p class="fr-mb-1v">
+                      Les rapports sont prêts. Le package final sera assemblé par le worker.
+                    </p>
+                    <p class="fr-text--sm fr-mb-0">
+                      Les alertes images ouvertes sont acceptées pour cette génération.
+                    </p>
+                  </div>
+                  <p class="fr-mt-3v">
+                    <button
+                      class="fr-btn fr-icon-archive-line fr-btn--icon-left"
+                      type="button"
+                      data-package-generate-lot-id="{{ selected_lot.id }}"
+                      data-package-accept-warnings="true"
+                    >
+                      Générer le package final
+                    </button>
+                  </p>
+                {% else %}
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Package en attente</h4>
+                    <p class="fr-mb-0">
+                      Le package final sera disponible après les rapports.
+                    </p>
+                  </div>
+                {% endif %}
+              </section>
+
               <h3 class="fr-mt-5v">Timeline</h3>
               <ol class="fr-raw-list">
                 {% for step in selected_lot.steps %}

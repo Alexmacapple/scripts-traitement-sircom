@@ -11,6 +11,7 @@ from sircom2026.database import Database
 from sircom2026.excel_diagnostic_pipeline import run_excel_diagnostic_job
 from sircom2026.image_matching import run_image_matching_job
 from sircom2026.images import run_image_inspection_job
+from sircom2026.package import run_package_job
 from sircom2026.reports import run_reports_job
 from sircom2026.transform import run_content_normalization_job, run_flat_merge_job
 from sircom2026.worker import JobHandler, LocalWorker, WorkerRunResult
@@ -71,6 +72,10 @@ def default_handlers(settings: Settings) -> dict[str, JobHandler]:
             settings=settings,
         ),
         "rapports": lambda context: run_reports_job(
+            context,
+            settings=settings,
+        ),
+        "package_final": lambda context: run_package_job(
             context,
             settings=settings,
         ),

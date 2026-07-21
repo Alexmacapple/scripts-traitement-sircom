@@ -8,6 +8,7 @@ const mappingProfileForm = document.querySelector("#mapping-profile-form");
 const applyMappingProfileButtons = document.querySelectorAll("[data-apply-mapping-profile-id]");
 const sortDecisionButtons = document.querySelectorAll("[data-sort-decision]");
 const csvPreviewValidateButtons = document.querySelectorAll("[data-csv-preview-validate]");
+const packageGenerateButtons = document.querySelectorAll("[data-package-generate-lot-id]");
 const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 const imageResolutionForms = document.querySelectorAll("[data-image-resolution-form]");
 let createLotInFlight = false;
@@ -17,6 +18,7 @@ let imageUploadInFlight = false;
 let mappingInFlight = false;
 let sortInFlight = false;
 let csvPreviewInFlight = false;
+let packageInFlight = false;
 let imageResolutionInFlight = false;
 
 function showError(title, cause, action) {
@@ -402,6 +404,37 @@ imageResolutionForms.forEach((form) => {
         "Résolution image impossible",
         error.message,
         "Choisir une image source proposée puis réessayer."
+      );
+    }
+  });
+});
+
+packageGenerateButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    const lotId = button.dataset.packageGenerateLotId;
+    const acceptWarnings = button.dataset.packageAcceptWarnings === "true";
+    if (!lotId || packageInFlight) return;
+
+    packageInFlight = true;
+    button.disabled = true;
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/package`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+        body: JSON.stringify({ accept_warnings: acceptWarnings }),
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      packageInFlight = false;
+      button.disabled = false;
+      showError(
+        "Package impossible",
+        error.message,
+        "Vérifier les problèmes ouverts puis réessayer."
       );
     }
   });

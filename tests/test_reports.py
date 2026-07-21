@@ -219,7 +219,7 @@ class ReportsApiTest(unittest.TestCase):
         self.assertEqual(reports_job.outcome, "succeeded")
         self.assertEqual(reports.status_code, 200, reports.text)
         self.assertEqual(report_step["status"], "termine_avec_alertes")
-        self.assertEqual(lot["status"], "en_cours")
+        self.assertEqual(lot["status"], "action_requise")
 
         business_text = business_download.content.decode("utf-8")
         self.assertIn("rapport-metier.md", business_download.headers["content-disposition"])

@@ -52,6 +52,12 @@ from sircom2026.mapping import (
     save_profile_from_validated_mapping,
     validate_mapping,
 )
+from sircom2026.package import (
+    PackageError,
+    PackageNotReady,
+    get_persisted_package,
+    request_package_generation,
+)
 from sircom2026.reports import ReportsNotReady, get_persisted_reports
 from sircom2026.sorting import (
     SortDecisionError,
@@ -110,6 +116,10 @@ class ImageResolutionItemRequest(BaseModel):
 
 class ImageResolutionSubmissionRequest(BaseModel):
     resolutions: list[ImageResolutionItemRequest] = Field(min_length=1, max_length=200)
+
+
+class PackageGenerationRequest(BaseModel):
+    accept_warnings: bool = False
 
 
 @router.post("", status_code=201)
@@ -838,6 +848,72 @@ async def read_lot_reports(
     }
 
 
+@router.post("/{lot_id}/package", status_code=202)
+async def generate_lot_package(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[PackageGenerationRequest | None, Body()] = None,
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    body = payload or PackageGenerationRequest()
+    idempotency_key = idempotency_key_from_request(request)
+    if idempotency_key is None:
+        idempotency_key = f"package:{uuid.uuid4().hex}"
+
+    with database.transaction() as repositories:
+        try:
+            result = request_package_generation(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                idempotency_key=idempotency_key,
+                accept_warnings=body.accept_warnings,
+            )
+        except PackageError as exc:
+            raise package_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+    return {
+        "lot": result.lot,
+        "job": {
+            "id": result.job["id"],
+            "step_key": result.job["step_key"],
+            "run_id": result.job["run_id"],
+            "status": result.job["status"],
+            "created": result.job_created,
+        },
+    }
+
+
+@router.get("/{lot_id}/package")
+async def read_lot_package(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.session() as repositories:
+        try:
+            package = get_persisted_package(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+        except PackageNotReady as exc:
+            raise ApiError(
+                409,
+                "SIRCOM_PACKAGE_NOT_READY",
+                "Package final non disponible.",
+            ) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {"artifact": mapping_artifact_response(package.artifact, lot_id)}
+
+
 @router.get("")
 async def read_lots(
     _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
@@ -950,6 +1026,15 @@ def csv_preview_api_error(exc: CsvPreviewError) -> ApiError:
 
 
 def image_resolution_api_error(exc: ImageResolutionError) -> ApiError:
+    return ApiError(
+        exc.status_code,
+        exc.code,
+        exc.message,
+        details=exc.details,
+    )
+
+
+def package_api_error(exc: PackageError) -> ApiError:
     return ApiError(
         exc.status_code,
         exc.code,
