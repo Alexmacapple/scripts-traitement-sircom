@@ -170,6 +170,7 @@ Routes utiles :
 - `GET /api/lots`
 - `GET /api/lots/{lot_id}`
 - `POST /api/lots/{lot_id}/excel`
+- `GET /api/lots/{lot_id}/excel/diagnostic`
 - `POST /api/lots/{lot_id}/retry`
 - `DELETE /api/lots/{lot_id}`
 - `GET /api/lots/{lot_id}/downloads/{artifact_id}`
@@ -221,7 +222,8 @@ masquée, formule et en-tête multi-ligne.
 .venv/bin/python -m unittest tests.test_excel_diagnostic
 .venv/bin/python -m unittest tests.test_web_socle tests.test_api_access_errors \
   tests.test_database tests.test_lots_api tests.test_artifacts tests.test_state \
-  tests.test_worker tests.test_invalidation tests.test_excel_upload
+  tests.test_worker tests.test_invalidation tests.test_excel_upload \
+  tests.test_excel_diagnostic_pipeline
 SIRCOM_RUN_PLAYWRIGHT=1 .venv/bin/python -m unittest tests.test_lots_playwright
 ```
 

@@ -20,6 +20,7 @@ import uvicorn
 
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
+from sircom2026.worker_runner import run_worker_once
 
 
 def make_settings(tmpdir: Path):
@@ -38,9 +39,10 @@ class LiveServer:
         self.tmp_path = Path(self._tmpdir.name)
         self.port = free_port()
         self.base_url = f"http://127.0.0.1:{self.port}"
+        self.settings = make_settings(self.tmp_path)
         self.server = uvicorn.Server(
             uvicorn.Config(
-                create_app(make_settings(self.tmp_path)),
+                create_app(self.settings),
                 host="127.0.0.1",
                 port=self.port,
                 access_log=False,
@@ -157,6 +159,10 @@ class LotsPlaywrightTest(unittest.TestCase):
                 self.assertTrue(page.get_by_text("Terminée").first.is_visible())
                 self.assertTrue(page.get_by_text("Prête").first.is_visible())
                 self.assertTrue(page.get_by_text("Excel déposé").first.is_visible())
+                worker_result = run_worker_once(settings=server.settings)
+                self.assertEqual(worker_result.outcome, "succeeded")
+                page.goto(page.url, wait_until="networkidle")
+                self.assertTrue(page.get_by_text("Excel diagnostiqué").first.is_visible())
                 self.assertTrue(page.get_by_role("heading", name="Timeline").is_visible())
                 assert_png_screenshot(self, page.screenshot(full_page=True))
 

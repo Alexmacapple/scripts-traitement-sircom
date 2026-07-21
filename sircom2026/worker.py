@@ -23,6 +23,7 @@ class JobResult:
     with_warnings: bool = False
     output_fingerprint: str | None = None
     expected_input_fingerprint: str | None = None
+    final_step_status: str | None = None
 
 
 @dataclass(frozen=True)
@@ -242,13 +243,23 @@ class LocalWorker:
                     output_fingerprint=job_result.output_fingerprint,
                     run_id=job["run_id"],
                 )
-            complete_step(
-                repositories,
-                lot_id=job["lot_id"],
-                step_key=job["step_key"],
-                run_id=job["run_id"],
-                with_warnings=job_result.with_warnings,
-            )
+            if job_result.final_step_status == "bloque":
+                transition_step(
+                    repositories,
+                    lot_id=job["lot_id"],
+                    step_key=job["step_key"],
+                    status="bloque",
+                    run_id=job["run_id"],
+                    event_type="step.blocked",
+                )
+            else:
+                complete_step(
+                    repositories,
+                    lot_id=job["lot_id"],
+                    step_key=job["step_key"],
+                    run_id=job["run_id"],
+                    with_warnings=job_result.with_warnings,
+                )
             repositories.events.create(
                 lot_id=job["lot_id"],
                 step_key=job["step_key"],

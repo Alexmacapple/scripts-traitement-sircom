@@ -69,6 +69,42 @@ CASES: tuple[SyntheticWorkbookCase, ...] = (
         expected_importable=False,
         description="En-tete detecte hors premiere ligne.",
     ),
+    SyntheticWorkbookCase(
+        name="hidden_row",
+        filename="sircom2026-refus-ligne-masquee.xlsx",
+        expected_importable=False,
+        description="Ligne masquee detectee.",
+    ),
+    SyntheticWorkbookCase(
+        name="hidden_sheet",
+        filename="sircom2026-refus-onglet-masque.xlsx",
+        expected_importable=False,
+        description="Onglet non vide masque detecte.",
+    ),
+    SyntheticWorkbookCase(
+        name="data_without_header",
+        filename="sircom2026-refus-donnees-sans-entete.xlsx",
+        expected_importable=False,
+        description="Colonne avec donnees mais sans en-tete.",
+    ),
+    SyntheticWorkbookCase(
+        name="cleaned_header_collision",
+        filename="sircom2026-refus-collision-entetes-csv.xlsx",
+        expected_importable=False,
+        description="Collision de nom CSV apres nettoyage multi-onglets.",
+    ),
+    SyntheticWorkbookCase(
+        name="duplicate_source_headers",
+        filename="sircom2026-alerte-entetes-sources-dupliques.xlsx",
+        expected_importable=True,
+        description="Doublon d'en-tete source non bloquant grace a la provenance.",
+    ),
+    SyntheticWorkbookCase(
+        name="multiple_blockers",
+        filename="sircom2026-refus-plusieurs-blocages.xlsx",
+        expected_importable=False,
+        description="Plusieurs refus stricts detectables en une passe.",
+    ),
 )
 
 
@@ -245,6 +281,71 @@ def build_multirow_header(output_dir: Path) -> Path:
     return save_workbook(workbook, output_dir, "multirow_header")
 
 
+def build_hidden_row(output_dir: Path) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Dossiers"
+    write_headers(sheet, ["id_dossier", "Nom du produit", "Région"])
+    sheet.append(["ROW-001", "Produit ligne masquee", "Normandie"])
+    sheet.row_dimensions[2].hidden = True
+    return save_workbook(workbook, output_dir, "hidden_row")
+
+
+def build_hidden_sheet(output_dir: Path) -> Path:
+    workbook = Workbook()
+    visible = workbook.active
+    visible.title = "Notes"
+    dossiers = workbook.create_sheet("Dossiers")
+    write_headers(dossiers, ["id_dossier", "Nom du produit"])
+    dossiers.append(["SHEET-001", "Produit onglet masque"])
+    dossiers.sheet_state = "hidden"
+    return save_workbook(workbook, output_dir, "hidden_sheet")
+
+
+def build_data_without_header(output_dir: Path) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Dossiers"
+    write_headers(sheet, ["id_dossier", None, "Nom du produit"])
+    sheet.append(["NOHEAD-001", "Valeur sans en-tete", "Produit sans entete"])
+    return save_workbook(workbook, output_dir, "data_without_header")
+
+
+def build_cleaned_header_collision(output_dir: Path) -> Path:
+    workbook = Workbook()
+    dossiers = workbook.active
+    dossiers.title = "Dossiers"
+    write_headers(dossiers, ["id_dossier", "Nom du produit"])
+    dossiers.append(["COL-001", "Produit dossier"])
+
+    produits = workbook.create_sheet("Produits")
+    write_headers(produits, ["id_dossier", "Nom du produit"])
+    produits.append(["COL-001", "Produit collision"])
+    return save_workbook(workbook, output_dir, "cleaned_header_collision")
+
+
+def build_duplicate_source_headers(output_dir: Path) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Dossiers"
+    write_headers(sheet, ["id_dossier", "Nom du produit", "Nom du produit"])
+    sheet.append(["DUPHEAD-001", "Produit A", "Produit B"])
+    return save_workbook(workbook, output_dir, "duplicate_source_headers")
+
+
+def build_multiple_blockers(output_dir: Path) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Dossiers"
+    write_headers(sheet, ["Nom du produit", "Région", "Libellé calculé"])
+    sheet.append(["Produit sale", "Bretagne", None])
+    sheet["C2"] = '=A2&" - "&B2'
+    sheet.column_dimensions["B"].hidden = True
+    sheet.row_dimensions[2].hidden = True
+    sheet.merge_cells("A2:B2")
+    return save_workbook(workbook, output_dir, "multiple_blockers")
+
+
 BUILDERS = {
     "valid_multi_tabs": build_valid_multi_tabs,
     "missing_id": build_missing_id,
@@ -254,6 +355,12 @@ BUILDERS = {
     "hidden_column": build_hidden_column,
     "formula": build_formula,
     "multirow_header": build_multirow_header,
+    "hidden_row": build_hidden_row,
+    "hidden_sheet": build_hidden_sheet,
+    "data_without_header": build_data_without_header,
+    "cleaned_header_collision": build_cleaned_header_collision,
+    "duplicate_source_headers": build_duplicate_source_headers,
+    "multiple_blockers": build_multiple_blockers,
 }
 
 

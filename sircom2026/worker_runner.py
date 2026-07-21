@@ -7,6 +7,7 @@ from typing import TextIO
 
 from sircom2026.config import Settings, load_settings
 from sircom2026.database import Database
+from sircom2026.excel_diagnostic_pipeline import run_excel_diagnostic_job
 from sircom2026.worker import JobHandler, LocalWorker, WorkerRunResult
 
 
@@ -27,14 +28,24 @@ def run_worker_once(
     with database.transaction() as repositories:
         repositories.jobs.expire_stale_leases()
 
+    effective_handlers = default_handlers(current_settings) if handlers is None else handlers
     worker = LocalWorker(
         database,
-        handlers or {},
+        effective_handlers,
         worker_id=current_settings.worker_id,
         lease_seconds=current_settings.worker_lease_ttl_seconds,
         max_active_jobs=current_settings.max_active_jobs,
     )
     return worker.run_once()
+
+
+def default_handlers(settings: Settings) -> dict[str, JobHandler]:
+    return {
+        "diagnostic_excel": lambda context: run_excel_diagnostic_job(
+            context,
+            settings=settings,
+        ),
+    }
 
 
 def main(

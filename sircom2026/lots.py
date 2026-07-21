@@ -72,6 +72,7 @@ EVENT_LEVEL_LABELS = {
     "error": "Erreur",
 }
 EVENT_TYPE_LABELS = {
+    "excel.diagnostic_completed": "Excel diagnostiqué",
     "excel.uploaded": "Excel déposé",
     "lot.created": "Lot créé",
     "lot.deleted": "Suppression logique demandée",

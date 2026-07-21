@@ -51,7 +51,19 @@ class ExcelDiagnosticTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             paths = create_synthetic_excels(
                 Path(tmpdir),
-                ["missing_id", "duplicate_id", "ambiguous_id", "merged_cells", "hidden_column", "formula"],
+                [
+                    "missing_id",
+                    "duplicate_id",
+                    "ambiguous_id",
+                    "merged_cells",
+                    "hidden_column",
+                    "hidden_row",
+                    "hidden_sheet",
+                    "formula",
+                    "multirow_header",
+                    "data_without_header",
+                    "cleaned_header_collision",
+                ],
             )
             expected_fragments = {
                 "missing_id": "Colonne id_dossier non detectee.",
@@ -59,7 +71,12 @@ class ExcelDiagnosticTest(unittest.TestCase):
                 "ambiguous_id": "Plusieurs colonnes id_dossier candidates.",
                 "merged_cells": "cellule(s) fusionnee(s).",
                 "hidden_column": "colonne(s) masquee(s).",
+                "hidden_row": "ligne(s) masquee(s).",
+                "hidden_sheet": "Onglet masque.",
                 "formula": "Formules detectees.",
+                "multirow_header": "En-tete detecte hors premiere ligne.",
+                "data_without_header": "Colonne(s) avec donnees mais sans en-tete.",
+                "cleaned_header_collision": "Collision apres nettoyage des en-tetes InDesign.",
             }
 
             for case_name, fragment in expected_fragments.items():
@@ -67,6 +84,27 @@ class ExcelDiagnosticTest(unittest.TestCase):
                     diagnostic = diagnose_workbook(paths[case_name])
                     self.assertFalse(diagnostic.importable)
                     self.assertIn(fragment, " ".join(diagnostic.blockers))
+
+    def test_duplicate_source_headers_are_non_blocking_when_provenance_disambiguates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = create_synthetic_excels(Path(tmpdir), ["duplicate_source_headers"])
+            diagnostic = diagnose_workbook(paths["duplicate_source_headers"])
+
+        self.assertTrue(diagnostic.importable, diagnostic.blockers)
+        self.assertIn("En-tetes sources dupliques", " ".join(diagnostic.warnings))
+
+    def test_refused_workbook_reports_multiple_detectable_reasons_in_one_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = create_synthetic_excels(Path(tmpdir), ["multiple_blockers"])
+            diagnostic = diagnose_workbook(paths["multiple_blockers"])
+
+        blockers = " ".join(diagnostic.blockers)
+        self.assertFalse(diagnostic.importable)
+        self.assertIn("colonne(s) masquee(s).", blockers)
+        self.assertIn("ligne(s) masquee(s).", blockers)
+        self.assertIn("cellule(s) fusionnee(s).", blockers)
+        self.assertIn("Formules detectees.", blockers)
+        self.assertIn("Colonne id_dossier non detectee.", blockers)
 
     def test_local_2024_2025_inputs_when_available(self) -> None:
         if not REAL_SIRCOM1.exists() or not REAL_SIRCOM2.exists():

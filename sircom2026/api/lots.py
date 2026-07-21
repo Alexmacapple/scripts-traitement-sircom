@@ -10,9 +10,20 @@ from sircom2026.api.dependencies import get_database
 from sircom2026.api.errors import ApiError
 from sircom2026.api.security import AccessAction, ActorContext, require_action
 from sircom2026.database import Database
+from sircom2026.excel_diagnostic_pipeline import (
+    ExcelDiagnosticNotReady,
+    get_persisted_excel_diagnostic,
+)
 from sircom2026.excel_upload import ExcelUploadError, upload_excel_for_lot
 from sircom2026.invalidation import RetryNotAllowedError, UnknownStepError, retry_step
-from sircom2026.lots import create_lot_with_steps, get_lot_detail, list_lots, mark_lot_deleted
+from sircom2026.lots import (
+    create_lot_with_steps,
+    get_lot_detail,
+    group_problems_by_severity,
+    list_lots,
+    mark_lot_deleted,
+    serialize_problem,
+)
 
 
 router = APIRouter(prefix="/api/lots", tags=["lots"])
@@ -156,6 +167,54 @@ async def upload_lot_excel(
             "created": result.diagnostic_job_created,
         },
         "invalidated_steps": list(result.invalidated_steps),
+    }
+
+
+@router.get("/{lot_id}/excel/diagnostic")
+async def read_lot_excel_diagnostic(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.transaction() as repositories:
+        try:
+            persisted = get_persisted_excel_diagnostic(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+            problems = [
+                serialize_problem(problem)
+                for problem in repositories.problems.list_for_lot(lot_id, limit=100)
+                if problem["step_key"] == "diagnostic_excel"
+                and problem["run_id"] == persisted.artifact["run_id"]
+            ]
+        except ExcelDiagnosticNotReady as exc:
+            raise ApiError(
+                409,
+                "SIRCOM_EXCEL_DIAGNOSTIC_NOT_READY",
+                "Diagnostic Excel non disponible.",
+            ) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+    artifact = persisted.artifact
+    return {
+        "diagnostic": persisted.diagnostic,
+        "problems": problems,
+        "problem_groups": group_problems_by_severity(problems),
+        "artifact": {
+            "id": artifact["id"],
+            "kind": artifact["kind"],
+            "role": artifact["role"],
+            "status": artifact["status"],
+            "size_bytes": artifact["size_bytes"],
+            "sha256": artifact["sha256"],
+            "mime_type": artifact["mime_type"],
+            "download_url": f"/api/lots/{lot_id}/downloads/{artifact['id']}",
+        },
     }
 
 

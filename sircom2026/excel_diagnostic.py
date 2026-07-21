@@ -62,6 +62,7 @@ class SheetDiagnostic:
     date_candidates: list[ColumnCandidate] = field(default_factory=list)
     image_candidates: list[ColumnCandidate] = field(default_factory=list)
     sensitive_candidates: list[ColumnCandidate] = field(default_factory=list)
+    source_headers: list[ColumnCandidate] = field(default_factory=list)
     hidden_columns: list[str] = field(default_factory=list)
     hidden_rows: list[int] = field(default_factory=list)
     merged_ranges: list[str] = field(default_factory=list)
@@ -78,6 +79,7 @@ class WorkbookDiagnostic:
     blockers: list[str]
     warnings: list[str]
     sheets: list[SheetDiagnostic]
+    cleaned_header_collisions: dict[str, list[str]] = field(default_factory=dict)
 
 
 def normalize_header(value: object) -> str:
@@ -125,7 +127,8 @@ def detect_header_row(ws, max_scan: int = 8) -> int | None:
         text_ratio = sum(any(char.isalpha() for char in value) for value in present) / len(present)
         unique_ratio = len(set(present)) / len(present)
         density = len(present) / max(1, ws.max_column)
-        score = text_ratio + unique_ratio + density
+        id_header_bonus = 0.75 if any(ID_HEADER_RE.match(ascii_key(value)) for value in present) else 0
+        score = text_ratio + unique_ratio + density + id_header_bonus
         if score > best_score:
             best_score = score
             best_row = row
@@ -209,6 +212,7 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     diagnostic.header_row = header_row
     if header_row is None:
         diagnostic.blockers.append("En-tete non detecte.")
+        diagnostic.blockers.append("Colonne id_dossier non detectee.")
         diagnostic.importable = False
         return diagnostic
     if header_row != 1:
@@ -218,6 +222,10 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     non_empty_headers = [(index, header) for index, header in enumerate(headers, start=1) if header]
     diagnostic.non_empty_headers = len(non_empty_headers)
     diagnostic.headers_preview = [header for _, header in non_empty_headers[:30]]
+    diagnostic.source_headers = [
+        make_simple_candidate(index, header)
+        for index, header in non_empty_headers
+    ]
 
     for index, header in enumerate(headers, start=1):
         if header:
@@ -289,6 +297,9 @@ def diagnose_workbook(path: Path) -> WorkbookDiagnostic:
             blockers.append(f"{sheet.name}: {blocker}")
         for warning in sheet.warnings:
             warnings.append(f"{sheet.name}: {warning}")
+    cleaned_header_collisions = workbook_cleaned_header_collisions(sheets)
+    if cleaned_header_collisions:
+        blockers.append("CSV: Collision apres nettoyage des en-tetes InDesign.")
 
     return WorkbookDiagnostic(
         path=str(path),
@@ -298,7 +309,29 @@ def diagnose_workbook(path: Path) -> WorkbookDiagnostic:
         blockers=blockers,
         warnings=warnings,
         sheets=sheets,
+        cleaned_header_collisions=cleaned_header_collisions,
     )
+
+
+def workbook_cleaned_header_collisions(
+    sheets: list[SheetDiagnostic],
+) -> dict[str, list[str]]:
+    cleaned_headers: dict[str, list[str]] = {}
+    for sheet in sheets:
+        if sheet.ignored or sheet.header_row is None:
+            continue
+        for source_header in sheet.source_headers:
+            if ID_HEADER_RE.match(ascii_key(source_header.header)):
+                continue
+            cleaned = clean_indesign_header(f"{source_header.column}_{source_header.header}")
+            cleaned_headers.setdefault(cleaned, []).append(
+                f"{sheet.name}!{source_header.column}"
+            )
+    return {
+        cleaned: sources
+        for cleaned, sources in sorted(cleaned_headers.items())
+        if len(sources) > 1
+    }
 
 
 def format_text_report(diagnostics: list[WorkbookDiagnostic]) -> str:

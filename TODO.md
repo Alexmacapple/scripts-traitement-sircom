@@ -121,9 +121,9 @@
   requête HTTP.
 - [x] Refuser les uploads Excel trop gros, extension invalide ou archive
   illisible avec erreurs structurées.
-- [ ] Brancher `sircom2026.excel_diagnostic` au job `diagnostic_excel` sans
+- [x] Brancher `sircom2026.excel_diagnostic` au job `diagnostic_excel` sans
   déplacer la logique métier dans la route.
-- [ ] Persister le diagnostic Excel et les problèmes structurés sans exposer de
+- [x] Persister le diagnostic Excel et les problèmes structurés sans exposer de
   valeurs métier.
 - [ ] Vérifier que les refus V1 produisent un message avec titre, cause,
   emplacement, action et détails techniques dépliables.
