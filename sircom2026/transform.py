@@ -550,6 +550,8 @@ def normalize_flat_merge(
             "removed_rows_without_id_count",
             0,
         ),
+        "upstream_removed_empty_columns": fusion_payload.get("removed_empty_columns", []),
+        "upstream_removed_rows_without_id": fusion_payload.get("removed_rows_without_id", []),
         "columns": [_public_column(column) for column in kept_columns],
         "rows": rows,
         "date_issues": date_issues[:100],

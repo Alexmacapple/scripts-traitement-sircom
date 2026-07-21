@@ -669,6 +669,142 @@
                 </section>
               {% endif %}
 
+              {% set csv_preview_payload = selected_lot.csv_preview if selected_lot.csv_preview is defined else none %}
+              {% if csv_preview_payload %}
+                {% set csv_preview = csv_preview_payload.preview %}
+                <section class="fr-mt-5v" aria-labelledby="csv-preview-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="csv-preview-title">Aperçu CSV</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      {% if csv_preview.validated %}
+                        <p class="fr-badge fr-badge--success fr-badge--sm">Validé</p>
+                      {% else %}
+                        <p class="fr-badge fr-badge--info fr-badge--sm">Action requise</p>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  {% if csv_preview.warnings %}
+                    {% for warning in csv_preview.warnings %}
+                      <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
+                        <h4 class="fr-alert__title">{{ warning.title }}</h4>
+                        <p class="fr-mb-1v">
+                          <strong>Cause :</strong>
+                          {{ warning.cause }}
+                        </p>
+                        <p class="fr-mb-1v">
+                          <strong>Action attendue :</strong>
+                          {{ warning.action }}
+                        </p>
+                        <p class="fr-text--xs fr-mb-0">Code {{ warning.code }}.</p>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Colonnes</dt>
+                      <dd>{{ csv_preview.headers_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Lignes</dt>
+                      <dd>{{ csv_preview.rows_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Colonnes supprimées</dt>
+                      <dd>{{ csv_preview.removed_columns_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Lignes sans ID</dt>
+                      <dd>{{ csv_preview.removed_rows_without_id_count }}</dd>
+                    </div>
+                  </dl>
+
+                  {% if csv_preview.removed_columns %}
+                    <section class="fr-mt-3v" aria-labelledby="csv-preview-removed-columns-title">
+                      <h4 id="csv-preview-removed-columns-title">Colonnes supprimées</h4>
+                      <ul>
+                        {% for column in csv_preview.removed_columns %}
+                          <li>
+                            {{ column.csv_name or column.source_header or column.id }}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+
+                  {% if csv_preview.removed_rows %}
+                    <section class="fr-mt-3v" aria-labelledby="csv-preview-removed-rows-title">
+                      <h4 id="csv-preview-removed-rows-title">Lignes supprimées</h4>
+                      <ul>
+                        {% for row in csv_preview.removed_rows %}
+                          <li>
+                            Rang source {{ row.source_rank or row.row_number or loop.index }}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+
+                  <div class="fr-table fr-table--bordered fr-mt-3v">
+                    <div class="fr-table__wrapper">
+                      <div class="fr-table__container">
+                        <div class="fr-table__content">
+                          <table>
+                            <caption>
+                              Premières lignes du CSV final
+                            </caption>
+                            <thead>
+                              <tr>
+                                {% for header in csv_preview.headers %}
+                                  <th scope="col">{{ header }}</th>
+                                {% endfor %}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for row in csv_preview.rows %}
+                                <tr>
+                                  {% for header in csv_preview.headers %}
+                                    <td>{{ row["values"][header] }}</td>
+                                  {% endfor %}
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v">
+                    {% if not csv_preview.validated %}
+                      <li>
+                        <button
+                          class="fr-btn fr-icon-check-line fr-btn--icon-left"
+                          type="button"
+                          data-csv-preview-validate
+                          data-csv-preview-lot-id="{{ selected_lot.id }}"
+                        >
+                          Valider l'aperçu CSV
+                        </button>
+                      </li>
+                    {% endif %}
+                    {% if csv_preview_payload.csv_artifact %}
+                      <li>
+                        <a
+                          class="fr-btn fr-btn--secondary fr-icon-download-line fr-btn--icon-left"
+                          href="/api/lots/{{ selected_lot.id }}/downloads/{{ csv_preview_payload.csv_artifact.id }}"
+                        >
+                          Télécharger le CSV final
+                        </a>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </section>
+              {% endif %}
+
               <h3 class="fr-mt-5v">Timeline</h3>
               <ol class="fr-raw-list">
                 {% for step in selected_lot.steps %}

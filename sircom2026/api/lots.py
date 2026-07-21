@@ -9,6 +9,12 @@ from pydantic import BaseModel, Field
 from sircom2026.api.dependencies import get_database
 from sircom2026.api.errors import ApiError
 from sircom2026.api.security import AccessAction, ActorContext, require_action
+from sircom2026.csv_preview import (
+    CsvPreviewError,
+    get_csv_export_payload,
+    get_csv_preview_payload,
+    validate_csv_preview,
+)
 from sircom2026.database import Database
 from sircom2026.excel_diagnostic_pipeline import (
     ExcelDiagnosticNotReady,
@@ -465,6 +471,95 @@ async def validate_lot_sort(
     }
 
 
+@router.get("/{lot_id}/csv/preview")
+async def read_lot_csv_preview(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.session() as repositories:
+        try:
+            result = get_csv_preview_payload(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+        except CsvPreviewError as exc:
+            raise csv_preview_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {
+        "preview": result["preview"],
+        "preview_artifact": (
+            mapping_artifact_response(result["preview_artifact"], lot_id)
+            if result["preview_artifact"]
+            else None
+        ),
+        "csv_artifact": (
+            mapping_artifact_response(result["csv_artifact"], lot_id)
+            if result["csv_artifact"]
+            else None
+        ),
+    }
+
+
+@router.post("/{lot_id}/csv/preview/validate")
+async def validate_lot_csv_preview(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    idempotency_key = idempotency_key_from_request(request) or f"csv_preview:{uuid.uuid4().hex}"
+    with database.transaction() as repositories:
+        try:
+            result = validate_csv_preview(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                idempotency_key=idempotency_key,
+            )
+        except CsvPreviewError as exc:
+            raise csv_preview_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {
+        "preview": result.preview,
+        "preview_artifact": mapping_artifact_response(result.preview_artifact, lot_id),
+        "csv_artifact": mapping_artifact_response(result.csv_artifact, lot_id),
+        "lot": result.lot,
+        "invalidated_steps": list(result.invalidated_steps),
+    }
+
+
+@router.get("/{lot_id}/csv/export")
+async def read_lot_csv_export(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.session() as repositories:
+        try:
+            result = get_csv_export_payload(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+        except CsvPreviewError as exc:
+            raise csv_preview_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {
+        "preview": result["preview"],
+        "artifact": mapping_artifact_response(result["artifact"], lot_id),
+    }
+
+
 @router.get("")
 async def read_lots(
     _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
@@ -559,6 +654,15 @@ def mapping_api_error(exc: MappingError) -> ApiError:
 
 
 def sort_api_error(exc: SortDecisionError) -> ApiError:
+    return ApiError(
+        exc.status_code,
+        exc.code,
+        exc.message,
+        details=exc.details,
+    )
+
+
+def csv_preview_api_error(exc: CsvPreviewError) -> ApiError:
     return ApiError(
         exc.status_code,
         exc.code,

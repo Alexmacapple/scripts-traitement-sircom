@@ -168,9 +168,9 @@
   - [x] comparaison structurelle avec le CSV 2025 de référence.
 - [x] Ajouter les tests de sortie CSV UTF-16 compatibles avec
   `livrables-miweb-2025/livrables-miweb-1-2025/9-final-sircom-indesign-utf16.csv`.
-- [ ] Implémenter l'aperçu CSV avec en-têtes finaux, premières lignes, colonnes
+- [x] Implémenter l'aperçu CSV avec en-têtes finaux, premières lignes, colonnes
   supprimées, lignes supprimées et alertes.
-- [ ] Bloquer l'export si l'aperçu ne correspond plus aux empreintes courantes.
+- [x] Bloquer l'export si l'aperçu ne correspond plus aux empreintes courantes.
 
 ## Images
 

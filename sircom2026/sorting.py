@@ -251,6 +251,9 @@ def validate_sort_decision(
         run_id=run_id,
         with_warnings=warning_code is not None,
     )
+    from sircom2026.csv_preview import require_csv_preview_validation_if_ready
+
+    require_csv_preview_validation_if_ready(repositories, lot_id=lot_id)
     repositories.events.create(
         lot_id=lot_id,
         step_key=SORT_STEP_KEY,
@@ -347,6 +350,24 @@ def build_sort_decision_payload(
         "confirmed_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "columns_count": len(columns),
         "rows_count": len(ordered_rows),
+        "removed_empty_columns_count": normalized_payload.get("removed_empty_columns_count", 0),
+        "removed_empty_columns": normalized_payload.get("removed_empty_columns", []),
+        "upstream_removed_empty_columns_count": normalized_payload.get(
+            "upstream_removed_empty_columns_count",
+            0,
+        ),
+        "upstream_removed_empty_columns": normalized_payload.get(
+            "upstream_removed_empty_columns",
+            [],
+        ),
+        "upstream_removed_rows_without_id_count": normalized_payload.get(
+            "upstream_removed_rows_without_id_count",
+            0,
+        ),
+        "upstream_removed_rows_without_id": normalized_payload.get(
+            "upstream_removed_rows_without_id",
+            [],
+        ),
         "columns": [_public_column(column) for column in columns],
         "rows": ordered_rows,
         "sort": {

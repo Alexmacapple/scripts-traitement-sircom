@@ -6,12 +6,14 @@ const mappingForm = document.querySelector("#mapping-form");
 const mappingProfileForm = document.querySelector("#mapping-profile-form");
 const applyMappingProfileButtons = document.querySelectorAll("[data-apply-mapping-profile-id]");
 const sortDecisionButtons = document.querySelectorAll("[data-sort-decision]");
+const csvPreviewValidateButtons = document.querySelectorAll("[data-csv-preview-validate]");
 const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
 let excelUploadInFlight = false;
 let mappingInFlight = false;
 let sortInFlight = false;
+let csvPreviewInFlight = false;
 
 function showError(title, cause, action) {
   if (!messageBox) return;
@@ -292,6 +294,32 @@ sortDecisionButtons.forEach((button) => {
         "Tri impossible",
         error.message,
         "Vérifier les rôles région et département puis réessayer."
+      );
+    }
+  });
+});
+
+csvPreviewValidateButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    const lotId = button.dataset.csvPreviewLotId;
+    if (!lotId || csvPreviewInFlight) return;
+
+    csvPreviewInFlight = true;
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/csv/preview/validate`, {
+        method: "POST",
+        headers: {
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      csvPreviewInFlight = false;
+      showError(
+        "Validation CSV impossible",
+        error.message,
+        "Vérifier l'aperçu et les problèmes ouverts puis réessayer."
       );
     }
   });
