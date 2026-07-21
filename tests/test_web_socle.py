@@ -240,6 +240,14 @@ class WebSocleTest(unittest.TestCase):
         self.assertIn("République<br>Française", html)
         self.assertIn('id="header-menu-button"', html)
         self.assertIn('aria-controls="header-menu"', html)
+        self.assertIn(
+            '<div class="fr-header__menu fr-modal" id="header-menu" role="dialog" aria-labelledby="header-menu-button">',
+            html,
+        )
+        self.assertNotIn(
+            '<div class="fr-header__menu fr-modal" id="header-menu" aria-labelledby="header-menu-button">',
+            html,
+        )
         self.assertIn('class="fr-btn--close fr-btn"', html)
         self.assertIn('<main id="contenu"', html)
         self.assertIn('<footer class="fr-footer" role="contentinfo">', html)
