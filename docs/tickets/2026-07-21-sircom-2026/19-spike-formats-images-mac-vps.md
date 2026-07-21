@@ -1,6 +1,6 @@
 # 19 - Spike formats images Mac/VPS
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 18.
 
@@ -9,16 +9,16 @@ l'environnement local puis préparer l'écart VPS.
 
 Critères d'acceptation :
 
-- [ ] Les versions de Pillow et dépendances image sont documentées.
-- [ ] JPG, PNG, WEBP et TIFF sont validés avec fixtures ou refusés clairement si
+- [x] Les versions de Pillow et dépendances image sont documentées.
+- [x] JPG, PNG, WEBP et TIFF sont validés avec fixtures ou refusés clairement si
       l'environnement ne les supporte pas.
-- [ ] HEIC est classé explicitement : supporté, refusé clairement, ou support
+- [x] HEIC est classé explicitement : supporté, refusé clairement, ou support
       conditionnel.
-- [ ] EXIF orientation, transparence et profils couleur sont testés au minimum.
-- [ ] Un résultat de spike documente les limites Mac/VPS, les dépendances système
+- [x] EXIF orientation, transparence et profils couleur sont testés au minimum.
+- [x] Un résultat de spike documente les limites Mac/VPS, les dépendances système
       nécessaires et la décision V1.
-- [ ] La décision alimente la liste de formats acceptés du traitement images.
-- [ ] Aucun traitement final ne dépend d'un support HEIC implicite.
+- [x] La décision alimente la liste de formats acceptés du traitement images.
+- [x] Aucun traitement final ne dépend d'un support HEIC implicite.
 
 Hors périmètre :
 
@@ -29,6 +29,14 @@ Preuve attendue :
 
 - note courte dans `docs/specs/` ou section de ticket mise à jour ;
 - tests ou smoke test image.
+
+Preuve produite :
+
+- [Spike formats images Mac/VPS](../../specs/2026-07-21-spike-formats-images-mac-vps.md)
+- `.venv/bin/python -m unittest tests.test_image_formats`
+- `.venv/bin/python -m unittest tests.test_image_formats tests.test_image_upload`
+- `.venv/bin/python -m unittest`
+- `git diff --check`
 
 ---
 

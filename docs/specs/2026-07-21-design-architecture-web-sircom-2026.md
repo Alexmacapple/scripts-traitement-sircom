@@ -114,7 +114,7 @@ Ressources par job :
 | Le contrat fonctionnel verrouille le CSV InDesign. | Spec fonctionnelle et `AGENTS.md` | Connu connu | Les modules CSV et package doivent être testés au niveau octets. |
 | L'orchestration SQLite est validée comme principe. | Spec orchestration | Connu connu | Le design détaille les tables et transitions. |
 | L'authentification VPS n'est pas définie. | Questions ouvertes fonctionnelles | Connu inconnu | Prévoir une frontière `security`, mais ne pas inventer un SSO. |
-| Le support HEIC réel n'est pas garanti. | Questions ouvertes fonctionnelles | Connu inconnu | Le module images doit isoler les codecs et documenter les erreurs. |
+| HEIC/HEIF est refusé en V1 après spike Pillow. | Spike formats images Mac/VPS | Connu connu | Le module images doit isoler les codecs et documenter les erreurs. |
 | Le frontend exact n'est pas encore choisi. | Absence de code web | Connu inconnu | Commencer par templates HTML DSFR ou frontend minimal, sans framework lourd imposé. |
 
 ## Principes d'architecture
@@ -1146,8 +1146,7 @@ verrouillées avant les tickets qui touchent stockage, sécurité, export et UI.
 - `[~]` Politique zip avec sous-dossiers : résolue en V1. Toute image dans un
   sous-dossier est refusée ; seuls `__MACOSX/` et `.DS_Store` peuvent être
   ignorés sans bloquer.
-- `[~]` Support HEIC réel : décider si V1 supporte, refuse clairement ou dépend
-  d'une option d'installation.
+- `[^]` Support HEIC réel : spike exécuté ; HEIC/HEIF refusé clairement en V1.
 - `[~]` Sauvegarde du répertoire de données : décider hors V1, manuel ou
   mécanisme documenté.
 

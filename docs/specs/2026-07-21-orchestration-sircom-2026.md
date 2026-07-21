@@ -255,8 +255,8 @@ traitement.
 - `[~]` Format exact du rapport téléchargeable et liste finale du package.
 - `[~]` Définition de `export testable` et critères d'acceptation du CSV/package.
 - `[~]` Contraintes d'authentification, accès local/VPS et exploitation.
-- `[~]` Disponibilité réelle des conversions image, notamment HEIC/Pillow, sur
-  Mac puis VPS.
+- `[^]` Disponibilité réelle des conversions image : spike Pillow exécuté ;
+  HEIC/HEIF refusé en V1.
 
 ### Inconnus connus
 
@@ -357,7 +357,8 @@ résolve seul les ambiguïtés de la spec.
 - Format exact du rapport téléchargeable.
 - Liste exacte des fichiers du package final.
 - Définition précise de `export testable`.
-- Disponibilité HEIC/Pillow sur le Mac local puis sur le VPS.
+- Disponibilité HEIC/Pillow sur le Mac local puis sur le VPS : spike exécuté ;
+  HEIC/HEIF refusé en V1.
 - Contraintes d'authentification, stockage et exploitation du VPS interne.
 - Contrat d'idempotence, verrouillage et reprise après crash du worker local.
 - Contrat de cohérence entre SQLite, artefacts disque et purge.

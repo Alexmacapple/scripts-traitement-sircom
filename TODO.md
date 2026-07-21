@@ -201,9 +201,9 @@
   - [ ] DPI 300 ;
   - [ ] fond blanc pour transparence ;
   - [ ] orientation EXIF appliquée.
-- [ ] Tester l'écart Mac/VPS pour Pillow, profils ICC, EXIF, transparence et
+- [x] Tester l'écart Mac/VPS pour Pillow, profils ICC, EXIF, transparence et
   support HEIC décidé.
-- [ ] Exécuter le spike HEIC du ticket 19 et reporter la décision dans les
+- [x] Exécuter le spike HEIC du ticket 19 et reporter la décision dans les
   formats images acceptés.
 
 ## Package, rapports et exploitation

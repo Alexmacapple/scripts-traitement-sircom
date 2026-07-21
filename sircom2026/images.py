@@ -19,6 +19,10 @@ from sircom2026.artifacts import (
 )
 from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
+from sircom2026.image_formats import (
+    ACCEPTED_SOURCE_IMAGE_EXTENSIONS,
+    REFUSED_SOURCE_IMAGE_EXTENSION_CODES,
+)
 from sircom2026.invalidation import (
     fingerprint_payload,
     record_input_change,
@@ -38,7 +42,7 @@ UPLOAD_WORKER_ID = "http-upload"
 INSPECTION_ARTIFACT_KIND = "json"
 INSPECTION_ARTIFACT_ROLE = "result"
 INSPECTION_MIME_TYPE = "application/json"
-INSPECTABLE_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff")
+INSPECTABLE_IMAGE_EXTENSIONS = ACCEPTED_SOURCE_IMAGE_EXTENSIONS
 
 
 @dataclass(frozen=True)
@@ -444,6 +448,10 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
         non_ignored_files_count += 1
 
         extension = Path(parts[-1]).suffix.lower()
+        refused_format_code = REFUSED_SOURCE_IMAGE_EXTENSION_CODES.get(extension)
+        if refused_format_code is not None:
+            blockers[refused_format_code] += 1
+            continue
         is_image = extension in INSPECTABLE_IMAGE_EXTENSIONS
         if len(parts) > 1:
             if is_image:
@@ -493,6 +501,7 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
         "ignored_entries_count": ignored_entries_count,
         "total_uncompressed_bytes": total_uncompressed_bytes,
         "accepted_extensions": list(INSPECTABLE_IMAGE_EXTENSIONS),
+        "refused_extensions": sorted(REFUSED_SOURCE_IMAGE_EXTENSION_CODES),
         "blockers": serialized_blockers,
         "warnings": serialized_warnings,
         "images": images,
@@ -884,6 +893,18 @@ _PROBLEM_DEFINITIONS: dict[str, dict[str, str]] = {
         "title": "Image trop volumineuse",
         "cause": "Au moins une image depasse la taille maximale configuree.",
         "action": "Reduire la taille des images concernees puis deposer un nouveau zip.",
+    },
+    "SIRCOM_IMAGE_HEIC_REFUSED": {
+        "code": "SIRCOM_IMAGE_HEIC_REFUSED",
+        "title": "Format HEIC refusé",
+        "cause": "Le traitement images V1 ne prend pas en charge les fichiers HEIC.",
+        "action": "Convertir les fichiers HEIC en JPG, PNG, WEBP ou TIFF puis déposer un nouveau zip.",
+    },
+    "SIRCOM_IMAGE_HEIF_REFUSED": {
+        "code": "SIRCOM_IMAGE_HEIF_REFUSED",
+        "title": "Format HEIF refusé",
+        "cause": "Le traitement images V1 ne prend pas en charge les fichiers HEIF.",
+        "action": "Convertir les fichiers HEIF en JPG, PNG, WEBP ou TIFF puis déposer un nouveau zip.",
     },
     "SIRCOM_IMAGE_ZIP_NO_TREATABLE_IMAGE": {
         "code": "SIRCOM_IMAGE_ZIP_NO_TREATABLE_IMAGE",

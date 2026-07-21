@@ -60,6 +60,11 @@
   dangereux et images en sous-dossier, limites taille/nombre, détection des
   doublons normalisés, alerte zip sans image traitable, statut API/UI et tests
   de sécurité zip.
+- Implémentation du ticket 19 Sircom 2026 : ajout de Pillow comme dépendance
+  applicative, smoke test des formats JPEG/PNG/WEBP/TIFF, test EXIF,
+  transparence et profil ICC, décision V1 de refus explicite HEIC/HEIF et
+  centralisation des extensions images acceptées avec signalement dédié dans
+  l'inspection zip.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

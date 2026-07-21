@@ -213,8 +213,8 @@ utilisateur, zip images libre, rapport métier et package final.
 - Le dossier d'images dans le package final s'appelle `export-jpg-resize/`.
 - La colonne `@pathimg` doit viser le chemin InDesign final attendu :
   `/Users/victoria/Documents/export-jpg-resize/...`.
-- Formats à accepter selon la logique large 2025 ; minimum à tester : JPG, PNG,
-  WEBP, TIFF et HEIC si disponible dans l'environnement.
+- Formats sources V1 après spike : JPG, PNG, WEBP et TIFF. HEIC/HEIF est refusé
+  explicitement en V1.
 - Les erreurs images ont deux niveaux : message métier actionnable dans
   l'interface, détails techniques dans les logs.
 
@@ -271,7 +271,7 @@ utilisateur, zip images libre, rapport métier et package final.
   du minimum décidé.
 - Unknown : définition précise de `export testable`.
 - Unknown : intégration exacte de l'authentification VPS.
-- Unknown : support HEIC réel sur Mac puis VPS.
+- Résolu par spike : support HEIC/HEIF refusé en V1, sans dépendance implicite.
 
 ## Décisions de test
 
@@ -402,7 +402,8 @@ le modèle de rapport ne sont pas précisés.
 - `[~]` Format précis du dictionnaire de mapping multi-onglets.
 - `[~]` Écrans DSFR et comportement accessible des onglets, alertes, aperçu et
   validation.
-- `[~]` Disponibilité réelle HEIC/Pillow sur Mac puis VPS.
+- `[^]` Disponibilité réelle HEIC/Pillow sur Mac puis VPS : spike exécuté,
+  HEIC/HEIF refusé en V1.
 - `[~]` Niveau de preuve attendu pour valider le package dans InDesign.
 
 ### Inconnus connus
@@ -468,7 +469,8 @@ doivent être converties en décisions ou en tests avant `/to-tickets`.
 - Format exact du rapport téléchargeable.
 - Liste exacte des fichiers du package final au-delà du minimum.
 - Définition précise de `export testable`.
-- Disponibilité HEIC/Pillow sur Mac puis VPS.
+- Disponibilité HEIC/Pillow sur Mac puis VPS : spike exécuté, HEIC/HEIF refusé
+  en V1.
 - Intégration de l'authentification sur VPS interne.
 - Forme exacte des écrans DSFR et composants UI.
 - Format précis du dictionnaire de mapping multi-onglets.

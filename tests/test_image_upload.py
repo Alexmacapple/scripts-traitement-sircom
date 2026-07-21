@@ -357,6 +357,14 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
                 [("a.jpg", b"a" * (1024 * 1024 + 1))],
                 "SIRCOM_IMAGE_ZIP_IMAGE_TOO_LARGE",
             ),
+            "heic_refused": (
+                [("photo.heic", b"heic")],
+                "SIRCOM_IMAGE_HEIC_REFUSED",
+            ),
+            "heif_refused": (
+                [("photo.heif", b"heif")],
+                "SIRCOM_IMAGE_HEIF_REFUSED",
+            ),
             "unzipped_too_large": (
                 [("a.jpg", b"a" * (1024 * 1024)), ("b.jpg", b"b" * (1024 * 1024))],
                 "SIRCOM_IMAGE_ZIP_UNCOMPRESSED_TOO_LARGE",
