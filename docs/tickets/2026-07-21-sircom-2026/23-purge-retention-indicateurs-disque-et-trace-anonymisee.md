@@ -11,7 +11,7 @@ Critères d'acceptation :
 
 - [ ] La rétention par défaut est 7 jours et configurable.
 - [ ] Un bouton ou endpoint permet de supprimer immédiatement un lot.
-- [ ] La purge supprime uploads, artefacts, rapports, packages et valeurs métier.
+- [ ] La purge efface uploads, artefacts, rapports, packages et valeurs métier.
 - [ ] Une trace technique anonymisée conserve date, statut final, durées,
       tailles, compteurs et erreurs techniques sans contenu sensible.
 - [ ] L'usage disque global et par lot est visible.
@@ -44,3 +44,4 @@ Sources :
 - [Orchestration](../../specs/2026-07-21-orchestration-sircom-2026.md)
 - [Design architecture](../../specs/2026-07-21-design-architecture-web-sircom-2026.md)
 - [Contrats complémentaires](../../specs/2026-07-21-contrats-implementation-sircom-2026.md)
+- [Revue ADHD post-cadrage](revue-adhd-post-cadrage.md)

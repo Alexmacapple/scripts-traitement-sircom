@@ -3,6 +3,7 @@
 Index principal : [2026-07-21-tickets-implementation-sircom-2026.md](../2026-07-21-tickets-implementation-sircom-2026.md).
 
 Revue détaillée : [revue connu-inconnu et avocat du diable](revue-connus-inconnus-avocat-du-diable.md).
+Revue post-cadrage : [retours ADHD intégrés](revue-adhd-post-cadrage.md).
 
 Frontier initiale : ticket 01 uniquement.
 

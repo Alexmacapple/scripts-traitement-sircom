@@ -11,6 +11,10 @@ Critères d'acceptation :
 
 - [ ] Un `ActorContext` est injecté dans les routes protégées.
 - [ ] Une `AccessPolicy` locale autorise les actions V1 sans authentification.
+- [ ] L'autorisation sans authentification est valable uniquement pour un bind
+      loopback (`127.0.0.1`, `localhost` ou `::1`) ; un host exposé sans auth
+      produit un refus testable, que le mécanisme relève de la configuration ou
+      de la politique d'accès.
 - [ ] La politique expose des actions nommées pour créer, lire, modifier,
       télécharger et supprimer un lot ou artefact.
 - [ ] La politique peut refuser un accès en test sans changer les routes.
@@ -21,8 +25,8 @@ Critères d'acceptation :
 - [ ] Pour un artefact absent, supprimé, obsolète ou appartenant à un autre lot,
       la réponse publique reste 404 avec le même code stable ; le motif réel
       reste uniquement dans un événement technique anonymisé.
-- [ ] Tests pour accès autorisé, accès refusé, erreur structurée et
-      indistinction publique 404.
+- [ ] Tests pour accès autorisé, accès refusé, host non loopback sans auth,
+      erreur structurée et indistinction publique 404.
 
 Hors périmètre :
 
