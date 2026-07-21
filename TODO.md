@@ -95,15 +95,23 @@
   - [x] empreinte SHA-256 ;
   - [x] états `pending`, `committed`, `obsolete` ;
   - [x] réconciliation au démarrage après échec simulé.
+- [x] Implémenter la couche d'état métier affichable :
+  - [x] transitions `termine`, `termine_avec_alertes`, `action_requise`,
+    `bloque`, `echoue` et `annule` ;
+  - [x] problèmes structurés avec code, titre, cause, emplacement, action et
+    détails techniques ;
+  - [x] événements techniques persistés séparément des problèmes métier ;
+  - [x] rendu DSFR minimal des problèmes par niveau et des événements récents.
 - [ ] Implémenter le worker local minimal :
   - [ ] acquisition de lease ;
   - [ ] `run_id` par étape ;
   - [ ] progression persistée ;
   - [ ] annulation coopérative ;
   - [ ] retry avec invalidation aval.
-- [ ] Tester les transitions `non_demarre`, `pret`, `en_cours`,
-  `action_requise`, `bloque`, `termine`, `termine_avec_alertes`, `echoue`,
-  `ignore` et `annule`.
+- [x] Tester les transitions `action_requise`, `bloque`, `termine`,
+  `termine_avec_alertes`, `echoue` et `annule`.
+- [ ] Tester les transitions worker complètes `non_demarre`, `pret`,
+  `en_cours`, `ignore` et `invalide` pendant les tickets 07 et 08.
 
 ## Import Excel et mapping
 

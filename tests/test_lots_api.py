@@ -17,6 +17,7 @@ from sircom2026.app import create_app
 from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import V1_STEPS
+from sircom2026.state import record_problem, require_human_validation
 
 
 def make_settings(tmpdir: Path):
@@ -255,6 +256,64 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("Lot introuvable", missing_html)
         self.assertIn("Cause :", missing_html)
         self.assertIn("Action attendue :", missing_html)
+
+    def test_home_ui_renders_problem_groups_and_event_summaries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp))
+            client = TestClient(create_app(settings))
+            lot_id = client.post("/api/lots", json={"title": "Lot problemes"}).json()["lot"]["id"]
+            database = Database(
+                settings.sqlite_path,
+                busy_timeout_ms=settings.sqlite_busy_timeout_ms,
+            )
+
+            with database.transaction() as repositories:
+                record_problem(
+                    repositories,
+                    lot_id=lot_id,
+                    step_key="diagnostic_excel",
+                    severity="alerte",
+                    code="SIRCOM_EXCEL_HIDDEN_COLUMNS",
+                    title="Colonnes masquées détectées",
+                    cause="Le classeur contient une colonne masquée.",
+                    action="Afficher la colonne, puis relancer le diagnostic.",
+                    location={"onglet": "Produits", "colonne": "C"},
+                    technical={
+                        "hidden_columns": 1,
+                        "relative_path": "lots/lot_1/source.xlsx",
+                        "siret": "12345678900000",
+                        "nested": {"path": "/private/tmp/source.xlsx"},
+                    },
+                )
+                require_human_validation(
+                    repositories,
+                    lot_id=lot_id,
+                    step_key="mapping",
+                    run_id="run_mapping_1",
+                )
+
+            response = client.get(f"/?lot_id={lot_id}")
+
+        html = response.text
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Problèmes", html)
+        self.assertIn("Alerte", html)
+        self.assertIn("Colonnes masquées détectées", html)
+        self.assertIn("Cause :", html)
+        self.assertIn("Le classeur contient une colonne masquée.", html)
+        self.assertIn("Emplacement :", html)
+        self.assertIn("Onglet Produits, Colonne C", html)
+        self.assertIn("Action attendue :", html)
+        self.assertIn("Afficher la colonne, puis relancer le diagnostic.", html)
+        self.assertIn("<summary>Détails techniques</summary>", html)
+        self.assertIn("hidden_columns", html)
+        self.assertNotIn("relative_path", html)
+        self.assertNotIn("12345678900000", html)
+        self.assertNotIn("/private/tmp/source.xlsx", html)
+        self.assertIn("Événements", html)
+        self.assertIn("Problème enregistré", html)
+        self.assertIn("Validation humaine attendue", html)
+        self.assertNotIn(str(Path(tmp)), html)
 
 
 if __name__ == "__main__":

@@ -168,7 +168,8 @@ class ArtifactStore:
                 artifact,
                 code="SIRCOM_ARTIFACT_FILE_MISSING",
                 title="Fichier artefact manquant",
-                message="Un artefact reference en base n'existe plus sur le disque.",
+                cause="Un artefact reference en base n'existe plus dans le store local.",
+                action="Relancer l'etape qui produit cet artefact avant de le telecharger.",
             )
             raise ArtifactUnavailableError("Artifact file is missing.")
         actual_sha256 = sha256_file(artifact_path)
@@ -178,10 +179,8 @@ class ArtifactStore:
                 artifact,
                 code="SIRCOM_ARTIFACT_HASH_MISMATCH",
                 title="Empreinte artefact incoherente",
-                message=(
-                    "Un artefact reference en base ne correspond plus au "
-                    "fichier disque."
-                ),
+                cause="Un artefact reference en base ne correspond plus a son empreinte SHA-256.",
+                action="Relancer l'etape qui produit cet artefact pour recreer une version coherente.",
                 technical={"actual_sha256": actual_sha256},
             )
             raise ArtifactUnavailableError("Artifact checksum mismatch.")
@@ -209,7 +208,8 @@ class ArtifactStore:
                         artifact,
                         code="SIRCOM_ARTIFACT_FILE_MISSING",
                         title="Fichier artefact manquant",
-                        message="Un artefact reference en base n'existe plus sur le disque.",
+                        cause="Un artefact reference en base n'existe plus dans le store local.",
+                        action="Relancer l'etape qui produit cet artefact avant de le telecharger.",
                     )
                     missing_files += 1
                 else:
@@ -220,9 +220,13 @@ class ArtifactStore:
                             artifact,
                             code="SIRCOM_ARTIFACT_HASH_MISMATCH",
                             title="Empreinte artefact incoherente",
-                            message=(
+                            cause=(
                                 "Un artefact reference en base ne correspond "
-                                "plus au fichier disque."
+                                "plus a son empreinte SHA-256."
+                            ),
+                            action=(
+                                "Relancer l'etape qui produit cet artefact "
+                                "pour recreer une version coherente."
                             ),
                             technical={"actual_sha256": actual_sha256},
                         )
@@ -385,7 +389,8 @@ def _mark_artifact_obsolete_with_problem(
     *,
     code: str,
     title: str,
-    message: str,
+    cause: str,
+    action: str,
     technical: dict[str, Any] | None = None,
 ) -> None:
     repositories.artifacts.update_status(artifact["id"], "obsolete")
@@ -397,11 +402,12 @@ def _mark_artifact_obsolete_with_problem(
         severity="alerte",
         code=code,
         title=title,
-        message=message,
+        cause=cause,
+        message=cause,
+        action=action,
         location={"artifact_id": artifact["id"]},
         technical={
             "artifact_id": artifact["id"],
-            "relative_path": artifact["relative_path"],
             "expected_sha256": artifact["sha256"],
             **(technical or {}),
         },

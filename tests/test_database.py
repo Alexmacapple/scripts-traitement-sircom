@@ -87,7 +87,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 ).fetchone()
                 user_version = connection.execute("PRAGMA user_version").fetchone()[0]
                 self.assertEqual(migration["version"], SCHEMA_VERSION)
-                self.assertEqual(migration["name"], "lot_idempotency_key")
+                self.assertEqual(migration["name"], "problem_cause_action")
                 self.assertEqual(user_version, SCHEMA_VERSION)
 
                 for table in ("lots", "etapes", "jobs", "artefacts", "evenements", "problemes"):
@@ -159,6 +159,18 @@ class DatabaseMigrationTest(unittest.TestCase):
                         "deleted_at",
                         "quarantined_at",
                     }.issubset(table_columns(connection, "artefacts"))
+                )
+                self.assertTrue(
+                    {
+                        "severity",
+                        "code",
+                        "title",
+                        "cause",
+                        "message",
+                        "action",
+                        "location_json",
+                        "technical_json",
+                    }.issubset(table_columns(connection, "problemes"))
                 )
             finally:
                 connection.close()
@@ -329,6 +341,8 @@ class DatabaseMigrationTest(unittest.TestCase):
                     code="SIRCOM_TEST_WARNING",
                     title="Alerte test",
                     message="Message test",
+                    cause="Cause test",
+                    action="Action test",
                 )
 
                 lot = repos.lots.update_status(lot["id"], "en_cours")
@@ -370,6 +384,8 @@ class DatabaseMigrationTest(unittest.TestCase):
                 )
                 self.assertEqual(repos.problems.get_required(problem["id"])["status"], "resolved")
                 self.assertIsNotNone(repos.problems.get_required(problem["id"])["resolved_at"])
+                self.assertEqual(repos.problems.get_required(problem["id"])["cause"], "Cause test")
+                self.assertEqual(repos.problems.get_required(problem["id"])["action"], "Action test")
 
             with self.assertRaises(RuntimeError):
                 with database.transaction() as repos:

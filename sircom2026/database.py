@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 LOGGER = logging.getLogger(__name__)
 
 LOT_STATUSES = (
@@ -45,6 +45,7 @@ ARTIFACT_STATUSES = ("pending", "committed", "obsolete", "deleted", "quarantined
 PROBLEM_SEVERITIES = ("bloquant", "alerte", "information")
 PROBLEM_STATUSES = ("open", "resolved", "obsolete")
 EVENT_LEVELS = ("info", "warning", "error")
+LOT_WRITE_BLOCKED_STATUSES = ("annule", "supprime", "purge")
 MANAGED_TABLES = ("lots", "etapes", "jobs", "artefacts", "evenements", "problemes")
 EXPECTED_TABLE_COLUMNS = {
     "lots": {
@@ -143,7 +144,9 @@ EXPECTED_TABLE_COLUMNS = {
         "severity",
         "code",
         "title",
+        "cause",
         "message",
+        "action",
         "location_json",
         "technical_json",
         "status",
@@ -269,6 +272,8 @@ def migrate_database(path: Path, *, busy_timeout_ms: int = 5000) -> None:
             _apply_schema_v1(connection)
         if current_version < 2:
             _apply_schema_v2(connection)
+        if current_version < 3:
+            _apply_schema_v3(connection)
         _validate_schema(connection)
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         connection.commit()
@@ -421,6 +426,26 @@ class LotsRepository:
         )
         return self.get_required(lot_id)
 
+    def refresh_problem_counters(self, lot_id: str) -> dict[str, Any]:
+        now = _now()
+        row = self.connection.execute(
+            """
+            SELECT COUNT(*) AS problems_open_count
+            FROM problemes
+            WHERE lot_id = ? AND status = 'open'
+            """,
+            (lot_id,),
+        ).fetchone()
+        self.connection.execute(
+            """
+            UPDATE lots
+            SET problems_open_count = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (int(row["problems_open_count"]), now, lot_id),
+        )
+        return self.get_required(lot_id)
+
 
 class StepsRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -481,13 +506,54 @@ class StepsRepository:
         run_id: str | None = None,
     ) -> dict[str, Any]:
         _validate_choice("step status", status, STEP_STATUSES)
+        step = self.get_required(step_id)
+        lot_status = LotsRepository(self.connection).get_required(step["lot_id"])["status"]
+        if lot_status in {"supprime", "purge"} or (
+            lot_status == "annule" and status != "annule"
+        ):
+            raise ValueError("Cannot update a step for a canceled or deleted lot.")
+        if status == "termine":
+            open_alerts = self.connection.execute(
+                """
+                SELECT COUNT(*) FROM problemes
+                WHERE lot_id = ?
+                  AND step_key = ?
+                  AND severity = 'alerte'
+                  AND status = 'open'
+                """,
+                (step["lot_id"], step["step_key"]),
+            ).fetchone()[0]
+            if int(open_alerts):
+                raise ValueError(
+                    "A step with an open warning must be marked termine_avec_alertes."
+                )
+        now = _now()
+        is_started = 1 if status == "en_cours" else 0
+        is_finished = 1 if status in {
+            "termine",
+            "termine_avec_alertes",
+            "echoue",
+            "ignore",
+            "annule",
+        } else 0
         self.connection.execute(
             """
             UPDATE etapes
-            SET status = ?, current_run_id = COALESCE(?, current_run_id), updated_at = ?
+            SET
+                status = ?,
+                current_run_id = COALESCE(?, current_run_id),
+                updated_at = ?,
+                started_at = CASE
+                    WHEN ? THEN COALESCE(started_at, ?)
+                    ELSE started_at
+                END,
+                finished_at = CASE
+                    WHEN ? THEN COALESCE(finished_at, ?)
+                    ELSE finished_at
+                END
             WHERE id = ?
             """,
-            (status, run_id, _now(), step_id),
+            (status, run_id, now, is_started, now, is_finished, now, step_id),
         )
         return self.get_required(step_id)
 
@@ -604,6 +670,24 @@ class JobsRepository:
             WHERE lot_id = ? AND status IN ({_check_in(ACTIVE_JOB_STATUSES)})
             """,
             (now, now, lot_id),
+        )
+        return cursor.rowcount
+
+    def cancel_active_for_step(self, lot_id: str, step_key: str) -> int:
+        now = _now()
+        cursor = self.connection.execute(
+            f"""
+            UPDATE jobs
+            SET
+                status = 'canceled',
+                cancel_requested_at = COALESCE(cancel_requested_at, ?),
+                finished_at = COALESCE(finished_at, ?),
+                updated_at = ?
+            WHERE lot_id = ?
+              AND step_key = ?
+              AND status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+            """,
+            (now, now, now, lot_id, step_key),
         )
         return cursor.rowcount
 
@@ -782,6 +866,18 @@ class EventsRepository:
             )
         return self.get_required(event_id)
 
+    def list_for_lot(self, lot_id: str, *, limit: int = 20) -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            """
+            SELECT * FROM evenements
+            WHERE lot_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (lot_id, limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
 
 class ProblemsRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -796,21 +892,27 @@ class ProblemsRepository:
         code: str,
         title: str,
         message: str,
+        cause: str | None = None,
+        action: str | None = None,
         run_id: str | None = None,
         location: Mapping[str, Any] | None = None,
         technical: Mapping[str, Any] | None = None,
         problem_id: str | None = None,
     ) -> dict[str, Any]:
         _validate_choice("problem severity", severity, PROBLEM_SEVERITIES)
+        self._validate_write_allowed(lot_id=lot_id, step_key=step_key, run_id=run_id)
         now = _now()
         row_id = problem_id or _new_id("problem")
+        cause_text = cause if cause is not None else message
+        action_text = action if action is not None else "Corriger la cause puis relancer l'etape concernee."
         self.connection.execute(
             """
             INSERT INTO problemes (
                 id, created_at, updated_at, lot_id, step_key, run_id, severity,
-                code, title, message, location_json, technical_json, status
+                code, title, cause, message, action, location_json,
+                technical_json, status
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row_id,
@@ -822,12 +924,15 @@ class ProblemsRepository:
                 severity,
                 code,
                 title,
+                cause_text,
                 message,
+                action_text,
                 _json(location or {}),
                 _json(technical or {}),
                 "open",
             ),
         )
+        LotsRepository(self.connection).refresh_problem_counters(lot_id)
         return self.get_required(row_id)
 
     def get(self, problem_id: str) -> dict[str, Any] | None:
@@ -841,6 +946,7 @@ class ProblemsRepository:
 
     def update_status(self, problem_id: str, status: str) -> dict[str, Any]:
         _validate_choice("problem status", status, PROBLEM_STATUSES)
+        problem = self.get_required(problem_id)
         now = _now()
         resolved_at = now if status == "resolved" else None
         self.connection.execute(
@@ -851,7 +957,85 @@ class ProblemsRepository:
             """,
             (status, resolved_at, now, problem_id),
         )
+        LotsRepository(self.connection).refresh_problem_counters(problem["lot_id"])
         return self.get_required(problem_id)
+
+    def _validate_write_allowed(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        run_id: str | None,
+    ) -> None:
+        lot = LotsRepository(self.connection).get_required(lot_id)
+        if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
+            raise ValueError("Cannot record a problem for a canceled or deleted lot.")
+        step = StepsRepository(self.connection).get_by_lot_key(lot_id, step_key)
+        if step is None:
+            raise KeyError(f"{lot_id}:{step_key}")
+        current_run_id = step["current_run_id"]
+        if run_id is not None and current_run_id is not None and current_run_id != run_id:
+            raise ValueError("Problem run_id does not match the current step run_id.")
+
+    def list_for_lot(
+        self,
+        lot_id: str,
+        *,
+        include_resolved: bool = False,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        status_filter = "" if include_resolved else "AND status = 'open'"
+        rows = self.connection.execute(
+            f"""
+            SELECT * FROM problemes
+            WHERE lot_id = ?
+              {status_filter}
+            ORDER BY
+                CASE severity
+                    WHEN 'bloquant' THEN 0
+                    WHEN 'alerte' THEN 1
+                    ELSE 2
+                END,
+                created_at DESC,
+                id DESC
+            LIMIT ?
+            """,
+            (lot_id, limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def count_open_for_step_by_severity(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        severity: str,
+    ) -> int:
+        _validate_choice("problem severity", severity, PROBLEM_SEVERITIES)
+        row = self.connection.execute(
+            """
+            SELECT COUNT(*) FROM problemes
+            WHERE lot_id = ?
+              AND step_key = ?
+              AND severity = ?
+              AND status = 'open'
+            """,
+            (lot_id, step_key, severity),
+        ).fetchone()
+        return int(row[0])
+
+    def count_open_by_severity(self, *, lot_id: str, severity: str) -> int:
+        _validate_choice("problem severity", severity, PROBLEM_SEVERITIES)
+        row = self.connection.execute(
+            """
+            SELECT COUNT(*) FROM problemes
+            WHERE lot_id = ?
+              AND severity = ?
+              AND status = 'open'
+            """,
+            (lot_id, severity),
+        ).fetchone()
+        return int(row[0])
 
 
 def _ensure_schema_migrations_table(connection: sqlite3.Connection) -> None:
@@ -894,6 +1078,22 @@ def _apply_schema_v2(connection: sqlite3.Connection) -> None:
     connection.execute(
         "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
         (2, "lot_idempotency_key", _now()),
+    )
+
+
+def _apply_schema_v3(connection: sqlite3.Connection) -> None:
+    problem_columns = _table_columns(connection, "problemes")
+    if "cause" not in problem_columns:
+        connection.execute("ALTER TABLE problemes ADD COLUMN cause TEXT NOT NULL DEFAULT ''")
+        connection.execute("UPDATE problemes SET cause = message WHERE cause = ''")
+    if "action" not in problem_columns:
+        connection.execute(
+            "ALTER TABLE problemes ADD COLUMN action TEXT NOT NULL DEFAULT "
+            "'Corriger la cause puis relancer l''etape concernee.'"
+        )
+    connection.execute(
+        "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+        (3, "problem_cause_action", _now()),
     )
 
 
@@ -1128,7 +1328,9 @@ _SCHEMA_V1 = [
         severity TEXT NOT NULL CHECK (severity IN ({_check_in(PROBLEM_SEVERITIES)})),
         code TEXT NOT NULL,
         title TEXT NOT NULL,
+        cause TEXT NOT NULL DEFAULT '',
         message TEXT NOT NULL,
+        action TEXT NOT NULL DEFAULT '',
         location_json TEXT NOT NULL DEFAULT '{{}}',
         technical_json TEXT NOT NULL DEFAULT '{{}}',
         status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ({_check_in(PROBLEM_STATUSES)})),

@@ -227,6 +227,79 @@
                   </li>
                 {% endfor %}
               </ol>
+
+              <section class="fr-mt-5v" aria-labelledby="lot-problems-title">
+                <h3 id="lot-problems-title">Problèmes</h3>
+                {% if selected_lot.problems %}
+                  {% for _severity, group in selected_lot.problem_groups.items() %}
+                    {% if group['items'] %}
+                      <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-3v">
+                        <h4 class="fr-alert__title">{{ group['label'] }}</h4>
+                        <ul class="fr-raw-list">
+                          {% for problem in group['items'] %}
+                            <li class="fr-mt-2v">
+                              <p class="fr-mb-1v">
+                                <span class="fr-badge fr-badge--sm">{{ problem.step_label }}</span>
+                                <strong>{{ problem.title }}</strong>
+                              </p>
+                              <p class="fr-mb-1v">
+                                <strong>Cause :</strong>
+                                {{ problem.cause }}
+                              </p>
+                              <p class="fr-mb-1v">
+                                <strong>Emplacement :</strong>
+                                {{ problem.location_label }}
+                              </p>
+                              <p class="fr-mb-1v">
+                                <strong>Action attendue :</strong>
+                                {{ problem.action }}
+                              </p>
+                              {% if problem.technical_items %}
+                                <details class="fr-mt-1v">
+                                  <summary>Détails techniques</summary>
+                                  <dl class="fr-mt-1v">
+                                    {% for key, value in problem.technical_items %}
+                                      <dt>{{ key }}</dt>
+                                      <dd>{{ value }}</dd>
+                                    {% endfor %}
+                                  </dl>
+                                </details>
+                              {% endif %}
+                              <p class="fr-text--xs fr-mt-1v fr-mb-0">
+                                Code {{ problem.code }}.
+                              </p>
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  <p>Aucun problème ouvert.</p>
+                {% endif %}
+              </section>
+
+              <section class="fr-mt-5v" aria-labelledby="lot-events-title">
+                <h3 id="lot-events-title">Événements</h3>
+                {% if selected_lot.events %}
+                  <ul class="fr-raw-list">
+                    {% for event in selected_lot.events %}
+                      <li class="fr-py-2v">
+                        <p class="fr-mb-0">
+                          <span class="fr-badge fr-badge--sm">{{ event.level_label }}</span>
+                          <strong>{{ event.label }}</strong>
+                        </p>
+                        {% if event.summary %}
+                          <p class="fr-text--sm fr-mb-0">{{ event.summary }}</p>
+                        {% endif %}
+                        <p class="fr-text--xs fr-mb-0">{{ event.created_at }}</p>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p>Aucun événement enregistré.</p>
+                {% endif %}
+              </section>
             {% else %}
               <h2 id="lot-detail-title">Détail du lot</h2>
               <p>Sélectionnez un lot.</p>

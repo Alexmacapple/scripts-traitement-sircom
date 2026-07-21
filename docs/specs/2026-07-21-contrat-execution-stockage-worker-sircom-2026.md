@@ -103,7 +103,7 @@ Toutes les tables ont `id`, `created_at`, `updated_at`.
 - `run_id` optionnel ;
 - `severity` parmi `bloquant`, `alerte`, `information` ;
 - `code` stable ;
-- `title`, `message`, `location_json`, `technical_json` ;
+- `title`, `cause`, `message`, `action`, `location_json`, `technical_json` ;
 - `status` parmi `open`, `resolved`, `obsolete`.
 
 ## SQLite
@@ -265,4 +265,3 @@ Chaque fingerprint est le SHA-256 d'un JSON canonique :
 - Réconciliation d'un fichier sans ligne et d'une ligne sans fichier.
 - Invalidation aval après nouvel Excel ou nouveau zip.
 - Annulation coopérative pendant job long simulé.
-

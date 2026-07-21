@@ -13,6 +13,9 @@
 - Implémentation du ticket 05 Sircom 2026 : store d'artefacts atomique,
   téléchargement par `artifact_id`, 404 indiscernable et réconciliation
   disque/SQLite.
+- Implémentation du ticket 06 Sircom 2026 : transitions de statuts métier,
+  problèmes structurés avec cause/action, événements séparés, compteurs ouverts
+  et rendu DSFR minimal des problèmes et événements dans le détail de lot.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

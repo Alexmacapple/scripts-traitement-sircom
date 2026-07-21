@@ -12,9 +12,10 @@ Ce dépôt couvre deux usages complémentaires.
 
 La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Côté 2026, le
 socle FastAPI local est lancé : configuration, santé, politique d'accès, erreurs
-API structurées, schéma SQLite et premier parcours lots avec timeline DSFR. Les
-traitements Excel, images, CSV, rapports et package restent à brancher par
-tickets successifs.
+API structurées, schéma SQLite, lots, store d'artefacts, statuts métier,
+événements séparés, problèmes structurés et premiers écrans DSFR. Les traitements
+Excel, images, CSV, rapports et package restent à brancher par tickets
+successifs.
 
 ## Sources locales utiles
 
@@ -148,8 +149,9 @@ la future interface web et à tester l'import Excel multi-onglets.
 ### Lancer le socle web local
 
 Le socle FastAPI 2026 expose les routes de santé, la configuration visible,
-l'OpenAPI, le schéma SQLite local et une interface DSFR minimale pour créer,
-sélectionner et supprimer logiquement des lots.
+l'OpenAPI, le schéma SQLite local, le store d'artefacts et une interface DSFR
+minimale pour créer, sélectionner, supprimer logiquement des lots, consulter la
+timeline, les problèmes structurés et les événements récents.
 
 ```bash
 python3 -m venv .venv
@@ -205,7 +207,7 @@ masquée, formule et en-tête multi-ligne.
 ```bash
 .venv/bin/python -m unittest tests.test_excel_diagnostic
 .venv/bin/python -m unittest tests.test_web_socle tests.test_api_access_errors \
-  tests.test_database tests.test_lots_api tests.test_artifacts
+  tests.test_database tests.test_lots_api tests.test_artifacts tests.test_state
 SIRCOM_RUN_PLAYWRIGHT=1 .venv/bin/python -m unittest tests.test_lots_playwright
 ```
 
