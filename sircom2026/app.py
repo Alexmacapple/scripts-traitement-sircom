@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 import shutil
 import sqlite3
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from sircom2026 import __version__
+from sircom2026.api.artifacts import router as artifacts_router
 from sircom2026.api.errors import ApiError, register_error_handlers
 from sircom2026.api.security import (
     AccessAction,
@@ -21,6 +24,7 @@ from sircom2026.api.security import (
     require_action,
 )
 from sircom2026.api.lots import router as lots_router
+from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import ConfigError, Settings, load_settings
 from sircom2026.database import Database, SchemaVersionError, connect_sqlite
 from sircom2026.lots import get_lot_detail, list_lots
@@ -30,6 +34,7 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
 DSFR_VERSION = "1.14.4"
 DSFR_ASSETS_PATH = f"/static/dsfr/{DSFR_VERSION}"
+LOGGER = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
@@ -61,15 +66,22 @@ def create_app(
             settings_error = exc
             settings = load_settings({})
 
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        reconcile_artifacts_at_startup(settings, settings_error)
+        yield
+
     app = FastAPI(
         title="Sircom 2026",
         version=__version__,
         description="Socle local de l'application Sircom 2026.",
+        lifespan=lifespan,
     )
     app.state.settings = settings
     app.state.settings_error = settings_error
     app.state.access_policy = access_policy or LocalAccessPolicy()
     register_error_handlers(app)
+    app.include_router(artifacts_router)
     app.include_router(lots_router)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -116,6 +128,39 @@ def create_app(
         return {"limits": app.state.settings.public_limits()}
 
     return app
+
+
+def reconcile_artifacts_at_startup(
+    settings: Settings,
+    settings_error: ConfigError | None,
+) -> None:
+    if settings_error is not None:
+        return
+
+    database = Database(
+        settings.sqlite_path,
+        busy_timeout_ms=settings.sqlite_busy_timeout_ms,
+    )
+    store = ArtifactStore(
+        settings.data_dir,
+        pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
+    )
+    try:
+        database.migrate()
+        with database.transaction() as repositories:
+            expired_jobs = repositories.jobs.expire_stale_leases()
+            report = store.reconcile(repositories)
+    except (OSError, SchemaVersionError, sqlite3.Error, ValueError):
+        LOGGER.warning("technical_event=artifact_reconciliation_startup_failed", exc_info=True)
+        return
+
+    report_counts = report.to_dict()
+    if expired_jobs or any(report_counts.values()):
+        LOGGER.info(
+            "technical_event=artifact_reconciliation_startup counts=%s expired_jobs=%s",
+            report_counts,
+            expired_jobs,
+        )
 
 
 def check_readiness(

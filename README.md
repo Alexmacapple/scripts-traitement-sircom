@@ -167,6 +167,7 @@ Routes utiles :
 - `GET /api/lots`
 - `GET /api/lots/{lot_id}`
 - `DELETE /api/lots/{lot_id}`
+- `GET /api/lots/{lot_id}/downloads/{artifact_id}`
 - `/docs`
 - `/openapi.json`
 
@@ -204,7 +205,7 @@ masquée, formule et en-tête multi-ligne.
 ```bash
 .venv/bin/python -m unittest tests.test_excel_diagnostic
 .venv/bin/python -m unittest tests.test_web_socle tests.test_api_access_errors \
-  tests.test_database tests.test_lots_api
+  tests.test_database tests.test_lots_api tests.test_artifacts
 SIRCOM_RUN_PLAYWRIGHT=1 .venv/bin/python -m unittest tests.test_lots_playwright
 ```
 

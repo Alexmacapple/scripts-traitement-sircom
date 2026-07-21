@@ -169,6 +169,7 @@ EXPECTED_FOREIGN_KEY_GROUPS = {
 }
 TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "artifact_id",
+    "artifacts_count",
     "code",
     "duration_ms",
     "error_code",
@@ -186,6 +187,7 @@ TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "active_jobs",
 }
 ACTIVE_JOB_STATUSES = ("queued", "leased", "running")
+COMMITTABLE_JOB_STATUSES = ("leased", "running")
 
 
 class SchemaVersionError(RuntimeError):
@@ -394,6 +396,31 @@ class LotsRepository:
         )
         return self.get_required(lot_id)
 
+    def refresh_artifact_counters(self, lot_id: str) -> dict[str, Any]:
+        now = _now()
+        row = self.connection.execute(
+            """
+            SELECT COUNT(*) AS artifacts_count, COALESCE(SUM(size_bytes), 0) AS size_bytes
+            FROM artefacts
+            WHERE lot_id = ? AND status = 'committed'
+            """,
+            (lot_id,),
+        ).fetchone()
+        self.connection.execute(
+            """
+            UPDATE lots
+            SET artifacts_count = ?, bytes_artifacts = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                int(row["artifacts_count"]),
+                int(row["size_bytes"]),
+                now,
+                lot_id,
+            ),
+        )
+        return self.get_required(lot_id)
+
 
 class StepsRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -438,6 +465,13 @@ class StepsRepository:
             (lot_id,),
         ).fetchall()
         return [dict(row) for row in rows]
+
+    def get_by_lot_key(self, lot_id: str, step_key: str) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            "SELECT * FROM etapes WHERE lot_id = ? AND step_key = ?",
+            (lot_id, step_key),
+        )
 
     def update_status(
         self,
@@ -499,6 +533,37 @@ class JobsRepository:
             raise KeyError(job_id)
         return row
 
+    def get_committable_by_run(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        run_id: str,
+        lease_version: int,
+    ) -> dict[str, Any] | None:
+        params: list[Any] = [lot_id, step_key, run_id, _now()]
+        params.append(lease_version)
+        return _fetch_one(
+            self.connection,
+            f"""
+            SELECT jobs.* FROM jobs
+            JOIN etapes
+              ON etapes.lot_id = jobs.lot_id
+             AND etapes.step_key = jobs.step_key
+            WHERE jobs.lot_id = ?
+              AND jobs.step_key = ?
+              AND jobs.run_id = ?
+              AND jobs.status IN ({_check_in(COMMITTABLE_JOB_STATUSES)})
+              AND jobs.lease_until IS NOT NULL
+              AND jobs.lease_until > ?
+              AND etapes.current_run_id = jobs.run_id
+              AND jobs.lease_version = ?
+            ORDER BY jobs.created_at DESC
+            LIMIT 1
+            """,
+            tuple(params),
+        )
+
     def update_status(self, job_id: str, status: str) -> dict[str, Any]:
         _validate_choice("job status", status, JOB_STATUSES)
         self.connection.execute(
@@ -506,6 +571,19 @@ class JobsRepository:
             (status, _now(), job_id),
         )
         return self.get_required(job_id)
+
+    def expire_stale_leases(self) -> int:
+        cursor = self.connection.execute(
+            f"""
+            UPDATE jobs
+            SET status = 'expired', updated_at = ?
+            WHERE status IN ({_check_in(COMMITTABLE_JOB_STATUSES)})
+              AND lease_until IS NOT NULL
+              AND lease_until <= ?
+            """,
+            (_now(), _now()),
+        )
+        return cursor.rowcount
 
     def count_active_for_lot(self, lot_id: str) -> int:
         row = self.connection.execute(
@@ -545,6 +623,8 @@ class ArtifactsRepository:
         relative_path: str,
         sha256: str,
         size_bytes: int,
+        mime_type: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
         status: str = "pending",
         artifact_id: str | None = None,
     ) -> dict[str, Any]:
@@ -555,9 +635,10 @@ class ArtifactsRepository:
             """
             INSERT INTO artefacts (
                 id, created_at, updated_at, lot_id, step_key, run_id, status,
-                kind, role, relative_path, sha256, size_bytes, schema_version
+                kind, role, relative_path, sha256, size_bytes, schema_version,
+                mime_type, metadata_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row_id,
@@ -573,6 +654,8 @@ class ArtifactsRepository:
                 sha256,
                 size_bytes,
                 1,
+                mime_type,
+                _json(metadata or {}),
             ),
         )
         return self.get_required(row_id)
@@ -585,6 +668,17 @@ class ArtifactsRepository:
         if row is None:
             raise KeyError(artifact_id)
         return row
+
+    def list_all(self) -> list[dict[str, Any]]:
+        rows = self.connection.execute("SELECT * FROM artefacts ORDER BY created_at, id").fetchall()
+        return [dict(row) for row in rows]
+
+    def get_for_lot(self, lot_id: str, artifact_id: str) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            "SELECT * FROM artefacts WHERE lot_id = ? AND id = ?",
+            (lot_id, artifact_id),
+        )
 
     def update_status(self, artifact_id: str, status: str) -> dict[str, Any]:
         _validate_choice("artifact status", status, ARTIFACT_STATUSES)

@@ -89,12 +89,12 @@
   empêcher deux jobs actifs incompatibles.
 - [x] Implémenter les repositories lots, étapes, jobs, artefacts, événements et
   problèmes.
-- [ ] Implémenter le `ArtifactStore` :
-  - [ ] écritures dans `tmp/` ;
-  - [ ] promotion atomique ;
-  - [ ] empreinte SHA-256 ;
-  - [ ] états `pending`, `committed`, `obsolete` ;
-  - [ ] réconciliation au démarrage après échec simulé.
+- [x] Implémenter le `ArtifactStore` :
+  - [x] écritures dans `tmp/` ;
+  - [x] promotion atomique ;
+  - [x] empreinte SHA-256 ;
+  - [x] états `pending`, `committed`, `obsolete` ;
+  - [x] réconciliation au démarrage après échec simulé.
 - [ ] Implémenter le worker local minimal :
   - [ ] acquisition de lease ;
   - [ ] `run_id` par étape ;

@@ -10,6 +10,9 @@
   coopérative des jobs actifs et timeline UI DSFR.
 - Ajout d'une preuve Playwright opt-in pour l'UI lots desktop/mobile : création,
   sélection, timeline visible et suppression logique.
+- Implémentation du ticket 05 Sircom 2026 : store d'artefacts atomique,
+  téléchargement par `artifact_id`, 404 indiscernable et réconciliation
+  disque/SQLite.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

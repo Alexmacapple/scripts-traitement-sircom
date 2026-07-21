@@ -28,6 +28,7 @@ class Settings:
     max_active_jobs: int
     disk_free_min_mb: int
     sqlite_busy_timeout_ms: int
+    artifact_pending_ttl_seconds: int
 
     def public_limits(self) -> dict[str, object]:
         return {
@@ -40,6 +41,7 @@ class Settings:
                 "max_active_jobs": self.max_active_jobs,
             },
             "disk": {"free_min_mb": self.disk_free_min_mb},
+            "artifacts": {"pending_ttl_seconds": self.artifact_pending_ttl_seconds},
         }
 
 
@@ -70,6 +72,12 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         max_active_jobs=_int(values, "SIRCOM_MAX_ACTIVE_JOBS", 1, minimum=1),
         disk_free_min_mb=_int(values, "SIRCOM_DISK_FREE_MIN_MB", 5120, minimum=0),
         sqlite_busy_timeout_ms=_int(values, "SIRCOM_SQLITE_BUSY_TIMEOUT_MS", 5000, minimum=0),
+        artifact_pending_ttl_seconds=_int(
+            values,
+            "SIRCOM_ARTIFACT_PENDING_TTL_SECONDS",
+            3600,
+            minimum=1,
+        ),
     )
 
 
