@@ -78,11 +78,16 @@ class DatabaseMigrationTest(unittest.TestCase):
                     table_names(connection),
                 )
                 migration = connection.execute(
-                    "SELECT version, name FROM schema_migrations"
+                    """
+                    SELECT version, name
+                    FROM schema_migrations
+                    ORDER BY version DESC
+                    LIMIT 1
+                    """
                 ).fetchone()
                 user_version = connection.execute("PRAGMA user_version").fetchone()[0]
                 self.assertEqual(migration["version"], SCHEMA_VERSION)
-                self.assertEqual(migration["name"], "initial_schema")
+                self.assertEqual(migration["name"], "lot_idempotency_key")
                 self.assertEqual(user_version, SCHEMA_VERSION)
 
                 for table in ("lots", "etapes", "jobs", "artefacts", "evenements", "problemes"):
@@ -94,6 +99,7 @@ class DatabaseMigrationTest(unittest.TestCase):
 
                 self.assertTrue(
                     {
+                        "idx_lots_idempotency_key",
                         "idx_etapes_lot_status",
                         "idx_jobs_status_lease",
                         "idx_jobs_lot_step",
@@ -116,6 +122,7 @@ class DatabaseMigrationTest(unittest.TestCase):
 
                 self.assertTrue(
                     {
+                        "idempotency_key",
                         "active_run_id",
                         "cancel_requested_at",
                         "delete_requested_at",
@@ -168,7 +175,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 migration_count = connection.execute(
                     "SELECT COUNT(*) FROM schema_migrations"
                 ).fetchone()[0]
-                self.assertEqual(migration_count, 1)
+                self.assertEqual(migration_count, SCHEMA_VERSION)
                 self.assertIn("jobs", table_names(connection))
             finally:
                 connection.close()
@@ -312,7 +319,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                     step_key="upload_excel",
                     run_id="run_upload_1",
                     event_type="lot.created",
-                    payload={"count": 1},
+                    payload={"steps_total": 1},
                 )
                 problem = repos.problems.create(
                     lot_id=lot["id"],
@@ -334,7 +341,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 artifact = repos.artifacts.update_status(artifact["id"], "committed")
                 event = repos.events.update_payload(
                     event["id"],
-                    {"count": 2, "status": "updated"},
+                    {"steps_total": 2, "status": "updated"},
                     level="warning",
                 )
                 problem = repos.problems.update_status(problem["id"], "resolved")
@@ -359,7 +366,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 self.assertEqual(repos.events.get_required(event["id"])["level"], "warning")
                 self.assertEqual(
                     repos.events.get_required(event["id"])["payload_json"],
-                    '{"count":2,"status":"updated"}',
+                    '{"status":"updated","steps_total":2}',
                 )
                 self.assertEqual(repos.problems.get_required(problem["id"])["status"], "resolved")
                 self.assertIsNotNone(repos.problems.get_required(problem["id"])["resolved_at"])

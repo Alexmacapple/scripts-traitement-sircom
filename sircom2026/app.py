@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import shutil
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -18,8 +20,10 @@ from sircom2026.api.security import (
     LocalAccessPolicy,
     require_action,
 )
+from sircom2026.api.lots import router as lots_router
 from sircom2026.config import ConfigError, Settings, load_settings
-from sircom2026.database import connect_sqlite
+from sircom2026.database import Database, SchemaVersionError, connect_sqlite
+from sircom2026.lots import get_lot_detail, list_lots
 
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -66,10 +70,15 @@ def create_app(
     app.state.settings_error = settings_error
     app.state.access_policy = access_policy or LocalAccessPolicy()
     register_error_handlers(app)
+    app.include_router(lots_router)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/", include_in_schema=False)
-    async def index(request: Request):
+    async def index(
+        request: Request,
+        _actor: ActorContext = Depends(require_action(AccessAction.LOT_READ)),
+    ):
+        lot_id = request.query_params.get("lot_id")
         return templates.TemplateResponse(
             request,
             "index.html",
@@ -78,6 +87,7 @@ def create_app(
                 "app_version": __version__,
                 "dsfr_assets_path": DSFR_ASSETS_PATH,
                 "dsfr_version": DSFR_VERSION,
+                **load_index_context(app.state.settings, app.state.settings_error, lot_id),
             },
         )
 
@@ -125,6 +135,58 @@ def check_readiness(
         checks.append(_check_disk(settings))
 
     return _readiness_payload(checks)
+
+
+def load_index_context(
+    settings: Settings,
+    settings_error: ConfigError | None,
+    lot_id: str | None,
+) -> dict[str, Any]:
+    context: dict[str, Any] = {
+        "lots": [],
+        "selected_lot": None,
+        "ui_error": None,
+    }
+    if settings_error is not None:
+        context["ui_error"] = ui_error(
+            "Configuration invalide",
+            "La configuration locale ne peut pas etre chargee.",
+            "Corriger les variables SIRCOM_* puis relancer l'application.",
+        )
+        return context
+
+    database = Database(
+        settings.sqlite_path,
+        busy_timeout_ms=settings.sqlite_busy_timeout_ms,
+    )
+    try:
+        database.migrate()
+        with database.session() as repositories:
+            context["lots"] = list_lots(repositories, limit=20, offset=0)["items"]
+            if lot_id:
+                try:
+                    context["selected_lot"] = get_lot_detail(repositories, lot_id)
+                except KeyError:
+                    context["ui_error"] = ui_error(
+                        "Lot introuvable",
+                        "Le lot demande n'existe pas ou a ete retire.",
+                        "Selectionner un lot actif dans la liste.",
+                    )
+    except (OSError, SchemaVersionError, sqlite3.Error):
+        context["ui_error"] = ui_error(
+            "Base locale indisponible",
+            "SQLite ne peut pas etre ouvert ou migre.",
+            "Verifier le dossier de donnees puis relancer l'application.",
+        )
+    return context
+
+
+def ui_error(title: str, cause: str, action: str) -> dict[str, str]:
+    return {
+        "title": title,
+        "cause": cause,
+        "action": action,
+    }
 
 
 def _readiness_payload(checks: list[ReadinessCheck]) -> dict[str, object]:

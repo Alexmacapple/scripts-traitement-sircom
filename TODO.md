@@ -73,19 +73,21 @@
 - [x] Implémenter `GET /health`, `GET /health/ready` et OpenAPI.
 - [x] Tester `/health/ready` avec répertoire de données temporaire, SQLite et
   seuil d'espace disque.
+- [x] Implémenter le parcours lots V1 : création, consultation, suppression
+  logique, liste active et timeline UI DSFR.
 
 ## Orchestration et stockage
 
-- [ ] Implémenter le schéma SQLite minimal :
-  - [ ] `lots` ;
-  - [ ] `etapes` ;
-  - [ ] `jobs` ;
-  - [ ] `artefacts` ;
-  - [ ] `evenements` ;
-  - [ ] `problemes`.
+- [x] Implémenter le schéma SQLite minimal :
+  - [x] `lots` ;
+  - [x] `etapes` ;
+  - [x] `jobs` ;
+  - [x] `artefacts` ;
+  - [x] `evenements` ;
+  - [x] `problemes`.
 - [ ] Ajouter les contraintes d'unicité et clés étrangères nécessaires pour
   empêcher deux jobs actifs incompatibles.
-- [ ] Implémenter les repositories lots, étapes, jobs, artefacts, événements et
+- [x] Implémenter les repositories lots, étapes, jobs, artefacts, événements et
   problèmes.
 - [ ] Implémenter le `ArtifactStore` :
   - [ ] écritures dans `tmp/` ;
@@ -216,7 +218,7 @@
 
 ## Documentation et recette
 
-- [ ] Documenter le démarrage local de l'application web quand le squelette
+- [x] Documenter le démarrage local de l'application web quand le squelette
   FastAPI existe.
 - [ ] Ajouter un guide court de correction des Excels refusés.
 - [ ] Ajouter une recette de bout en bout avec fixtures synthétiques.

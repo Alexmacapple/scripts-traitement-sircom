@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 LOGGER = logging.getLogger(__name__)
 
 LOT_STATUSES = (
@@ -53,6 +53,7 @@ EXPECTED_TABLE_COLUMNS = {
         "updated_at",
         "status",
         "title",
+        "idempotency_key",
         "active_run_id",
         "cancel_requested_at",
         "delete_requested_at",
@@ -150,6 +151,7 @@ EXPECTED_TABLE_COLUMNS = {
     },
 }
 EXPECTED_INDEXES = {
+    "idx_lots_idempotency_key",
     "idx_etapes_lot_status",
     "idx_jobs_status_lease",
     "idx_jobs_lot_step",
@@ -168,7 +170,6 @@ EXPECTED_FOREIGN_KEY_GROUPS = {
 TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "artifact_id",
     "code",
-    "count",
     "duration_ms",
     "error_code",
     "free_mb",
@@ -180,8 +181,11 @@ TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "size_bytes",
     "status",
     "step_key",
+    "steps_total",
     "warning_code",
+    "active_jobs",
 }
+ACTIVE_JOB_STATUSES = ("queued", "leased", "running")
 
 
 class SchemaVersionError(RuntimeError):
@@ -198,6 +202,14 @@ class Database:
 
     def migrate(self) -> None:
         migrate_database(self.path, busy_timeout_ms=self.busy_timeout_ms)
+
+    @contextmanager
+    def session(self) -> Iterator[Repositories]:
+        connection = self.connect()
+        try:
+            yield Repositories(connection)
+        finally:
+            connection.close()
 
     @contextmanager
     def transaction(self) -> Iterator[Repositories]:
@@ -253,6 +265,8 @@ def migrate_database(path: Path, *, busy_timeout_ms: int = 5000) -> None:
         if current_version < 1:
             _refuse_partial_unversioned_schema(connection)
             _apply_schema_v1(connection)
+        if current_version < 2:
+            _apply_schema_v2(connection)
         _validate_schema(connection)
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         connection.commit()
@@ -302,16 +316,17 @@ class LotsRepository:
         title: str | None = None,
         status: str = "brouillon",
         lot_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         _validate_choice("lot status", status, LOT_STATUSES)
         now = _now()
         row_id = lot_id or _new_id("lot")
         self.connection.execute(
             """
-            INSERT INTO lots (id, created_at, updated_at, status, title)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO lots (id, created_at, updated_at, status, title, idempotency_key)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (row_id, now, now, status, title),
+            (row_id, now, now, status, title, idempotency_key),
         )
         return self.get_required(row_id)
 
@@ -324,11 +339,58 @@ class LotsRepository:
             raise KeyError(lot_id)
         return row
 
+    def get_by_idempotency_key(self, idempotency_key: str) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            "SELECT * FROM lots WHERE idempotency_key = ?",
+            (idempotency_key,),
+        )
+
+    def list(
+        self,
+        *,
+        include_deleted: bool = False,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        where = "" if include_deleted else "WHERE status NOT IN ('supprime', 'purge')"
+        rows = self.connection.execute(
+            f"""
+            SELECT * FROM lots
+            {where}
+            ORDER BY created_at DESC, id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def count(self, *, include_deleted: bool = False) -> int:
+        where = "" if include_deleted else "WHERE status NOT IN ('supprime', 'purge')"
+        row = self.connection.execute(f"SELECT COUNT(*) FROM lots {where}").fetchone()
+        return int(row[0])
+
     def update_status(self, lot_id: str, status: str) -> dict[str, Any]:
         _validate_choice("lot status", status, LOT_STATUSES)
         self.connection.execute(
             "UPDATE lots SET status = ?, updated_at = ? WHERE id = ?",
             (status, _now(), lot_id),
+        )
+        return self.get_required(lot_id)
+
+    def mark_deleted(self, lot_id: str) -> dict[str, Any]:
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE lots
+            SET
+                status = 'supprime',
+                delete_requested_at = COALESCE(delete_requested_at, ?),
+                deleted_at = COALESCE(deleted_at, ?),
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (now, now, now, lot_id),
         )
         return self.get_required(lot_id)
 
@@ -366,6 +428,17 @@ class StepsRepository:
             raise KeyError(step_id)
         return row
 
+    def list_for_lot(self, lot_id: str) -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            """
+            SELECT * FROM etapes
+            WHERE lot_id = ?
+            ORDER BY created_at ASC, id ASC
+            """,
+            (lot_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
     def update_status(
         self,
         step_id: str,
@@ -400,6 +473,9 @@ class JobsRepository:
         job_id: str | None = None,
     ) -> dict[str, Any]:
         _validate_choice("job status", status, JOB_STATUSES)
+        lot = LotsRepository(self.connection).get_required(lot_id)
+        if lot["status"] in {"supprime", "purge"}:
+            raise ValueError("Cannot create a job for a deleted lot.")
         now = _now()
         row_id = job_id or _new_id("job")
         self.connection.execute(
@@ -430,6 +506,28 @@ class JobsRepository:
             (status, _now(), job_id),
         )
         return self.get_required(job_id)
+
+    def count_active_for_lot(self, lot_id: str) -> int:
+        row = self.connection.execute(
+            f"""
+            SELECT COUNT(*) FROM jobs
+            WHERE lot_id = ? AND status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+            """,
+            (lot_id,),
+        ).fetchone()
+        return int(row[0])
+
+    def request_cancel_for_lot(self, lot_id: str) -> int:
+        now = _now()
+        cursor = self.connection.execute(
+            f"""
+            UPDATE jobs
+            SET cancel_requested_at = COALESCE(cancel_requested_at, ?), updated_at = ?
+            WHERE lot_id = ? AND status IN ({_check_in(ACTIVE_JOB_STATUSES)})
+            """,
+            (now, now, lot_id),
+        )
+        return cursor.rowcount
 
 
 class ArtifactsRepository:
@@ -685,6 +783,23 @@ def _apply_schema_v1(connection: sqlite3.Connection) -> None:
     connection.execute(
         "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
         (1, "initial_schema", _now()),
+    )
+
+
+def _apply_schema_v2(connection: sqlite3.Connection) -> None:
+    lot_columns = _table_columns(connection, "lots")
+    if "idempotency_key" not in lot_columns:
+        connection.execute("ALTER TABLE lots ADD COLUMN idempotency_key TEXT")
+    connection.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_lots_idempotency_key
+        ON lots(idempotency_key)
+        WHERE idempotency_key IS NOT NULL
+        """
+    )
+    connection.execute(
+        "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+        (2, "lot_idempotency_key", _now()),
     )
 
 

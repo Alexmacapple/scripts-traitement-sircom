@@ -79,16 +79,159 @@
     <main id="contenu" tabindex="-1">
       <div class="fr-container fr-py-8v">
         <div class="fr-grid-row fr-grid-row--gutters">
-          <div class="fr-col-12 fr-col-lg-8">
+          <div class="fr-col-12 fr-col-lg-7">
             <h1>{{ app_name }}</h1>
             <p class="fr-text--lg">Socle applicatif local.</p>
           </div>
-          <div class="fr-col-12 fr-col-lg-4">
+          <div class="fr-col-12 fr-col-lg-5">
             <div class="fr-callout fr-icon-info-line">
               <h2 class="fr-callout__title">État</h2>
               <p class="fr-callout__text">Version {{ app_version }}.</p>
             </div>
           </div>
+        </div>
+
+        <div
+          id="ui-message"
+          class="fr-alert fr-alert--error fr-mt-4v"
+          role="alert"
+          tabindex="-1"
+          {% if not ui_error %}hidden{% endif %}
+        >
+          <h2 class="fr-alert__title" data-error-title>
+            {{ ui_error.title if ui_error else "Action impossible" }}
+          </h2>
+          <p data-error-cause>
+            <strong>Cause :</strong>
+            {{ ui_error.cause if ui_error else "" }}
+          </p>
+          <p data-error-action>
+            <strong>Action attendue :</strong>
+            {{ ui_error.action if ui_error else "" }}
+          </p>
+        </div>
+
+        <section class="fr-mt-6v" aria-labelledby="create-lot-title">
+          <h2 id="create-lot-title">Créer un lot</h2>
+          <form id="create-lot-form" class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-8">
+              <div class="fr-input-group">
+                <label class="fr-label" for="lot-title">
+                  Nom du lot
+                  <span class="fr-hint-text">Optionnel</span>
+                </label>
+                <input class="fr-input" id="lot-title" name="title" type="text" maxlength="120">
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-4 fr-col--middle">
+              <button class="fr-btn fr-icon-add-line fr-btn--icon-left" type="submit">
+                Créer
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mt-6v">
+          <section class="fr-col-12 fr-col-lg-5" aria-labelledby="lots-title">
+            <h2 id="lots-title">Lots</h2>
+            {% if lots %}
+              <div class="fr-table fr-table--bordered">
+                <div class="fr-table__wrapper">
+                  <div class="fr-table__container">
+                    <div class="fr-table__content">
+                      <table>
+                        <caption>Lots actifs</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">Nom</th>
+                            <th scope="col">Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for lot in lots %}
+                            <tr>
+                              <td>
+                                <a href="/?lot_id={{ lot.id }}">{{ lot.title or lot.id }}</a>
+                              </td>
+                              <td>
+                                <span class="fr-badge fr-badge--sm">{{ lot.status_label }}</span>
+                              </td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              <p>Aucun lot actif.</p>
+            {% endif %}
+          </section>
+
+          <section class="fr-col-12 fr-col-lg-7" aria-labelledby="lot-detail-title">
+            {% if selected_lot %}
+              <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                <div class="fr-col">
+                  <h2 id="lot-detail-title">{{ selected_lot.title or selected_lot.id }}</h2>
+                  <p class="fr-mb-0">
+                    <span class="fr-badge">{{ selected_lot.status_label }}</span>
+                  </p>
+                </div>
+                {% if selected_lot.actions.can_delete %}
+                  <div class="fr-col-auto">
+                    <button
+                      class="fr-btn fr-btn--secondary fr-icon-delete-bin-line fr-btn--icon-left"
+                      id="delete-lot-button"
+                      type="button"
+                      data-lot-id="{{ selected_lot.id }}"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                {% endif %}
+              </div>
+
+              <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                <div class="fr-col-6 fr-col-md-3">
+                  <dt>Étapes</dt>
+                  <dd>
+                    {{ selected_lot.counters.steps_done }} /
+                    {{ selected_lot.counters.steps_total }}
+                  </dd>
+                </div>
+                <div class="fr-col-6 fr-col-md-3">
+                  <dt>Artefacts</dt>
+                  <dd>{{ selected_lot.counters.artifacts_count }}</dd>
+                </div>
+                <div class="fr-col-6 fr-col-md-3">
+                  <dt>Problèmes</dt>
+                  <dd>{{ selected_lot.counters.problems_open_count }}</dd>
+                </div>
+                <div class="fr-col-6 fr-col-md-3">
+                  <dt>Créé</dt>
+                  <dd>{{ selected_lot.created_at }}</dd>
+                </div>
+              </dl>
+
+              <h3 class="fr-mt-5v">Timeline</h3>
+              <ol class="fr-raw-list">
+                {% for step in selected_lot.steps %}
+                  <li class="fr-py-2v fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <span>{{ step.label }}</span>
+                    </div>
+                    <div class="fr-col-auto">
+                      <span class="fr-badge fr-badge--sm">{{ step.status_label }}</span>
+                    </div>
+                  </li>
+                {% endfor %}
+              </ol>
+            {% else %}
+              <h2 id="lot-detail-title">Détail du lot</h2>
+              <p>Sélectionnez un lot.</p>
+            {% endif %}
+          </section>
         </div>
       </div>
     </main>
@@ -139,6 +282,7 @@
     </footer>
 
     <script type="module" src="{{ dsfr_assets_path }}/dsfr.module.min.js"></script>
+    <script type="module" src="/static/app.js"></script>
     <script nomodule src="{{ dsfr_assets_path }}/dsfr.nomodule.min.js"></script>
   </body>
 </html>

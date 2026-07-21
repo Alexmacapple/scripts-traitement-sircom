@@ -10,10 +10,11 @@ Ce dépôt couvre deux usages complémentaires.
   multi-onglets, mapper les champs utiles, traiter un zip d'images et exporter
   un package final compatible InDesign.
 
-La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Les éléments
-2026 présents dans le dépôt sont des outils de diagnostic, des fixtures de test
-et des specs d'implémentation ; l'application web FastAPI n'est pas encore
-implémentée.
+La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Côté 2026, le
+socle FastAPI local est lancé : configuration, santé, politique d'accès, erreurs
+API structurées, schéma SQLite et premier parcours lots avec timeline DSFR. Les
+traitements Excel, images, CSV, rapports et package restent à brancher par
+tickets successifs.
 
 ## Sources locales utiles
 
@@ -25,8 +26,8 @@ implémentée.
 - `docs/specs/` : contrat fonctionnel, orchestration et architecture cible
   Sircom 2026.
 - `scripts-2025/` : scripts historiques numérotés utilisés par l'orchestrateur.
-- `sircom2026/` et `scripts-2026/` : diagnostic Excel et génération de classeurs
-  synthétiques.
+- `sircom2026/` et `scripts-2026/` : application web locale, diagnostic Excel
+  et génération de classeurs synthétiques.
 
 ## Prérequis
 
@@ -146,8 +147,9 @@ la future interface web et à tester l'import Excel multi-onglets.
 
 ### Lancer le socle web local
 
-Le socle FastAPI 2026 expose les routes de santé, la configuration visible et un
-shell HTML minimal aligné DSFR avec limites.
+Le socle FastAPI 2026 expose les routes de santé, la configuration visible,
+l'OpenAPI, le schéma SQLite local et une interface DSFR minimale pour créer,
+sélectionner et supprimer logiquement des lots.
 
 ```bash
 python3 -m venv .venv
@@ -160,6 +162,10 @@ Routes utiles :
 - `GET /health`
 - `GET /health/ready`
 - `GET /api/config/limits`
+- `POST /api/lots`
+- `GET /api/lots`
+- `GET /api/lots/{lot_id}`
+- `DELETE /api/lots/{lot_id}`
 - `/docs`
 - `/openapi.json`
 
@@ -196,6 +202,8 @@ masquée, formule et en-tête multi-ligne.
 
 ```bash
 .venv/bin/python -m unittest tests.test_excel_diagnostic
+.venv/bin/python -m unittest tests.test_web_socle tests.test_api_access_errors \
+  tests.test_database tests.test_lots_api
 ```
 
 Quand les fichiers réels locaux sont présents, `Sircom2.xlsx` sert de cas
