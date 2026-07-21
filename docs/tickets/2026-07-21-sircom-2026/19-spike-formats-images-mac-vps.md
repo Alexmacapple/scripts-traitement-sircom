@@ -1,6 +1,6 @@
 # 19 - Spike formats images Mac/VPS
 
-Statut : `ready-intrinseque-non-frontier`
+Statut : `ready-for-agent`
 
 Dépend de : 18.
 
@@ -39,3 +39,4 @@ Sources :
 - [Contrat fonctionnel](../../specs/2026-07-21-contrat-fonctionnel-sircom-2026.md)
 - [Orchestration](../../specs/2026-07-21-orchestration-sircom-2026.md)
 - [Design architecture](../../specs/2026-07-21-design-architecture-web-sircom-2026.md)
+- [Contrats complémentaires](../../specs/2026-07-21-contrats-implementation-sircom-2026.md)

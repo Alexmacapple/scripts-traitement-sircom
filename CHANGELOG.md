@@ -2,6 +2,16 @@
 
 ## 2026-07-21
 
+- Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
+  normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
+  exploitation/purge.
+- Fermeture documentaire de la passe de décisions aval : schéma run-scopé,
+  `run_id`, `idempotency_key`, `lease_version`, réconciliation d'artefacts,
+  DAG/fingerprints, `ImageBindings`, sémantique `imageid` sans image, purge et
+  traces anonymisées.
+- Mise à jour des tickets unitaires : tous les tickets sont `ready-for-agent`
+  côté cadrage, tout en conservant la frontier d'exécution au ticket 01 puis le
+  graphe de dépendances.
 - Ajout des rapports de vérification globale GLM et SOL, puis synthèse
   GLM/SOL/Codex pour arbitrer le lancement de l'implémentation Sircom 2026.
 - Application du patch documentaire P0 avant ticket 01 : defaults V1

@@ -16,11 +16,12 @@ lancé. Convergence opérationnelle : forte après retour GLM post-SOL.
 
 ## Décision actionnable
 
-- Verdict courant : **GO ticket 01 après patch P0**.
-- Frontier exécutable après ce patch : **`{01}` uniquement**.
+- Verdict courant post-contrats complémentaires : **GO ticket 01**.
+- Frontier exécutable : **`{01}` uniquement**, car les dépendances de code aval
+  ne sont pas encore livrées.
 - Corrections bloquantes restantes avant ticket 01 : **0**.
-- Corrections structurantes restantes avant tickets aval : **à traiter avant
-  d'ouvrir 03, 05, 06, 07, 08, 12, 17, 18, 20, 22 et 23**.
+- Corrections structurantes restantes avant tickets aval : **0 côté cadrage**,
+  fermées par les contrats complémentaires.
 - Nouveau ticket à créer : **non**. Le découpage en 23 tickets est conservé.
 - Discipline d'implémentation : une session agent par ticket, frontier stricte,
   pas d'anticipation des tickets aval.
@@ -39,9 +40,10 @@ GLM apporte deux compléments utiles :
 - la règle de nettoyage des en-têtes doit être écrite comme critère testable du
   ticket 12.
 
-Codex arbitre ainsi : on ne casse pas le découpage. On rend le ticket 01
-exécutable maintenant, puis on ferme les décisions structurantes avant d'ouvrir
-les tickets qui en dépendent.
+Codex arbitre ainsi : on ne casse pas le découpage. Les décisions structurantes
+sont publiées dans
+`docs/specs/2026-07-21-contrats-implementation-sircom-2026.md`; les agents
+d'implémentation doivent les lire avec le ticket concerné.
 
 ## Patch P0 appliqué
 
@@ -77,9 +79,19 @@ valeurs ou la sémantique readiness.
 - Les index de tickets signalent que seul le ticket 01 est exécutable tant que
   la passe aval n'est pas fermée.
 
-## Décisions à fermer avant tickets aval
+## Décisions fermées par contrats complémentaires
 
-| Échéance | Tickets bloqués | Décision à publier |
+Statut post-contrats complémentaires : décisions fermées par :
+
+- `docs/specs/2026-07-21-design-ui-dsfr-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-execution-stockage-worker-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-donnees-csv-images-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-exploitation-purge-sircom-2026.md`
+
+La table ci-dessous est conservée comme trace de la revue qui a déclenché les
+contrats.
+
+| Échéance de la revue initiale | Tickets concernés | Décision désormais publiée |
 |---|---|---|
 | Avant 03 | 03, 05, 06, 07, 08 | Schéma run-scopé : `run_id`, idempotency key, `lease_version`, états artefacts, contraintes uniques et index. |
 | Avant 05 | 05, 07, 08, 22, 23 | Store d'artefacts : protocole de commit atomique, réconciliation au démarrage, quarantaine/suppression des fichiers sans ligne, obsolescence des lignes sans fichier ou hash invalide, rejet des commits tardifs par `run_id + lease_version`. |
@@ -106,17 +118,15 @@ produit. Le flux cible doit distinguer :
 - toute modification de zip, matching ou résolution invalide aperçu CSV, CSV
   final, rapports et package.
 
-Proposition à valider avant tickets 17/20 : conserver `imageid` déterministe pour
-toute ligne avec `id_dossier` valide, et laisser `@pathimg` vide lorsqu'aucune
-image n'est retenue.
+Décision publiée dans le contrat données/CSV/images : conserver `imageid`
+déterministe pour toute ligne avec `id_dossier` valide, et laisser `@pathimg`
+vide lorsqu'aucune image n'est retenue.
 
 ## Verdict par phase
 
 - Maintenant : implémenter **ticket 01 uniquement**.
-- Après ticket 01 : ouvrir 02 possible ; ne pas ouvrir 03 avant la décision
-  schéma run-scopé.
-- Avant tickets métier : appliquer une passe de fermeture des décisions ci-dessus
-  dans les specs et les tickets propriétaires.
+- Après ticket 01 : ouvrir 02 et 03 possible.
+- Avant chaque ticket : lire le contrat complémentaire applicable.
 - Avant package : obtenir la réponse Sircom sur le gabarit InDesign 2026 ou
   documenter explicitement que le test InDesign réel reste hors automatisation.
 
@@ -137,5 +147,5 @@ image n'est retenue.
 - Pas de fichier Excel 2026 réel disponible.
 - Pas d'implémentation runtime à vérifier pour worker, SQLite concurrente,
   artefacts, purge, téléchargements ou pression disque.
-- Les tickets 02 à 23 ne sont pas tous réécrits dans ce patch ; ils sont
-  explicitement mis derrière une passe de décisions avant ouverture.
+- Le gabarit InDesign 2026 reste externe : la V1 garantit le format CSV, pas la
+  validation automatique dans le gabarit réel.

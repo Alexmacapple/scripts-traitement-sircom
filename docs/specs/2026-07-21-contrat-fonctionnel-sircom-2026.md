@@ -9,6 +9,11 @@ Spec complémentaire : `docs/specs/2026-07-21-orchestration-sircom-2026.md`
 porte les statuts, le worker, SQLite, la reprise, la purge et les traitements de
 fond.
 
+Contrats complémentaires d'implémentation :
+`docs/specs/2026-07-21-contrats-implementation-sircom-2026.md`. Ces contrats
+ferment les décisions aval UI DSFR, worker, store, CSV/images et purge. Ils
+priment sur les questions ouvertes historiques pour l'implémentation V1.
+
 ## Énoncé du problème
 
 Le Sircom doit produire en 2026 un livrable InDesign à partir d'un Excel

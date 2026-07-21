@@ -48,10 +48,12 @@
 - [x] Appliquer le patch P0 de lancement ticket 01 : defaults V1
   `SIRCOM_MAX_ACTIVE_JOBS=1`, `SIRCOM_DISK_FREE_MIN_MB=5120` et contrat
   `/health/ready` testable.
-- [ ] Fermer la passe de décisions avant tickets 03 et aval : schéma run-scopé,
+- [x] Fermer la passe de décisions avant tickets 03 et aval : schéma run-scopé,
   machine d'états, store d'artefacts et réconciliation, worker lease/fencing,
   DAG/fingerprints, bindings images, mapping profils/rôles, purge/disque et
   sémantique CSV/package.
+- [x] Formaliser le contrat UI DSFR V1 : shell, écrans métier, composants,
+  états, messages, formulaires, responsive et vérifications minimales.
 - [ ] Clarifier avec le Sircom le couplage gabarit InDesign 2026 : nouveaux noms
   `id_dossier`/mapping ou réemploi des champs 2025.
 

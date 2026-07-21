@@ -1,6 +1,6 @@
 # 05 - Store d'artefacts atomique et téléchargements par `artifact_id`
 
-Statut : `a-recadrer`
+Statut : `ready-for-agent`
 
 Dépend de : 02, 03, 04.
 
@@ -46,3 +46,4 @@ Sources :
 - [Contrat fonctionnel](../../specs/2026-07-21-contrat-fonctionnel-sircom-2026.md)
 - [Orchestration](../../specs/2026-07-21-orchestration-sircom-2026.md)
 - [Design architecture](../../specs/2026-07-21-design-architecture-web-sircom-2026.md)
+- [Contrats complémentaires](../../specs/2026-07-21-contrats-implementation-sircom-2026.md)

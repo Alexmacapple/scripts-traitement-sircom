@@ -10,6 +10,11 @@ Date : 2026-07-21
 - `docs/cuisine-moi/2026-07-20-interface-web-sircom-2026.md`
 - `docs/specs/2026-07-21-contrat-fonctionnel-sircom-2026.md`
 - `docs/specs/2026-07-21-orchestration-sircom-2026.md`
+- `docs/specs/2026-07-21-contrats-implementation-sircom-2026.md`
+- `docs/specs/2026-07-21-design-ui-dsfr-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-execution-stockage-worker-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-donnees-csv-images-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-exploitation-purge-sircom-2026.md`
 - `sircom2026/excel_diagnostic.py`
 - `sircom2026/synthetic_excels.py`
 - `tests/test_excel_diagnostic.py`
@@ -24,6 +29,10 @@ Ce document ne décrit pas un service déjà existant : aucun squelette FastAPI
 n'est présent dans le dépôt au moment de la rédaction. Il définit l'architecture
 cible V1 à implémenter, les frontières de modules, les routes attendues, les
 contrats d'artefacts et les preuves minimales à produire.
+
+Les contrats complémentaires d'implémentation ferment les décisions détaillées
+post-revues GLM/SOL/Codex. En cas de tension avec une question ouverte
+historique de ce document, ils priment pour les tickets V1.
 
 Le design retenu est volontairement conservateur :
 

@@ -4,6 +4,11 @@ Date : 2026-07-21
 
 Source principale : `docs/cuisine-moi/2026-07-20-interface-web-sircom-2026.md`, décisions Q80 à Q106.
 
+Contrats complémentaires d'implémentation :
+`docs/specs/2026-07-21-contrats-implementation-sircom-2026.md`. Ces contrats
+fixent les détails V1 du schéma run-scopé, des leases worker, du store
+d'artefacts, du DAG, des bindings images, des traces et de la purge.
+
 ## Énoncé du problème
 
 L'interface web Sircom 2026 doit remplacer une chaîne 2025 composée de scripts

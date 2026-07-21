@@ -15,26 +15,27 @@ Revue détaillée par ticket :
 
 Statut cible initial des tickets : `ready-for-agent`.
 
-Note post-revues GLM/SOL/Codex : après correction P0, seule la frontier
-`{01}` est exécutable. Après livraison du ticket 01, le ticket 02 peut être
-ouvert. Le ticket 03 et les tickets qui dépendent du schéma, du worker, du CSV,
-des images ou de la purge ne doivent pas être ouverts avant la passe de décisions
-listée dans `docs/2026-07-21-synthese-verification-globale-sircom-2026.md`.
+Note post-contrats complémentaires : la passe de décisions aval est publiée dans
+`docs/specs/2026-07-21-contrats-implementation-sircom-2026.md`. Les tickets sont
+`ready-for-agent` du point de vue cadrage. L'ouverture reste strictement
+contrainte par le graphe : frontier initiale `{01}`, puis `{02,03}` après
+livraison du ticket 01.
 
-Statuts courants utilisés dans les fichiers unitaires :
+Statut courant utilisé dans les fichiers unitaires :
 
-- `ready-for-agent` : lançable dès que ses dépendances sont satisfaites ;
-- `ready-apres-01` : lançable après livraison du ticket 01 ;
-- `ready-intrinseque-non-frontier` : contrat intrinsèque prêt, mais dépendances
-  amont non livrées ;
-- `a-corriger` : critères à compléter avant ouverture ;
-- `a-recadrer` : décision d'architecture à publier avant ouverture.
+- `ready-for-agent` : le contrat du ticket est complet ; le ticket est lançable
+  dès que ses dépendances amont sont livrées.
 
 Sources :
 
 - `docs/specs/2026-07-21-contrat-fonctionnel-sircom-2026.md`
 - `docs/specs/2026-07-21-orchestration-sircom-2026.md`
 - `docs/specs/2026-07-21-design-architecture-web-sircom-2026.md`
+- `docs/specs/2026-07-21-contrats-implementation-sircom-2026.md`
+- `docs/specs/2026-07-21-design-ui-dsfr-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-execution-stockage-worker-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-donnees-csv-images-sircom-2026.md`
+- `docs/specs/2026-07-21-contrat-exploitation-purge-sircom-2026.md`
 - `docs/cuisine-moi/2026-07-20-interface-web-sircom-2026.md`
 - `AGENTS.md`
 
@@ -245,9 +246,8 @@ qui manque encore pour que l'implémentation démarre sans ambiguïté".
 Verdict historique avant revues GLM/SOL/Codex : Prêt pour implémentation
 progressive.
 
-Remplacé par la synthèse post-revues : le ticket 01 est prêt, le ticket 02 est
-ouvrable après 01, et les tickets aval marqués `a-corriger` ou `a-recadrer`
-restent bloqués par une passe de décisions.
+Remplacé par les contrats complémentaires : le cadrage de tous les tickets est
+publié ; leur exécution reste séquencée par le graphe de dépendances.
 
 ## Passe finale tension LLM
 
@@ -258,10 +258,10 @@ détectée dans les tickets unitaires.
 - Les décisions encore différées sont bornées par des tickets dédiés :
   authentification VPS hors V1, HEIC dans le ticket 19, rapport/package dans les
   tickets 21 et 22.
-- Remplacé par la synthèse post-revues : plusieurs tickets aval ne doivent pas
-  être donnés à un agent tant que le schéma, le worker, le DAG, le mapping, les
-  bindings images et la purge ne sont pas recadrés.
-- Le seul point immédiatement exécutable reste le ticket 01.
+- Remplacé par les contrats complémentaires : schéma, worker, DAG, mapping,
+  bindings images, UI DSFR et purge sont cadrés.
+- Le seul point immédiatement exécutable reste le ticket 01, car les dépendances
+  de code aval ne sont pas encore livrées.
 
 ## Couverture des specs
 
@@ -283,6 +283,10 @@ détectée dans les tickets unitaires.
 | Rapports et logs | 21 |
 | Package final | 22 |
 | Purge, rétention et disque | 23 |
+| UI DSFR détaillée | 01, 04, 06, 09, 11, 12, 15, 17, 18, 20, 22, 23 |
+| Contrats d'exécution, store, worker et DAG | 03, 04, 05, 06, 07, 08 |
+| Contrats données, CSV et images | 09, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 |
+| Exploitation, purge et traces | 02, 04, 05, 06, 21, 23 |
 
 ## Hors périmètre global
 

@@ -6,12 +6,11 @@ Revue détaillée : [revue connu-inconnu et avocat du diable](revue-connus-incon
 
 Frontier initiale : ticket 01 uniquement.
 
-Note post-revues GLM/SOL/Codex : après correction P0, seul le ticket 01 est
-exécutable. Après livraison du ticket 01, le ticket 02 peut être ouvert. Le
-ticket 03 et les tickets qui dépendent du schéma, du worker, du CSV, des images
-ou de la purge conservent le découpage validé, mais restent à durcir par la
-passe de décisions documentée dans
-../../2026-07-21-synthese-verification-globale-sircom-2026.md avant ouverture.
+Note post-contrats complémentaires : le cadrage aval est publié dans
+[les contrats complémentaires d'implémentation](../../specs/2026-07-21-contrats-implementation-sircom-2026.md).
+Tous les tickets sont `ready-for-agent` du point de vue cadrage. L'ouverture
+reste contrainte par le graphe : ticket 01 d'abord, puis 02 et 03 après livraison
+du ticket 01.
 
 | N | Ticket | Dépend de |
 |---|---|---|
