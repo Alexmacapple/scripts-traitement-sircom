@@ -9,6 +9,7 @@ const applyMappingProfileButtons = document.querySelectorAll("[data-apply-mappin
 const sortDecisionButtons = document.querySelectorAll("[data-sort-decision]");
 const csvPreviewValidateButtons = document.querySelectorAll("[data-csv-preview-validate]");
 const retryButtons = document.querySelectorAll("[data-retry-step-key]");
+const imageResolutionForms = document.querySelectorAll("[data-image-resolution-form]");
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
 let excelUploadInFlight = false;
@@ -16,6 +17,7 @@ let imageUploadInFlight = false;
 let mappingInFlight = false;
 let sortInFlight = false;
 let csvPreviewInFlight = false;
+let imageResolutionInFlight = false;
 
 function showError(title, cause, action) {
   if (!messageBox) return;
@@ -364,6 +366,42 @@ csvPreviewValidateButtons.forEach((button) => {
         "Validation CSV impossible",
         error.message,
         "Vérifier l'aperçu et les problèmes ouverts puis réessayer."
+      );
+    }
+  });
+});
+
+imageResolutionForms.forEach((form) => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (imageResolutionInFlight) return;
+
+    const lotId = form.dataset.imageResolutionLotId;
+    const idDossier = form.dataset.imageResolutionIdDossier;
+    const sourceSelect = form.querySelector('select[name="source_name"]');
+    const sourceName = sourceSelect ? sourceSelect.value : "";
+    if (!lotId || !idDossier || !sourceName) return;
+
+    imageResolutionInFlight = true;
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/images/resolutions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+        body: JSON.stringify({
+          resolutions: [{ id_dossier: idDossier, source_name: sourceName }],
+        }),
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      imageResolutionInFlight = false;
+      showError(
+        "Résolution image impossible",
+        error.message,
+        "Choisir une image source proposée puis réessayer."
       );
     }
   });

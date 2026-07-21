@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sircom2026.database import Database, Repositories
-from sircom2026.pipeline import FINGERPRINT_REQUIRED_STEP_KEYS
+from sircom2026.pipeline import FINGERPRINT_REQUIRED_STEP_KEYS, ready_auto_enqueue_step_keys
 from sircom2026.state import complete_step, require_human_validation, transition_step
 
 
@@ -25,6 +25,7 @@ class JobResult:
     expected_input_fingerprint: str | None = None
     final_step_status: str | None = None
     enqueue_next_steps: tuple[str, ...] = ()
+    enqueue_next_step_input_payloads: Mapping[str, Mapping[str, Any]] | None = None
     require_next_validations: tuple[str, ...] = ()
 
 
@@ -262,14 +263,29 @@ class LocalWorker:
                     run_id=job["run_id"],
                     with_warnings=job_result.with_warnings,
                 )
-                if job_result.enqueue_next_steps:
+                next_steps = list(job_result.enqueue_next_steps)
+                for auto_step_key in ready_auto_enqueue_step_keys(
+                    repositories,
+                    lot_id=job["lot_id"],
+                    source_step_key=job["step_key"],
+                ):
+                    if auto_step_key not in next_steps:
+                        next_steps.append(auto_step_key)
+                if next_steps:
                     from sircom2026.invalidation import step_input_fingerprint
 
-                    for next_step_key in job_result.enqueue_next_steps:
+                    for next_step_key in next_steps:
+                        next_input_payload = _next_step_input_payload(
+                            repositories,
+                            lot_id=job["lot_id"],
+                            step_key=next_step_key,
+                            explicit_payloads=job_result.enqueue_next_step_input_payloads,
+                        )
                         next_input_fingerprint = step_input_fingerprint(
                             repositories,
                             lot_id=job["lot_id"],
                             step_key=next_step_key,
+                            input_payload=next_input_payload,
                         )
                         enqueue_job(
                             repositories,
@@ -498,6 +514,22 @@ def enqueue_job(
 
     recompute_lot_status(repositories, lot_id)
     return EnqueuedJob(job, created=True)
+
+
+def _next_step_input_payload(
+    repositories: Repositories,
+    *,
+    lot_id: str,
+    step_key: str,
+    explicit_payloads: Mapping[str, Mapping[str, Any]] | None,
+) -> Mapping[str, Any] | None:
+    if explicit_payloads is not None and step_key in explicit_payloads:
+        return explicit_payloads[step_key]
+    if step_key == "matching_images":
+        from sircom2026.image_matching import image_matching_input_payload
+
+        return image_matching_input_payload(repositories, lot_id=lot_id)
+    return None
 
 
 def request_lot_cancellation(repositories: Repositories, lot_id: str) -> tuple[dict[str, Any], int]:

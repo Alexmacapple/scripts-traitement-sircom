@@ -192,6 +192,8 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertEqual(payload["headers"][:3], ["id_dossier", "imageid", "@pathimg"])
         self.assertEqual(payload["rows_count"], 3)
         self.assertEqual([row["id_dossier"] for row in payload["rows"]], ["ID-1", "ID-2", "ID-3"])
+        self.assertEqual(payload["rows"][0]["values"]["imageid"], "dossier-id-1.jpg")
+        self.assertEqual(payload["rows"][0]["values"]["@pathimg"], "")
         self.assertEqual(payload["rows"][0]["values"][payload["headers"][3]], "Bretagne")
         self.assertIn("removed_columns", payload)
         self.assertIn("removed_rows", payload)

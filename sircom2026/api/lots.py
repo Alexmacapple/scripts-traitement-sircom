@@ -21,6 +21,12 @@ from sircom2026.excel_diagnostic_pipeline import (
     get_persisted_excel_diagnostic,
 )
 from sircom2026.excel_upload import ExcelUploadError, upload_excel_for_lot
+from sircom2026.image_matching import (
+    ImageMatchingNotReady,
+    ImageResolutionError,
+    get_persisted_image_matching,
+    save_image_resolutions,
+)
 from sircom2026.images import (
     ImageInspectionNotReady,
     ImageZipUploadError,
@@ -94,6 +100,15 @@ class ApplyMappingProfileRequest(BaseModel):
 
 class SortDecisionRequest(BaseModel):
     decision: str = Field(min_length=1, max_length=32)
+
+
+class ImageResolutionItemRequest(BaseModel):
+    id_dossier: str = Field(min_length=1, max_length=120)
+    source_name: str = Field(min_length=1, max_length=240)
+
+
+class ImageResolutionSubmissionRequest(BaseModel):
+    resolutions: list[ImageResolutionItemRequest] = Field(min_length=1, max_length=200)
 
 
 @router.post("", status_code=201)
@@ -402,6 +417,97 @@ async def read_lot_images_status(
             "mime_type": artifact["mime_type"],
             "download_url": f"/api/lots/{lot_id}/downloads/{artifact['id']}",
         },
+    }
+
+
+@router.get("/{lot_id}/images/matching")
+async def read_lot_images_matching(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.transaction() as repositories:
+        try:
+            persisted = get_persisted_image_matching(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+            problems = [
+                serialize_problem(problem)
+                for problem in repositories.problems.list_for_lot(lot_id, limit=100)
+                if problem["step_key"] == "matching_images"
+                and problem["run_id"] == persisted.artifact["run_id"]
+            ]
+        except ImageMatchingNotReady as exc:
+            raise ApiError(
+                409,
+                "SIRCOM_IMAGE_MATCHING_NOT_READY",
+                "Matching images non disponible.",
+            ) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+    return {
+        "matching": persisted.matching,
+        "problems": problems,
+        "problem_groups": group_problems_by_severity(problems),
+        "artifact": mapping_artifact_response(persisted.artifact, lot_id),
+        "processed_images_artifact": (
+            mapping_artifact_response(persisted.processed_images_artifact, lot_id)
+            if persisted.processed_images_artifact
+            else None
+        ),
+    }
+
+
+@router.post("/{lot_id}/images/resolutions", status_code=202)
+async def resolve_lot_images(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[ImageResolutionSubmissionRequest, Body()],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    idempotency_key = idempotency_key_from_request(request)
+    if idempotency_key is None:
+        idempotency_key = f"images_resolution:{uuid.uuid4().hex}"
+
+    with database.transaction() as repositories:
+        try:
+            result = save_image_resolutions(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                resolutions=[
+                    {
+                        "id_dossier": item.id_dossier,
+                        "source_name": item.source_name,
+                    }
+                    for item in payload.resolutions
+                ],
+                idempotency_key=idempotency_key,
+            )
+        except ImageResolutionError as exc:
+            raise image_resolution_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+    return {
+        "lot": result.lot,
+        "job": {
+            "id": result.matching_job["id"],
+            "step_key": result.matching_job["step_key"],
+            "run_id": result.matching_job["run_id"],
+            "status": result.matching_job["status"],
+            "created": result.matching_job_created,
+        },
+        "invalidated_steps": list(result.invalidated_steps),
+        "obsolete_artifacts_count": result.obsolete_artifacts_count,
+        "canceled_jobs_count": result.canceled_jobs_count,
     }
 
 
@@ -799,6 +905,15 @@ def sort_api_error(exc: SortDecisionError) -> ApiError:
 
 
 def csv_preview_api_error(exc: CsvPreviewError) -> ApiError:
+    return ApiError(
+        exc.status_code,
+        exc.code,
+        exc.message,
+        details=exc.details,
+    )
+
+
+def image_resolution_api_error(exc: ImageResolutionError) -> ApiError:
     return ApiError(
         exc.status_code,
         exc.code,

@@ -174,14 +174,17 @@ EXPECTED_FOREIGN_KEY_GROUPS = {
 TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "artifact_id",
     "artifacts_count",
+    "ambiguous_count",
     "code",
     "columns_count",
+    "conversion_failed_count",
     "duration_ms",
     "error_code",
     "free_mb",
     "job_id",
     "level",
     "lot_id",
+    "missing_count",
     "required_mb",
     "run_id",
     "rows_count",
@@ -190,18 +193,22 @@ TECHNICAL_EVENT_PAYLOAD_KEYS = {
     "status",
     "step_key",
     "steps_total",
+    "tolerant_count",
     "warning_code",
     "active_jobs",
     "attempt",
     "input_fingerprint",
     "invalidated_steps_count",
     "lease_version",
+    "manual_resolutions_count",
     "obsolete_artifacts_count",
     "output_fingerprint",
     "progress_current",
     "progress_total",
+    "processed_images_count",
     "reason",
     "source_step_key",
+    "unreferenced_count",
     "worker_id",
 }
 ACTIVE_JOB_STATUSES = ("queued", "leased", "running")
@@ -687,6 +694,31 @@ class StepsRepository:
             WHERE id = ?
             """,
             (run_id, input_fingerprint, output_fingerprint, now, step["id"]),
+        )
+        return self.get_required(step["id"])
+
+    def set_summary(
+        self,
+        *,
+        lot_id: str,
+        step_key: str,
+        summary: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        step = self.get_by_lot_key(lot_id, step_key)
+        if step is None:
+            raise KeyError(f"{lot_id}:{step_key}")
+        lot_status = LotsRepository(self.connection).get_required(lot_id)["status"]
+        if lot_status in LOT_WRITE_BLOCKED_STATUSES:
+            raise ValueError("Cannot update a step summary for a canceled or deleted lot.")
+
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE etapes
+            SET summary_json = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (_json(summary), now, step["id"]),
         )
         return self.get_required(step["id"])
 

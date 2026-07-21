@@ -150,6 +150,7 @@ class InvalidationContractTest(unittest.TestCase):
                     "tri_region_departement",
                     "verification_csv_indesign",
                     "previsualisation_csv",
+                    "matching_images",
                     "rapports",
                     "package_final",
                 ),
@@ -194,12 +195,17 @@ class InvalidationContractTest(unittest.TestCase):
                 "package_final",
             ),
             "upload_images": (
+                "previsualisation_csv",
                 "inspection_images",
                 "matching_images",
                 "rapports",
                 "package_final",
             ),
-            "matching_images": ("rapports", "package_final"),
+            "matching_images": (
+                "previsualisation_csv",
+                "rapports",
+                "package_final",
+            ),
         }
 
         with tempfile.TemporaryDirectory() as tmp:

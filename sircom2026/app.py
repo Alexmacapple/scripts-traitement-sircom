@@ -28,6 +28,7 @@ from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import ConfigError, Settings, load_settings
 from sircom2026.csv_preview import CsvPreviewError, get_csv_preview_payload
 from sircom2026.database import Database, SchemaVersionError, connect_sqlite
+from sircom2026.image_matching import ImageMatchingNotReady, get_persisted_image_matching
 from sircom2026.images import ImageInspectionNotReady, get_persisted_image_inspection
 from sircom2026.lots import get_lot_detail, list_lots
 from sircom2026.mapping import MappingError, get_mapping_payload
@@ -250,6 +251,29 @@ def load_index_context(
                         ).inspection
                     except ImageInspectionNotReady:
                         selected_lot["image_inspection"] = None
+                    try:
+                        image_matching = get_persisted_image_matching(
+                            repositories,
+                            settings=settings,
+                            lot_id=lot_id,
+                        )
+                        selected_lot["image_matching"] = {
+                            "matching": image_matching.matching,
+                            "artifact": image_matching.artifact,
+                            "processed_images_artifact": (
+                                {
+                                    **image_matching.processed_images_artifact,
+                                    "download_url": (
+                                        f"/api/lots/{lot_id}/downloads/"
+                                        f"{image_matching.processed_images_artifact['id']}"
+                                    ),
+                                }
+                                if image_matching.processed_images_artifact
+                                else None
+                            ),
+                        }
+                    except ImageMatchingNotReady:
+                        selected_lot["image_matching"] = None
                     context["selected_lot"] = selected_lot
                 except KeyError:
                     context["ui_error"] = ui_error(

@@ -15,6 +15,7 @@ from sircom2026.csv_contract import (
     write_indesign_csv_bytes,
 )
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
+from sircom2026.image_naming import image_id_for_dossier
 from sircom2026.invalidation import record_human_validation_snapshot, step_input_fingerprint
 from sircom2026.lots import get_lot_detail
 from sircom2026.state import complete_step, record_problem, require_human_validation, transition_step
@@ -33,6 +34,8 @@ CSV_PREVIEW_API_WORKER_ID = "api"
 CSV_PREVIEW_ROWS_LIMIT = 10
 SORT_STEP_KEY = "tri_region_departement"
 SORT_ARTIFACT_ROLE = "result"
+IMAGE_MATCHING_STEP_KEY = "matching_images"
+IMAGE_MATCHING_ARTIFACT_ROLE = "result"
 
 
 @dataclass(frozen=True)
@@ -402,19 +405,31 @@ def _build_current_preview(
             "Le vérificateur CSV signale un contrat invalide.",
         )
 
+    matching = _current_json_artifact(
+        repositories,
+        settings=settings,
+        lot_id=lot_id,
+        step_key=IMAGE_MATCHING_STEP_KEY,
+        role=IMAGE_MATCHING_ARTIFACT_ROLE,
+        ready_statuses=("termine", "termine_avec_alertes", "bloque"),
+    )
     input_fingerprint = step_input_fingerprint(
         repositories,
         lot_id=lot_id,
         step_key=CSV_PREVIEW_STEP_KEY,
     )
-    headers, rows = _headers_and_rows_from_sort(sort.payload)
-    warnings = _preview_warnings(sort.payload)
+    headers, rows = _headers_and_rows_from_sort(
+        sort.payload,
+        image_bindings=_image_bindings_by_id(matching.payload if matching else None),
+    )
+    warnings = _preview_warnings(sort.payload, matching.payload if matching else None)
     return {
         "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
         "rules_version": CSV_PREVIEW_RULES_VERSION,
         "input_fingerprint": input_fingerprint,
         "source_sort_artifact_id": sort.artifact["id"],
         "source_csv_contract_artifact_id": contract.artifact["id"],
+        "source_image_matching_artifact_id": matching.artifact["id"] if matching else None,
         "validated": False,
         "validated_at": None,
         "headers": headers,
@@ -433,7 +448,11 @@ def _build_current_preview(
     }
 
 
-def _headers_and_rows_from_sort(sort_payload: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
+def _headers_and_rows_from_sort(
+    sort_payload: dict[str, Any],
+    *,
+    image_bindings: dict[str, dict[str, str]] | None = None,
+) -> tuple[list[str], list[dict[str, Any]]]:
     headers = [
         str(column["csv_name"])
         for column in sort_payload.get("columns", [])
@@ -452,6 +471,12 @@ def _headers_and_rows_from_sort(sort_payload: dict[str, Any]) -> tuple[list[str]
             header: "" if values.get(header) is None else str(values.get(header, ""))
             for header in headers
         }
+        id_dossier = str(source_row.get("id_dossier") or "").strip()
+        if "imageid" in row_values and id_dossier:
+            binding_values = (image_bindings or {}).get(id_dossier, {})
+            row_values["imageid"] = binding_values.get("imageid") or image_id_for_dossier(id_dossier)
+            if "@pathimg" in row_values:
+                row_values["@pathimg"] = binding_values.get("@pathimg", "")
         rows.append(
             {
                 "id_dossier": source_row.get("id_dossier"),
@@ -480,7 +505,27 @@ def _public_preview(preview: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _preview_warnings(sort_payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _image_bindings_by_id(matching_payload: dict[str, Any] | None) -> dict[str, dict[str, str]]:
+    if not matching_payload:
+        return {}
+    result: dict[str, dict[str, str]] = {}
+    for binding in matching_payload.get("bindings", []):
+        if not isinstance(binding, dict):
+            continue
+        id_dossier = str(binding.get("id_dossier") or "").strip()
+        if not id_dossier:
+            continue
+        result[id_dossier] = {
+            "imageid": str(binding.get("imageid") or ""),
+            "@pathimg": str(binding.get("pathimg") or ""),
+        }
+    return result
+
+
+def _preview_warnings(
+    sort_payload: dict[str, Any],
+    matching_payload: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
     warnings: list[dict[str, Any]] = []
     if sort_payload.get("warning_code"):
         warnings.append(
@@ -492,15 +537,16 @@ def _preview_warnings(sort_payload: dict[str, Any]) -> list[dict[str, Any]]:
                 "persist_problem": False,
             }
         )
-    warnings.append(
-        {
-            "code": "SIRCOM_CSV_IMAGES_NOT_PROVIDED",
-            "title": "Images non fournies",
-            "cause": "Les images finales ne sont pas encore validées pour ce lot.",
-            "action": "Le CSV peut être exporté ; le package images sera traité dans les étapes suivantes.",
-            "persist_problem": True,
-        }
-    )
+    if matching_payload is None:
+        warnings.append(
+            {
+                "code": "SIRCOM_CSV_IMAGES_NOT_PROVIDED",
+                "title": "Images non fournies",
+                "cause": "Les images finales ne sont pas encore validées pour ce lot.",
+                "action": "Le CSV peut être exporté ; le package images sera traité dans les étapes suivantes.",
+                "persist_problem": True,
+            }
+        )
     if int(sort_payload.get("upstream_removed_rows_without_id_count") or 0):
         warnings.append(
             {

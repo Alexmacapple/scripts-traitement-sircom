@@ -356,6 +356,128 @@
                 </section>
               {% endif %}
 
+              {% set image_matching_payload = selected_lot.image_matching if selected_lot.image_matching is defined else none %}
+              {% if image_matching_payload %}
+                {% set image_matching = image_matching_payload.matching %}
+                <section class="fr-mt-5v" aria-labelledby="image-matching-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="image-matching-title">Association images</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      {% if image_matching.blocking %}
+                        <p class="fr-badge fr-badge--error fr-badge--sm">Résolution attendue</p>
+                      {% elif image_matching.has_warnings %}
+                        <p class="fr-badge fr-badge--warning fr-badge--sm">Avec alertes</p>
+                      {% else %}
+                        <p class="fr-badge fr-badge--success fr-badge--sm">Images traitées</p>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Associées</dt>
+                      <dd>{{ image_matching.matched_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Manquantes</dt>
+                      <dd>{{ image_matching.missing_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Ambiguës</dt>
+                      <dd>{{ image_matching.ambiguous_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Non référencées</dt>
+                      <dd>{{ image_matching.unreferenced_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Fallback</dt>
+                      <dd>{{ image_matching.fallback_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Tolérance</dt>
+                      <dd>{{ image_matching.tolerant_count }}</dd>
+                    </div>
+                  </dl>
+
+                  {% if image_matching_payload.processed_images_artifact %}
+                    <p class="fr-mt-3v">
+                      <a
+                        class="fr-btn fr-btn--secondary fr-icon-download-line fr-btn--icon-left"
+                        href="{{ image_matching_payload.processed_images_artifact.download_url }}"
+                      >
+                        Télécharger les images traitées
+                      </a>
+                    </p>
+                  {% endif %}
+
+                  {% if image_matching.bindings %}
+                    <div class="fr-table fr-table--bordered fr-mt-3v">
+                      <div class="fr-table__wrapper">
+                        <div class="fr-table__container">
+                          <div class="fr-table__content">
+                            <table>
+                              <caption>Liaisons image par dossier</caption>
+                              <thead>
+                                <tr>
+                                  <th scope="col">Dossier</th>
+                                  <th scope="col">Statut</th>
+                                  <th scope="col">Niveau</th>
+                                  <th scope="col">Source</th>
+                                  <th scope="col">Image finale</th>
+                                  <th scope="col">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for binding in image_matching.bindings %}
+                                  {% if loop.index <= 50 %}
+                                    <tr>
+                                      <td>{{ binding.id_dossier }}</td>
+                                      <td>{{ binding.status }}</td>
+                                      <td>{{ binding.match_level }}</td>
+                                      <td>{{ binding.source_name or "" }}</td>
+                                      <td>{{ binding.final_name }}</td>
+                                      <td>
+                                        {% set choices = binding.candidates if binding.candidates else binding.suggestions %}
+                                        {% if binding.status == "ambiguous" and choices %}
+                                          <form
+                                            data-image-resolution-form
+                                            data-image-resolution-lot-id="{{ selected_lot.id }}"
+                                            data-image-resolution-id-dossier="{{ binding.id_dossier }}"
+                                          >
+                                            <div class="fr-select-group fr-mb-2v">
+                                              <label class="fr-label fr-sr-only" for="image-resolution-{{ loop.index }}">
+                                                Image source
+                                              </label>
+                                              <select class="fr-select" id="image-resolution-{{ loop.index }}" name="source_name">
+                                                {% for choice in choices %}
+                                                  <option value="{{ choice.name }}">{{ choice.name }}</option>
+                                                {% endfor %}
+                                              </select>
+                                            </div>
+                                            <button class="fr-btn fr-btn--sm" type="submit">
+                                              Valider
+                                            </button>
+                                          </form>
+                                        {% else %}
+                                          {{ binding.match_level }}
+                                        {% endif %}
+                                      </td>
+                                    </tr>
+                                  {% endif %}
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% endif %}
+                </section>
+              {% endif %}
+
               {% set excel_diagnostic = selected_lot.excel_diagnostic if selected_lot.excel_diagnostic is defined else none %}
               {% if excel_diagnostic %}
                 <section class="fr-mt-5v" aria-labelledby="excel-diagnostic-title">
