@@ -54,9 +54,13 @@ def prepare_importable_lot(
 
     if upload.status_code != 202:
         raise AssertionError(upload.text)
-    if worker_result.outcome != "succeeded":
-        raise AssertionError(worker_result)
-    return lot_id
+    worker_results = [worker_result]
+    for _ in range(10):
+        lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
+        if step_status(lot, "diagnostic_excel") in {"termine", "termine_avec_alertes"}:
+            return lot_id
+        worker_results.append(run_worker_once(settings=settings))
+    raise AssertionError(worker_results)
 
 
 class MappingApiTest(unittest.TestCase):

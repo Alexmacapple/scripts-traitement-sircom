@@ -141,11 +141,11 @@
 
 ## Fusion, normalisation et CSV
 
-- [ ] Implémenter la fusion à plat par clé logique `id_dossier`.
-- [ ] Garantir une seule colonne `id_dossier` exportée.
-- [ ] Placer `imageid` et `@pathimg` juste après `id_dossier`.
-- [ ] Supprimer et compter les lignes sans `id_dossier`.
-- [ ] Supprimer et compter les colonnes entièrement vides, même sélectionnées.
+- [x] Implémenter la fusion à plat par clé logique `id_dossier`.
+- [x] Garantir une seule colonne `id_dossier` exportée.
+- [x] Placer `imageid` et `@pathimg` juste après `id_dossier`.
+- [x] Supprimer et compter les lignes sans `id_dossier`.
+- [x] Supprimer et compter les colonnes entièrement vides, même sélectionnées.
 - [ ] Normaliser les cellules :
   - [ ] retours ligne convertis en `<br>` ;
   - [ ] espaces début/fin supprimés ;

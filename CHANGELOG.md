@@ -38,6 +38,10 @@
   diagnostic Excel persisté, provenance complète, validation humaine,
   profils compatibles chargés en brouillon, refus des profils incompatibles et
   blocage des collisions de noms CSV après nettoyage.
+- Implémentation du ticket 13 Sircom 2026 : fusion à plat multi-onglets par
+  `id_dossier`, planification worker après mapping validé, artefact JSON de
+  table fusionnée, suppression comptée des lignes sans ID et des colonnes
+  entièrement vides.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

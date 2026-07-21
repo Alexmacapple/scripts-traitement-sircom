@@ -8,6 +8,7 @@ from typing import TextIO
 from sircom2026.config import Settings, load_settings
 from sircom2026.database import Database
 from sircom2026.excel_diagnostic_pipeline import run_excel_diagnostic_job
+from sircom2026.transform import run_flat_merge_job
 from sircom2026.worker import JobHandler, LocalWorker, WorkerRunResult
 
 
@@ -42,6 +43,10 @@ def run_worker_once(
 def default_handlers(settings: Settings) -> dict[str, JobHandler]:
     return {
         "diagnostic_excel": lambda context: run_excel_diagnostic_job(
+            context,
+            settings=settings,
+        ),
+        "fusion_multi_onglets": lambda context: run_flat_merge_job(
             context,
             settings=settings,
         ),

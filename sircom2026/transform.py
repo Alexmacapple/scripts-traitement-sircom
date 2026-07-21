@@ -1,0 +1,514 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from datetime import date, datetime, time
+from decimal import Decimal
+from typing import Any
+
+from openpyxl import load_workbook
+
+from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError
+from sircom2026.config import Settings
+from sircom2026.database import Repositories
+from sircom2026.invalidation import fingerprint_payload
+from sircom2026.mapping import MAPPING_STEP_KEY
+from sircom2026.state import record_problem
+from sircom2026.worker import JobResult, WorkerJobContext, WorkerLeaseLost
+
+
+UPLOAD_STEP_KEY = "upload_excel"
+FUSION_STEP_KEY = "fusion_multi_onglets"
+FUSION_ARTIFACT_KIND = "json"
+FUSION_ARTIFACT_ROLE = "result"
+FUSION_RULES_VERSION = "flat-merge-v1"
+FUSION_MIME_TYPE = "application/json"
+FUSION_SCHEMA_VERSION = 1
+SPECIAL_CSV_NAMES = {"id_dossier", "imageid", "@pathimg"}
+
+
+@dataclass(frozen=True)
+class CurrentJsonArtifact:
+    artifact: dict[str, Any]
+    payload: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class FlatMergeResult:
+    payload: dict[str, Any]
+    removed_rows_without_id_count: int
+    removed_empty_columns_count: int
+    duplicate_id_locations: tuple[dict[str, Any], ...] = ()
+    missing_sheet_locations: tuple[dict[str, Any], ...] = ()
+
+    @property
+    def has_blocker(self) -> bool:
+        return bool(self.duplicate_id_locations or self.missing_sheet_locations)
+
+    @property
+    def has_warnings(self) -> bool:
+        return self.removed_rows_without_id_count > 0
+
+
+def run_flat_merge_job(context: WorkerJobContext, *, settings: Settings) -> JobResult:
+    store = ArtifactStore(
+        settings.data_dir,
+        pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
+    )
+    context.set_progress(1, 4)
+    with context.database.transaction() as repositories:
+        _require_current_lease(repositories, context)
+        mapping = _current_validated_mapping(repositories, store, context.lot_id)
+        source_artifact = _current_excel_source_artifact(repositories, context.lot_id)
+        if mapping is None:
+            _record_missing_mapping_problem(repositories, context)
+            return JobResult(final_step_status="bloque")
+        if source_artifact is None:
+            _record_missing_source_problem(repositories, context)
+            return JobResult(final_step_status="bloque")
+        try:
+            readable_source = store.open_for_read(
+                repositories,
+                lot_id=context.lot_id,
+                artifact_id=source_artifact["id"],
+            )
+        except (ArtifactUnavailableError, KeyError, ValueError):
+            _record_missing_source_problem(repositories, context)
+            return JobResult(final_step_status="bloque")
+
+    context.set_progress(2, 4)
+    merge_result = build_flat_merge(readable_source.path, mapping.payload)
+    if merge_result.has_blocker:
+        with context.database.transaction() as repositories:
+            _require_current_lease(repositories, context)
+            repositories.problems.mark_open_obsolete_for_steps(
+                lot_id=context.lot_id,
+                step_keys=(FUSION_STEP_KEY,),
+            )
+            for location in merge_result.missing_sheet_locations:
+                record_problem(
+                    repositories,
+                    lot_id=context.lot_id,
+                    step_key=FUSION_STEP_KEY,
+                    run_id=context.run_id,
+                    severity="bloquant",
+                    code="SIRCOM_FUSION_SOURCE_SHEET_MISSING",
+                    title="Onglet source introuvable",
+                    cause="La fusion ne trouve pas un onglet référencé par le mapping validé.",
+                    action="Relancer le diagnostic et valider un mapping compatible avec l'Excel courant.",
+                    location=location,
+                    technical={"rows_count": 0},
+                )
+            for location in merge_result.duplicate_id_locations:
+                record_problem(
+                    repositories,
+                    lot_id=context.lot_id,
+                    step_key=FUSION_STEP_KEY,
+                    run_id=context.run_id,
+                    severity="bloquant",
+                    code="SIRCOM_FUSION_DUPLICATE_ID",
+                    title="Doublons id_dossier",
+                    cause="Un onglet contient plusieurs lignes avec le même id_dossier.",
+                    action="Corriger les doublons id_dossier, puis relancer le diagnostic et le mapping.",
+                    location=location,
+                    technical={"rows_count": 1},
+                )
+        return JobResult(final_step_status="bloque")
+
+    content = json.dumps(
+        merge_result.payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    context.set_progress(3, 4)
+    with context.database.transaction() as repositories:
+        _require_current_lease(repositories, context)
+        repositories.problems.mark_open_obsolete_for_steps(
+            lot_id=context.lot_id,
+            step_keys=(FUSION_STEP_KEY,),
+        )
+        repositories.artifacts.mark_obsolete_for_steps(
+            lot_id=context.lot_id,
+            step_keys=(FUSION_STEP_KEY,),
+        )
+        artifact = store.put_temp_then_commit(
+            repositories,
+            lot_id=context.lot_id,
+            step_key=FUSION_STEP_KEY,
+            run_id=context.run_id,
+            kind=FUSION_ARTIFACT_KIND,
+            role=FUSION_ARTIFACT_ROLE,
+            filename="fusion-multi-onglets.json",
+            content=content,
+            metadata={
+                "columns_count": merge_result.payload["columns_count"],
+                "mapping_artifact_id": mapping.artifact["id"],
+                "removed_empty_columns_count": merge_result.removed_empty_columns_count,
+                "removed_rows_without_id_count": merge_result.removed_rows_without_id_count,
+                "rows_count": merge_result.payload["rows_count"],
+                "rules_version": FUSION_RULES_VERSION,
+                "schema_version": FUSION_SCHEMA_VERSION,
+                "source_artifact_id": source_artifact["id"],
+            },
+            mime_type=FUSION_MIME_TYPE,
+            lease_version=context.leased_job.lease_version,
+        )
+        if merge_result.removed_rows_without_id_count:
+            record_problem(
+                repositories,
+                lot_id=context.lot_id,
+                step_key=FUSION_STEP_KEY,
+                run_id=context.run_id,
+                severity="alerte",
+                code="SIRCOM_FUSION_ROWS_WITHOUT_ID_REMOVED",
+                title="Lignes sans id_dossier supprimées",
+                cause="Certaines lignes sans id_dossier ont été ignorées pendant la fusion.",
+                action="Compléter ces identifiants dans l'Excel source ou accepter leur suppression.",
+                technical={"rows_removed": merge_result.removed_rows_without_id_count},
+            )
+        output_fingerprint = fingerprint_payload(
+            {
+                "artifact_sha256": artifact["sha256"],
+                "fusion_artifact_id": artifact["id"],
+                "kind": "flat_merge",
+                "mapping_artifact_id": mapping.artifact["id"],
+                "rules_version": FUSION_RULES_VERSION,
+                "schema_version": FUSION_SCHEMA_VERSION,
+                "source_artifact_id": source_artifact["id"],
+            }
+        )
+        repositories.events.create(
+            lot_id=context.lot_id,
+            step_key=FUSION_STEP_KEY,
+            run_id=context.run_id,
+            event_type="fusion.completed",
+            payload={
+                "artifact_id": artifact["id"],
+                "columns_count": merge_result.payload["columns_count"],
+                "rows_count": merge_result.payload["rows_count"],
+                "rows_removed": merge_result.removed_rows_without_id_count,
+                "status": "termine_avec_alertes" if merge_result.has_warnings else "termine",
+                "step_key": FUSION_STEP_KEY,
+            },
+        )
+
+    context.set_progress(4, 4)
+    return JobResult(
+        with_warnings=merge_result.has_warnings,
+        output_fingerprint=output_fingerprint,
+    )
+
+
+def build_flat_merge(workbook_path, mapping: dict[str, Any]) -> FlatMergeResult:
+    exported_columns = _ordered_exported_columns(mapping)
+    source_columns = [
+        column
+        for column in exported_columns
+        if not bool(column.get("system")) and column.get("logical_role") != "id_dossier"
+    ]
+    id_columns = _id_columns_by_sheet(mapping)
+    columns_by_sheet: dict[str, list[dict[str, Any]]] = {}
+    for column in source_columns:
+        source_sheet = str(column["source_sheet"])
+        columns_by_sheet.setdefault(source_sheet, []).append(column)
+
+    rows_by_id: dict[str, dict[str, Any]] = {}
+    rows: list[dict[str, Any]] = []
+    removed_rows: list[dict[str, Any]] = []
+    duplicate_locations: list[dict[str, Any]] = []
+    missing_sheet_locations: list[dict[str, Any]] = []
+    source_rows_count = 0
+    source_rank = 0
+
+    workbook = load_workbook(workbook_path, read_only=True, data_only=True)
+    try:
+        for sheet_info in _ordered_sheets(mapping):
+            sheet_name = str(sheet_info["name"])
+            if sheet_name not in workbook.sheetnames:
+                missing_sheet_locations.append({"onglet": sheet_name})
+                continue
+            id_column = id_columns.get(sheet_name)
+            if id_column is None:
+                continue
+            worksheet = workbook[sheet_name]
+            header_row = _positive_int(sheet_info.get("header_row"), default=1)
+            seen_ids_in_sheet: set[str] = set()
+            for row_number in range(header_row + 1, worksheet.max_row + 1):
+                source_rows_count += 1
+                id_value = worksheet.cell(
+                    row=row_number,
+                    column=int(id_column["source_column_index"]),
+                ).value
+                id_dossier = _identifier_text(id_value)
+                if not id_dossier:
+                    removed_rows.append({"source_sheet": sheet_name, "row_number": row_number})
+                    continue
+                if id_dossier in seen_ids_in_sheet:
+                    duplicate_locations.append(
+                        {"onglet": sheet_name, "ligne": row_number, "colonne": id_column["source_column_letter"]}
+                    )
+                    continue
+                seen_ids_in_sheet.add(id_dossier)
+
+                source_rank += 1
+                row = rows_by_id.get(id_dossier)
+                if row is None:
+                    row = {
+                        "source_rank": source_rank,
+                        "id_dossier": id_dossier,
+                        "values": {column["csv_name"]: "" for column in exported_columns},
+                    }
+                    row["values"]["id_dossier"] = id_dossier
+                    rows_by_id[id_dossier] = row
+                    rows.append(row)
+
+                for column in columns_by_sheet.get(sheet_name, []):
+                    value = worksheet.cell(
+                        row=row_number,
+                        column=int(column["source_column_index"]),
+                    ).value
+                    row["values"][column["csv_name"]] = _json_cell_value(value)
+    finally:
+        workbook.close()
+
+    if duplicate_locations or missing_sheet_locations:
+        return FlatMergeResult(
+            payload={},
+            removed_rows_without_id_count=len(removed_rows),
+            removed_empty_columns_count=0,
+            duplicate_id_locations=tuple(duplicate_locations[:100]),
+            missing_sheet_locations=tuple(missing_sheet_locations[:100]),
+        )
+
+    kept_columns, removed_empty_columns = _remove_empty_columns(exported_columns, rows)
+    kept_names = {column["csv_name"] for column in kept_columns}
+    for row in rows:
+        row["values"] = {
+            column["csv_name"]: row["values"].get(column["csv_name"], "")
+            for column in kept_columns
+        }
+
+    payload = {
+        "schema_version": FUSION_SCHEMA_VERSION,
+        "rules_version": FUSION_RULES_VERSION,
+        "source_diagnostic_artifact_id": mapping.get("source_diagnostic_artifact_id"),
+        "structural_fingerprint": mapping.get("structural_fingerprint"),
+        "rows_count": len(rows),
+        "columns_count": len(kept_columns),
+        "source_rows_count": source_rows_count,
+        "removed_rows_without_id_count": len(removed_rows),
+        "removed_empty_columns_count": len(removed_empty_columns),
+        "columns": [_public_column(column) for column in kept_columns],
+        "rows": rows,
+        "removed_rows_without_id": removed_rows[:100],
+        "removed_empty_columns": [
+            _public_column(column)
+            for column in removed_empty_columns
+            if column["csv_name"] not in kept_names
+        ],
+    }
+    return FlatMergeResult(
+        payload=payload,
+        removed_rows_without_id_count=len(removed_rows),
+        removed_empty_columns_count=len(removed_empty_columns),
+    )
+
+
+def _ordered_exported_columns(mapping: dict[str, Any]) -> list[dict[str, Any]]:
+    columns = [
+        dict(column)
+        for column in mapping.get("columns", [])
+        if isinstance(column, dict) and column.get("status") == "exporte"
+    ]
+    return sorted(columns, key=lambda column: int(column.get("output_position") or 999_999))
+
+
+def _ordered_sheets(mapping: dict[str, Any]) -> list[dict[str, Any]]:
+    sheets = [sheet for sheet in mapping.get("sheets", []) if isinstance(sheet, dict)]
+    return sheets
+
+
+def _id_columns_by_sheet(mapping: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    id_columns: dict[str, dict[str, Any]] = {}
+    for column in mapping.get("columns", []):
+        if (
+            isinstance(column, dict)
+            and not bool(column.get("system"))
+            and column.get("logical_role") == "id_dossier"
+            and column.get("source_sheet")
+        ):
+            id_columns[str(column["source_sheet"])] = dict(column)
+    return id_columns
+
+
+def _remove_empty_columns(
+    columns: list[dict[str, Any]],
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    kept: list[dict[str, Any]] = []
+    removed: list[dict[str, Any]] = []
+    for column in columns:
+        csv_name = str(column["csv_name"])
+        if csv_name in SPECIAL_CSV_NAMES:
+            kept.append(column)
+            continue
+        if all(_cell_is_empty(row["values"].get(csv_name, "")) for row in rows):
+            removed.append(column)
+        else:
+            kept.append(column)
+    return kept, removed
+
+
+def _public_column(column: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": column["id"],
+        "system": bool(column.get("system")),
+        "source_sheet": column.get("source_sheet"),
+        "source_column_letter": column.get("source_column_letter"),
+        "source_header": column.get("source_header"),
+        "logical_role": column.get("logical_role"),
+        "csv_name": column["csv_name"],
+        "output_position": column.get("output_position"),
+    }
+
+
+def _json_cell_value(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date, time)):
+        return value.isoformat()
+    return str(value)
+
+
+def _identifier_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def _cell_is_empty(value: Any) -> bool:
+    return value is None or value == ""
+
+
+def _positive_int(value: Any, *, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _current_validated_mapping(
+    repositories: Repositories,
+    store: ArtifactStore,
+    lot_id: str,
+) -> CurrentJsonArtifact | None:
+    mapping_step = repositories.steps.get_by_lot_key(lot_id, MAPPING_STEP_KEY)
+    if (
+        mapping_step is None
+        or not mapping_step["current_run_id"]
+        or mapping_step["status"] not in {"termine", "termine_avec_alertes"}
+    ):
+        return None
+    artifact = repositories.artifacts.get_for_step_run_role(
+        lot_id=lot_id,
+        step_key=MAPPING_STEP_KEY,
+        run_id=mapping_step["current_run_id"],
+        role="validated",
+    )
+    if artifact is None or artifact["status"] != "committed":
+        return None
+    try:
+        readable = store.open_for_read(
+            repositories,
+            lot_id=lot_id,
+            artifact_id=artifact["id"],
+        )
+        payload = json.loads(readable.path.read_text(encoding="utf-8"))
+    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return CurrentJsonArtifact(artifact=artifact, payload=payload)
+
+
+def _current_excel_source_artifact(
+    repositories: Repositories,
+    lot_id: str,
+) -> dict[str, Any] | None:
+    upload_step = repositories.steps.get_by_lot_key(lot_id, UPLOAD_STEP_KEY)
+    if upload_step is None or not upload_step["current_run_id"]:
+        return None
+    artifact = repositories.artifacts.get_for_step_run_role(
+        lot_id=lot_id,
+        step_key=UPLOAD_STEP_KEY,
+        run_id=upload_step["current_run_id"],
+        role="source",
+    )
+    if artifact is None or artifact["status"] != "committed":
+        return None
+    return artifact
+
+
+def _require_current_lease(
+    repositories: Repositories,
+    context: WorkerJobContext,
+) -> None:
+    if repositories.jobs.get_committable_by_run(
+        lot_id=context.lot_id,
+        step_key=context.step_key,
+        run_id=context.run_id,
+        lease_version=context.leased_job.lease_version,
+        expected_input_fingerprint=context.leased_job.input_fingerprint,
+    ) is None:
+        raise WorkerLeaseLost("Worker lease is no longer current.")
+
+
+def _record_missing_mapping_problem(
+    repositories: Repositories,
+    context: WorkerJobContext,
+) -> None:
+    repositories.problems.mark_open_obsolete_for_steps(
+        lot_id=context.lot_id,
+        step_keys=(FUSION_STEP_KEY,),
+    )
+    record_problem(
+        repositories,
+        lot_id=context.lot_id,
+        step_key=FUSION_STEP_KEY,
+        run_id=context.run_id,
+        severity="bloquant",
+        code="SIRCOM_FUSION_MAPPING_NOT_VALIDATED",
+        title="Mapping validé introuvable",
+        cause="La fusion ne trouve pas de snapshot de mapping validé courant.",
+        action="Valider le mapping avant de relancer la fusion.",
+    )
+
+
+def _record_missing_source_problem(
+    repositories: Repositories,
+    context: WorkerJobContext,
+) -> None:
+    repositories.problems.mark_open_obsolete_for_steps(
+        lot_id=context.lot_id,
+        step_keys=(FUSION_STEP_KEY,),
+    )
+    record_problem(
+        repositories,
+        lot_id=context.lot_id,
+        step_key=FUSION_STEP_KEY,
+        run_id=context.run_id,
+        severity="bloquant",
+        code="SIRCOM_FUSION_SOURCE_EXCEL_MISSING",
+        title="Excel source introuvable",
+        cause="La fusion ne trouve pas l'artefact Excel source courant.",
+        action="Déposer à nouveau le fichier Excel, puis relancer le diagnostic et le mapping.",
+    )

@@ -26,9 +26,11 @@ from sircom2026.invalidation import (
     step_input_fingerprint,
 )
 from sircom2026.state import record_problem, require_human_validation, transition_step
+from sircom2026.worker import enqueue_job
 
 
 MAPPING_STEP_KEY = "mapping"
+FUSION_STEP_KEY = "fusion_multi_onglets"
 MAPPING_RULES_VERSION = "mapping-v1"
 MAPPING_SCHEMA_VERSION = 1
 MAPPING_MIME_TYPE = "application/json"
@@ -313,6 +315,18 @@ def validate_mapping(
             status="termine",
             run_id=artifact["run_id"],
             event_type="mapping.validated",
+        )
+        fusion_input_fingerprint = step_input_fingerprint(
+            repositories,
+            lot_id=lot_id,
+            step_key=FUSION_STEP_KEY,
+        )
+        enqueue_job(
+            repositories,
+            lot_id=lot_id,
+            step_key=FUSION_STEP_KEY,
+            idempotency_key=f"{FUSION_STEP_KEY}:{artifact['id']}",
+            input_fingerprint=fusion_input_fingerprint,
         )
     from sircom2026.lots import get_lot_detail
 
