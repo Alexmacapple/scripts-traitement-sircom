@@ -28,6 +28,7 @@ from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import ConfigError, Settings, load_settings
 from sircom2026.database import Database, SchemaVersionError, connect_sqlite
 from sircom2026.lots import get_lot_detail, list_lots
+from sircom2026.mapping import MappingError, get_mapping_payload
 
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -211,7 +212,16 @@ def load_index_context(
             context["lots"] = list_lots(repositories, limit=20, offset=0)["items"]
             if lot_id:
                 try:
-                    context["selected_lot"] = get_lot_detail(repositories, lot_id)
+                    selected_lot = get_lot_detail(repositories, lot_id)
+                    try:
+                        selected_lot["mapping"] = get_mapping_payload(
+                            repositories,
+                            settings=settings,
+                            lot_id=lot_id,
+                        )
+                    except MappingError:
+                        selected_lot["mapping"] = None
+                    context["selected_lot"] = selected_lot
                 except KeyError:
                     context["ui_error"] = ui_error(
                         "Lot introuvable",

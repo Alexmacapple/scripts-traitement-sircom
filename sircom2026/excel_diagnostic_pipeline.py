@@ -211,6 +211,7 @@ def serialize_sheet_diagnostic(sheet: SheetDiagnostic) -> dict[str, Any]:
             asdict(candidate)
             for candidate in sheet.sensitive_candidates
         ],
+        "source_headers": [asdict(candidate) for candidate in sheet.source_headers],
         "hidden_columns": list(sheet.hidden_columns),
         "hidden_rows": list(sheet.hidden_rows),
         "merged_ranges": list(sheet.merged_ranges),

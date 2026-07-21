@@ -24,9 +24,24 @@ from sircom2026.lots import (
     mark_lot_deleted,
     serialize_problem,
 )
+from sircom2026.mapping import (
+    MappingError,
+    apply_profile_as_draft,
+    get_mapping_payload,
+    save_mapping_draft,
+    save_profile_from_validated_mapping,
+    validate_mapping,
+)
 
 
 router = APIRouter(prefix="/api/lots", tags=["lots"])
+
+PERSISTED_MAPPING_VALIDATION_ERROR_CODES = {
+    "SIRCOM_MAPPING_CSV_HEADER_COLLISION",
+    "SIRCOM_MAPPING_CSV_NAME_MISSING",
+    "SIRCOM_MAPPING_ID_DOSSIER_INVALID",
+    "SIRCOM_MAPPING_NO_BUSINESS_COLUMN",
+}
 
 
 class CreateLotRequest(BaseModel):
@@ -35,6 +50,27 @@ class CreateLotRequest(BaseModel):
 
 class RetryStepRequest(BaseModel):
     step_key: str = Field(min_length=1, max_length=64)
+
+
+class MappingColumnRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=240)
+    status: str = Field(min_length=1, max_length=16)
+    csv_name: str | None = Field(default=None, max_length=128)
+    logical_role: str | None = Field(default=None, max_length=64)
+    suppression_reason: str | None = Field(default=None, max_length=240)
+
+
+class MappingSubmissionRequest(BaseModel):
+    structural_fingerprint: str = Field(min_length=64, max_length=64)
+    columns: list[MappingColumnRequest]
+
+
+class SaveMappingProfileRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+
+
+class ApplyMappingProfileRequest(BaseModel):
+    profile_id: str = Field(min_length=1, max_length=160)
 
 
 @router.post("", status_code=201)
@@ -218,6 +254,150 @@ async def read_lot_excel_diagnostic(
     }
 
 
+@router.get("/{lot_id}/mapping")
+async def read_lot_mapping(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.session() as repositories:
+        try:
+            return get_mapping_payload(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+        except MappingError as exc:
+            raise mapping_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+
+@router.post("/{lot_id}/mapping/draft")
+async def save_lot_mapping_draft(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[MappingSubmissionRequest, Body()],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    idempotency_key = idempotency_key_from_request(request) or f"mapping_draft:{uuid.uuid4().hex}"
+    with database.transaction() as repositories:
+        try:
+            result = save_mapping_draft(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                submission=mapping_submission_to_dict(payload),
+                idempotency_key=idempotency_key,
+            )
+        except MappingError as exc:
+            raise mapping_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {
+        "mapping": result.mapping,
+        "artifact": mapping_artifact_response(result.artifact, lot_id),
+        "lot": result.lot,
+    }
+
+
+@router.post("/{lot_id}/mapping/validate")
+async def validate_lot_mapping(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[MappingSubmissionRequest, Body()],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    idempotency_key = idempotency_key_from_request(request) or f"mapping_validate:{uuid.uuid4().hex}"
+    validation_error: MappingError | None = None
+    with database.transaction() as repositories:
+        try:
+            result = validate_mapping(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                submission=mapping_submission_to_dict(payload),
+                idempotency_key=idempotency_key,
+            )
+        except MappingError as exc:
+            if exc.code not in PERSISTED_MAPPING_VALIDATION_ERROR_CODES:
+                raise mapping_api_error(exc) from exc
+            validation_error = exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+    if validation_error is not None:
+        raise mapping_api_error(validation_error) from validation_error
+
+    return {
+        "mapping": result.mapping,
+        "artifact": mapping_artifact_response(result.artifact, lot_id),
+        "lot": result.lot,
+        "invalidated_steps": list(result.invalidated_steps),
+    }
+
+
+@router.post("/{lot_id}/mapping/profile", status_code=201)
+async def save_lot_mapping_profile(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[SaveMappingProfileRequest | None, Body()] = None,
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    body = payload or SaveMappingProfileRequest()
+    with database.transaction() as repositories:
+        try:
+            profile = save_profile_from_validated_mapping(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                name=body.name,
+            )
+        except MappingError as exc:
+            raise mapping_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {"profile": profile}
+
+
+@router.post("/{lot_id}/mapping/profile-draft")
+async def apply_lot_mapping_profile_as_draft(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[ApplyMappingProfileRequest, Body()],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    idempotency_key = idempotency_key_from_request(request) or f"mapping_profile:{uuid.uuid4().hex}"
+    with database.transaction() as repositories:
+        try:
+            result = apply_profile_as_draft(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                profile_id=payload.profile_id,
+                idempotency_key=idempotency_key,
+            )
+        except MappingError as exc:
+            raise mapping_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {
+        "mapping": result.mapping,
+        "artifact": mapping_artifact_response(result.artifact, lot_id),
+        "lot": result.lot,
+    }
+
+
 @router.get("")
 async def read_lots(
     _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
@@ -270,6 +450,44 @@ def lot_not_found() -> ApiError:
         404,
         "SIRCOM_LOT_NOT_FOUND",
         "Lot introuvable.",
+    )
+
+
+def mapping_submission_to_dict(payload: MappingSubmissionRequest) -> dict[str, object]:
+    return {
+        "structural_fingerprint": payload.structural_fingerprint,
+        "columns": [
+            {
+                "id": column.id,
+                "status": column.status,
+                "csv_name": column.csv_name,
+                "logical_role": column.logical_role,
+                "suppression_reason": column.suppression_reason,
+            }
+            for column in payload.columns
+        ],
+    }
+
+
+def mapping_artifact_response(artifact: dict[str, object], lot_id: str) -> dict[str, object]:
+    return {
+        "id": artifact["id"],
+        "kind": artifact["kind"],
+        "role": artifact["role"],
+        "status": artifact["status"],
+        "size_bytes": artifact["size_bytes"],
+        "sha256": artifact["sha256"],
+        "mime_type": artifact["mime_type"],
+        "download_url": f"/api/lots/{lot_id}/downloads/{artifact['id']}",
+    }
+
+
+def mapping_api_error(exc: MappingError) -> ApiError:
+    return ApiError(
+        exc.status_code,
+        exc.code,
+        exc.message,
+        details=exc.details,
     )
 
 

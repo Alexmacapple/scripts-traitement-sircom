@@ -127,17 +127,17 @@
   valeurs métier.
 - [x] Vérifier que les refus V1 produisent un message avec titre, cause,
   emplacement, action et détails techniques dépliables.
-- [ ] Implémenter le mapping par défaut avec toutes les colonnes de tous les
+- [x] Implémenter le mapping par défaut avec toutes les colonnes de tous les
   onglets utiles.
-- [ ] Conserver la provenance complète du mapping : onglet source, lettre
+- [x] Conserver la provenance complète du mapping : onglet source, lettre
   colonne, nom original, nom CSV final et statut exporté ou supprimé.
-- [ ] Valider humainement le mapping avant fusion.
-- [ ] Définir le format des profils de mapping :
-  - [ ] empreinte de structure ;
-  - [ ] compatibilité partielle ;
-  - [ ] brouillon seulement, jamais application silencieuse ;
-  - [ ] validation humaine obligatoire.
-- [ ] Ajouter des tests de collisions de noms CSV après nettoyage.
+- [x] Valider humainement le mapping avant fusion.
+- [x] Définir le format des profils de mapping :
+  - [x] empreinte de structure ;
+  - [x] compatibilité partielle ;
+  - [x] brouillon seulement, jamais application silencieuse ;
+  - [x] validation humaine obligatoire.
+- [x] Ajouter des tests de collisions de noms CSV après nettoyage.
 
 ## Fusion, normalisation et CSV
 

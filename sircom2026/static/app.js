@@ -2,10 +2,14 @@ const messageBox = document.querySelector("#ui-message");
 const createLotForm = document.querySelector("#create-lot-form");
 const deleteLotButton = document.querySelector("#delete-lot-button");
 const excelUploadForm = document.querySelector("#excel-upload-form");
+const mappingForm = document.querySelector("#mapping-form");
+const mappingProfileForm = document.querySelector("#mapping-profile-form");
+const applyMappingProfileButtons = document.querySelectorAll("[data-apply-mapping-profile-id]");
 const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
 let excelUploadInFlight = false;
+let mappingInFlight = false;
 
 function showError(title, cause, action) {
   if (!messageBox) return;
@@ -138,6 +142,129 @@ if (excelUploadForm) {
     }
   });
 }
+
+function collectMappingSubmission() {
+  if (!mappingForm) return null;
+  const structuralFingerprint = mappingForm.dataset.mappingStructuralFingerprint || "";
+  const columns = Array.from(mappingForm.querySelectorAll("[data-mapping-column]")).map(
+    (row) => {
+      const exported = row.querySelector("[data-mapping-exported]");
+      const csvName = row.querySelector("[data-mapping-csv-name]");
+      const role = row.querySelector("[data-mapping-role]");
+      return {
+        id: row.dataset.columnId || "",
+        status: exported && exported.checked ? "exporte" : "supprime",
+        csv_name: csvName ? csvName.value : "",
+        logical_role: role ? role.value : "texte",
+        suppression_reason: exported && exported.checked ? null : "Supprimée dans le mapping.",
+      };
+    }
+  );
+  return {
+    structural_fingerprint: structuralFingerprint,
+    columns,
+  };
+}
+
+async function submitMapping(action) {
+  if (!mappingForm || mappingInFlight) return;
+  const lotId = mappingForm.dataset.mappingLotId;
+  const submission = collectMappingSubmission();
+  if (!lotId || !submission) return;
+
+  mappingInFlight = true;
+  const path = action === "draft" ? "draft" : "validate";
+  try {
+    const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/mapping/${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": nextIdempotencyKey(),
+      },
+      body: JSON.stringify(submission),
+    });
+    await parseJsonResponse(response);
+    window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+  } catch (error) {
+    mappingInFlight = false;
+    showError(
+      action === "draft" ? "Brouillon impossible" : "Validation impossible",
+      error.message,
+      "Corriger le mapping puis réessayer."
+    );
+  }
+}
+
+if (mappingForm) {
+  mappingForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitMapping("validate");
+  });
+
+  const draftButton = mappingForm.querySelector('[data-mapping-action="draft"]');
+  if (draftButton) {
+    draftButton.addEventListener("click", () => {
+      submitMapping("draft");
+    });
+  }
+}
+
+if (mappingProfileForm) {
+  mappingProfileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const lotId = mappingProfileForm.dataset.mappingProfileLotId;
+    if (!lotId) return;
+    const formData = new FormData(mappingProfileForm);
+    const name = String(formData.get("name") || "").trim();
+
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/mapping/profile`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: name || null }),
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      showError(
+        "Profil impossible",
+        error.message,
+        "Vérifier qu'un mapping validé existe puis réessayer."
+      );
+    }
+  });
+}
+
+applyMappingProfileButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    const lotId = button.dataset.applyMappingLotId;
+    const profileId = button.dataset.applyMappingProfileId;
+    if (!lotId || !profileId || mappingInFlight) return;
+
+    mappingInFlight = true;
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/mapping/profile-draft`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+        body: JSON.stringify({ profile_id: profileId }),
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      mappingInFlight = false;
+      showError(
+        "Profil impossible",
+        error.message,
+        "Choisir un profil compatible avec l'Excel courant."
+      );
+    }
+  });
+});
 
 retryButtons.forEach((button) => {
   button.addEventListener("click", async () => {

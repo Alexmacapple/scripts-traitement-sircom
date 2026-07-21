@@ -34,6 +34,10 @@
 - Implémentation du ticket 11 Sircom 2026 : panneau DSFR de diagnostic Excel
   dans le détail de lot, messages actionnables par niveau, détails techniques
   dépliables et preuves UI/API sur Excels synthétiques refusés ou avec alertes.
+- Implémentation du ticket 12 Sircom 2026 : mapping par défaut depuis le
+  diagnostic Excel persisté, provenance complète, validation humaine,
+  profils compatibles chargés en brouillon, refus des profils incompatibles et
+  blocage des collisions de noms CSV après nettoyage.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.
