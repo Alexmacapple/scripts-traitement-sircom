@@ -131,6 +131,49 @@
           </form>
         </section>
 
+        {% if storage %}
+          <section class="fr-mt-6v" aria-labelledby="storage-title">
+            <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+              <div class="fr-col">
+                <h2 id="storage-title">Stockage local</h2>
+              </div>
+              <div class="fr-col-auto">
+                {% if storage.data_dir.free_below_threshold %}
+                  <p class="fr-badge fr-badge--error fr-badge--sm">Espace faible</p>
+                {% else %}
+                  <p class="fr-badge fr-badge--success fr-badge--sm">Espace disponible</p>
+                {% endif %}
+              </div>
+            </div>
+            <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+              <div class="fr-col-6 fr-col-md-3">
+                <dt>Données</dt>
+                <dd>{{ storage.data_dir.total_label }}</dd>
+              </div>
+              <div class="fr-col-6 fr-col-md-3">
+                <dt>Fichiers</dt>
+                <dd>{{ storage.data_dir.files_count }}</dd>
+              </div>
+              <div class="fr-col-6 fr-col-md-3">
+                <dt>Libre</dt>
+                <dd>{{ storage.data_dir.free_mb }} Mo</dd>
+              </div>
+              <div class="fr-col-6 fr-col-md-3">
+                <dt>Seuil</dt>
+                <dd>{{ storage.data_dir.required_free_mb }} Mo</dd>
+              </div>
+              <div class="fr-col-6 fr-col-md-3">
+                <dt>Rétention</dt>
+                <dd>{{ storage.retention.days }} jours</dd>
+              </div>
+              <div class="fr-col-6 fr-col-md-3">
+                <dt>Purge</dt>
+                <dd>{{ storage.deleted_pending_purge_count }} en attente</dd>
+              </div>
+            </dl>
+          </section>
+        {% endif %}
+
         <div class="fr-grid-row fr-grid-row--gutters fr-mt-6v">
           <section class="fr-col-12 fr-col-lg-5" aria-labelledby="lots-title">
             <h2 id="lots-title">Lots</h2>
@@ -145,6 +188,7 @@
                           <tr>
                             <th scope="col">Nom</th>
                             <th scope="col">Statut</th>
+                            <th scope="col">Stockage</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -155,6 +199,9 @@
                               </td>
                               <td>
                                 <span class="fr-badge fr-badge--sm">{{ lot.status_label }}</span>
+                              </td>
+                              <td>
+                                {{ lot.storage.size_label if lot.storage else "0 o" }}
                               </td>
                             </tr>
                           {% endfor %}
@@ -203,6 +250,12 @@
                 <div class="fr-col-6 fr-col-md-3">
                   <dt>Artefacts</dt>
                   <dd>{{ selected_lot.counters.artifacts_count }}</dd>
+                </div>
+                <div class="fr-col-6 fr-col-md-3">
+                  <dt>Stockage</dt>
+                  <dd>
+                    {{ selected_lot.storage.size_label if selected_lot.storage else "0 o" }}
+                  </dd>
                 </div>
                 <div class="fr-col-6 fr-col-md-3">
                   <dt>Problèmes</dt>

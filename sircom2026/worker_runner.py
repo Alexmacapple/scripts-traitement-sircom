@@ -12,6 +12,7 @@ from sircom2026.excel_diagnostic_pipeline import run_excel_diagnostic_job
 from sircom2026.image_matching import run_image_matching_job
 from sircom2026.images import run_image_inspection_job
 from sircom2026.package import run_package_job
+from sircom2026.purge import purge_deleted_lots_once
 from sircom2026.reports import run_reports_job
 from sircom2026.transform import run_content_normalization_job, run_flat_merge_job
 from sircom2026.worker import JobHandler, LocalWorker, WorkerRunResult
@@ -42,7 +43,14 @@ def run_worker_once(
         lease_seconds=current_settings.worker_lease_ttl_seconds,
         max_active_jobs=current_settings.max_active_jobs,
     )
-    return worker.run_once()
+    result = worker.run_once()
+    with database.transaction() as repositories:
+        purge_deleted_lots_once(
+            repositories,
+            settings=current_settings,
+            include_recent=True,
+        )
+    return result
 
 
 def default_handlers(settings: Settings) -> dict[str, JobHandler]:

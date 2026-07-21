@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import shutil
 import sqlite3
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 from sircom2026 import __version__
 from sircom2026.api.artifacts import router as artifacts_router
 from sircom2026.api.errors import ApiError, register_error_handlers
+from sircom2026.api.storage import router as storage_router
 from sircom2026.api.security import (
     AccessAction,
     AccessPolicy,
@@ -33,6 +35,11 @@ from sircom2026.images import ImageInspectionNotReady, get_persisted_image_inspe
 from sircom2026.lots import get_lot_detail, list_lots
 from sircom2026.mapping import MappingError, get_mapping_payload
 from sircom2026.package import PackageNotReady, get_persisted_package
+from sircom2026.purge import (
+    purge_expired_lots,
+    purge_expired_lots_for_settings,
+    storage_summary,
+)
 from sircom2026.reports import ReportsNotReady, get_persisted_reports
 from sircom2026.sorting import SortDecisionError, get_sort_payload
 
@@ -76,7 +83,16 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         reconcile_artifacts_at_startup(settings, settings_error)
-        yield
+        purge_task: asyncio.Task[None] | None = None
+        if settings_error is None:
+            purge_task = asyncio.create_task(periodic_purge_loop(settings))
+        try:
+            yield
+        finally:
+            if purge_task is not None:
+                purge_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await purge_task
 
     app = FastAPI(
         title="Sircom 2026",
@@ -90,6 +106,7 @@ def create_app(
     register_error_handlers(app)
     app.include_router(artifacts_router)
     app.include_router(lots_router)
+    app.include_router(storage_router)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/", include_in_schema=False)
@@ -158,17 +175,28 @@ def reconcile_artifacts_at_startup(
         with database.transaction() as repositories:
             expired_jobs = repositories.jobs.expire_stale_leases()
             report = store.reconcile(repositories)
+            purge_outcomes = purge_expired_lots(repositories, settings=settings)
     except (OSError, SchemaVersionError, sqlite3.Error, ValueError):
         LOGGER.warning("technical_event=artifact_reconciliation_startup_failed", exc_info=True)
         return
 
     report_counts = report.to_dict()
-    if expired_jobs or any(report_counts.values()):
+    if expired_jobs or any(report_counts.values()) or purge_outcomes:
         LOGGER.info(
-            "technical_event=artifact_reconciliation_startup counts=%s expired_jobs=%s",
+            "technical_event=artifact_reconciliation_startup counts=%s expired_jobs=%s purged=%s",
             report_counts,
             expired_jobs,
+            len(purge_outcomes),
         )
+
+
+async def periodic_purge_loop(settings: Settings) -> None:
+    while True:
+        await asyncio.sleep(settings.purge_interval_seconds)
+        try:
+            await asyncio.to_thread(purge_expired_lots_for_settings, settings)
+        except (OSError, SchemaVersionError, sqlite3.Error, ValueError):
+            LOGGER.warning("technical_event=periodic_purge_failed", exc_info=True)
 
 
 def check_readiness(
@@ -198,6 +226,7 @@ def load_index_context(
     context: dict[str, Any] = {
         "lots": [],
         "selected_lot": None,
+        "storage": None,
         "ui_error": None,
     }
     if settings_error is not None:
@@ -215,10 +244,16 @@ def load_index_context(
     try:
         database.migrate()
         with database.session() as repositories:
+            storage = storage_summary(repositories, settings=settings)
+            context["storage"] = storage
+            storage_by_lot_id = {item["id"]: item for item in storage["lots"]}
             context["lots"] = list_lots(repositories, limit=20, offset=0)["items"]
+            for lot_item in context["lots"]:
+                lot_item["storage"] = storage_by_lot_id.get(lot_item["id"])
             if lot_id:
                 try:
                     selected_lot = get_lot_detail(repositories, lot_id)
+                    selected_lot["storage"] = storage_by_lot_id.get(lot_id)
                     try:
                         selected_lot["mapping"] = get_mapping_payload(
                             repositories,

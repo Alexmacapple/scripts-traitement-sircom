@@ -30,6 +30,8 @@ class Settings:
     worker_lease_ttl_seconds: int
     worker_heartbeat_seconds: int
     disk_free_min_mb: int
+    purge_interval_seconds: int
+    purge_trace_retention_days: int
     sqlite_busy_timeout_ms: int
     artifact_pending_ttl_seconds: int
 
@@ -47,6 +49,10 @@ class Settings:
                 "heartbeat_seconds": self.worker_heartbeat_seconds,
             },
             "disk": {"free_min_mb": self.disk_free_min_mb},
+            "purge": {
+                "interval_seconds": self.purge_interval_seconds,
+                "trace_retention_days": self.purge_trace_retention_days,
+            },
             "artifacts": {"pending_ttl_seconds": self.artifact_pending_ttl_seconds},
         }
 
@@ -90,6 +96,18 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             minimum=1,
         ),
         disk_free_min_mb=_int(values, "SIRCOM_DISK_FREE_MIN_MB", 5120, minimum=0),
+        purge_interval_seconds=_int(
+            values,
+            "SIRCOM_PURGE_INTERVAL_SECONDS",
+            3600,
+            minimum=1,
+        ),
+        purge_trace_retention_days=_int(
+            values,
+            "SIRCOM_PURGE_TRACE_RETENTION_DAYS",
+            30,
+            minimum=1,
+        ),
         sqlite_busy_timeout_ms=_int(values, "SIRCOM_SQLITE_BUSY_TIMEOUT_MS", 5000, minimum=0),
         artifact_pending_ttl_seconds=_int(
             values,

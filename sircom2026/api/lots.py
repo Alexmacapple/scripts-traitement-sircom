@@ -41,7 +41,6 @@ from sircom2026.lots import (
     get_lot_detail,
     group_problems_by_severity,
     list_lots,
-    mark_lot_deleted,
     serialize_problem,
 )
 from sircom2026.mapping import (
@@ -58,6 +57,7 @@ from sircom2026.package import (
     get_persisted_package,
     request_package_generation,
 )
+from sircom2026.purge import delete_lot_and_purge_if_idle
 from sircom2026.reports import ReportsNotReady, get_persisted_reports
 from sircom2026.sorting import (
     SortDecisionError,
@@ -946,19 +946,33 @@ async def read_lot(
 @router.delete("/{lot_id}")
 async def delete_lot(
     lot_id: str,
+    request: Request,
     response: Response,
     _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_DELETE))],
     database: Annotated[Database, Depends(get_database)],
 ) -> dict[str, object]:
+    settings = request.app.state.settings
     with database.transaction() as repositories:
         try:
-            lot, active_job_count = mark_lot_deleted(repositories, lot_id)
+            outcome = delete_lot_and_purge_if_idle(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
         except KeyError as exc:
             raise lot_not_found() from exc
 
-    if active_job_count:
+    if outcome.deferred:
         response.status_code = 202
-    return {"lot": lot, "cancel_requested_jobs": active_job_count}
+    return {
+        "lot": outcome.lot,
+        "cancel_requested_jobs": outcome.cancel_requested_jobs,
+        "purge": {
+            "status": outcome.purge_status,
+            "active_jobs_remaining": outcome.active_jobs_remaining,
+            "trace": outcome.trace,
+        },
+    }
 
 
 def lot_not_found() -> ApiError:

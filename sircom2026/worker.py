@@ -93,6 +93,9 @@ class WorkerJobContext:
                 lease_seconds=self.lease_seconds,
             )
             if job is None:
+                current_job = repositories.jobs.get(self.leased_job.job_id)
+                if current_job is not None:
+                    _raise_if_cancel_requested(repositories, current_job)
                 raise WorkerLeaseLost("Worker lease is no longer current.")
             _raise_if_cancel_requested(repositories, job)
 
@@ -108,6 +111,9 @@ class WorkerJobContext:
                 lease_seconds=self.lease_seconds,
             )
             if job is None:
+                current_job = repositories.jobs.get(self.leased_job.job_id)
+                if current_job is not None:
+                    _raise_if_cancel_requested(repositories, current_job)
                 raise WorkerLeaseLost("Worker lease is no longer current.")
             repositories.events.create(
                 lot_id=job["lot_id"],
@@ -340,6 +346,7 @@ class LocalWorker:
                 run_id=leased_job.run_id,
                 lease_version=leased_job.lease_version,
                 status="canceled",
+                allow_blocked_lot=True,
             )
             if job is None:
                 _record_finish_rejected(
@@ -348,7 +355,27 @@ class LocalWorker:
                     reason="lease_or_run_not_current",
                 )
                 return False
+            lot = repositories.lots.get_required(job["lot_id"])
             step = repositories.steps.get_by_lot_key(job["lot_id"], job["step_key"])
+            if step is None:
+                step_key = None
+            else:
+                step_key = job["step_key"]
+            if lot["status"] in {"supprime", "purge"} or lot["delete_requested_at"]:
+                repositories.events.create(
+                    lot_id=job["lot_id"],
+                    step_key=step_key,
+                    run_id=job["run_id"],
+                    level="warning",
+                    event_type="job.canceled",
+                    payload={
+                        "job_id": job["id"],
+                        "run_id": job["run_id"],
+                        "status": job["status"],
+                        "step_key": job["step_key"],
+                    },
+                )
+                return True
             if step is None:
                 raise KeyError(f"{job['lot_id']}:{job['step_key']}")
             repositories.steps.update_status(step["id"], "annule", run_id=job["run_id"])

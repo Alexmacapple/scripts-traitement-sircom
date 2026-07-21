@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 LOGGER = logging.getLogger(__name__)
 
 LOT_STATUSES = (
@@ -46,7 +46,15 @@ PROBLEM_SEVERITIES = ("bloquant", "alerte", "information")
 PROBLEM_STATUSES = ("open", "resolved", "obsolete")
 EVENT_LEVELS = ("info", "warning", "error")
 LOT_WRITE_BLOCKED_STATUSES = ("annule", "supprime", "purge")
-MANAGED_TABLES = ("lots", "etapes", "jobs", "artefacts", "evenements", "problemes")
+MANAGED_TABLES = (
+    "lots",
+    "etapes",
+    "jobs",
+    "artefacts",
+    "evenements",
+    "problemes",
+    "purge_traces",
+)
 EXPECTED_TABLE_COLUMNS = {
     "lots": {
         "id",
@@ -152,6 +160,18 @@ EXPECTED_TABLE_COLUMNS = {
         "status",
         "resolved_at",
     },
+    "purge_traces": {
+        "id",
+        "created_at",
+        "updated_at",
+        "lot_id_hash",
+        "lot_created_at",
+        "lot_deleted_at",
+        "purged_at",
+        "final_status",
+        "trace_json",
+        "trace_schema_version",
+    },
 }
 EXPECTED_INDEXES = {
     "idx_lots_idempotency_key",
@@ -163,6 +183,7 @@ EXPECTED_INDEXES = {
     "idx_artefacts_lot_step_run",
     "idx_evenements_lot_created",
     "idx_problemes_lot_status",
+    "idx_purge_traces_purged_at",
 }
 EXPECTED_FOREIGN_KEY_GROUPS = {
     "etapes": {("lot_id",)},
@@ -299,6 +320,8 @@ def migrate_database(path: Path, *, busy_timeout_ms: int = 5000) -> None:
             _apply_schema_v3(connection)
         if current_version < 4:
             _apply_schema_v4(connection)
+        if current_version < 5:
+            _apply_schema_v5(connection)
         _validate_schema(connection)
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         connection.commit()
@@ -336,6 +359,10 @@ class Repositories:
     @property
     def problems(self) -> ProblemsRepository:
         return ProblemsRepository(self.connection)
+
+    @property
+    def purge_traces(self) -> PurgeTracesRepository:
+        return PurgeTracesRepository(self.connection)
 
 
 class LotsRepository:
@@ -437,6 +464,50 @@ class LotsRepository:
             (now, now, now, lot_id),
         )
         return self.get_required(lot_id)
+
+    def mark_purged(self, lot_id: str) -> dict[str, Any]:
+        now = _now()
+        self.connection.execute(
+            """
+            UPDATE lots
+            SET
+                status = 'purge',
+                title = NULL,
+                idempotency_key = NULL,
+                active_run_id = NULL,
+                purge_requested_at = COALESCE(purge_requested_at, ?),
+                bytes_uploaded = 0,
+                bytes_artifacts = 0,
+                artifacts_count = 0,
+                problems_open_count = 0,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (now, now, lot_id),
+        )
+        return self.get_required(lot_id)
+
+    def list_deleted_ready_for_purge(
+        self,
+        *,
+        deleted_before: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: tuple[Any, ...]
+        if deleted_before is None:
+            where = "status = 'supprime'"
+            params = ()
+        else:
+            where = "status = 'supprime' AND deleted_at IS NOT NULL AND deleted_at <= ?"
+            params = (deleted_before,)
+        rows = self.connection.execute(
+            f"""
+            SELECT * FROM lots
+            WHERE {where}
+            ORDER BY deleted_at ASC, id ASC
+            """,
+            params,
+        ).fetchall()
+        return [dict(row) for row in rows]
 
     def refresh_artifact_counters(self, lot_id: str) -> dict[str, Any]:
         now = _now()
@@ -882,7 +953,13 @@ class JobsRepository:
         run_id: str,
         lease_version: int,
         expected_input_fingerprint: str | None = None,
+        allow_blocked_lot: bool = False,
     ) -> dict[str, Any] | None:
+        lot_filter = (
+            ""
+            if allow_blocked_lot
+            else f"AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})"
+        )
         return _fetch_one(
             self.connection,
             f"""
@@ -901,7 +978,7 @@ class JobsRepository:
               AND jobs.lease_until > ?
               AND etapes.current_run_id = jobs.run_id
               AND (? IS NULL OR etapes.input_fingerprint = ?)
-              AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})
+              {lot_filter}
             LIMIT 1
             """,
             (
@@ -1048,7 +1125,7 @@ class JobsRepository:
     ) -> dict[str, Any] | None:
         now = _now()
         cursor = self.connection.execute(
-            """
+            f"""
             UPDATE jobs
             SET
                 status = 'running',
@@ -1064,9 +1141,12 @@ class JobsRepository:
               AND lease_until > ?
               AND EXISTS (
                   SELECT 1 FROM etapes
+                  JOIN lots
+                    ON lots.id = etapes.lot_id
                   WHERE etapes.lot_id = jobs.lot_id
                     AND etapes.step_key = jobs.step_key
                     AND etapes.current_run_id = jobs.run_id
+                    AND lots.status NOT IN ({_check_in(LOT_WRITE_BLOCKED_STATUSES)})
               )
             """,
             (now, now, now, job_id, worker_id, run_id, lease_version, now),
@@ -1167,6 +1247,7 @@ class JobsRepository:
         error_code: str | None = None,
         error_message: str | None = None,
         expected_input_fingerprint: str | None = None,
+        allow_blocked_lot: bool = False,
     ) -> dict[str, Any] | None:
         if status not in {"succeeded", "failed", "canceled"}:
             raise ValueError("Owned job can only finish as succeeded, failed or canceled.")
@@ -1176,6 +1257,7 @@ class JobsRepository:
             run_id=run_id,
             lease_version=lease_version,
             expected_input_fingerprint=expected_input_fingerprint,
+            allow_blocked_lot=allow_blocked_lot,
         ) is None:
             return None
         now = _now()
@@ -1234,6 +1316,16 @@ class JobsRepository:
         ).fetchone()
         return int(row[0])
 
+    def count_processing_for_lot(self, lot_id: str) -> int:
+        row = self.connection.execute(
+            f"""
+            SELECT COUNT(*) FROM jobs
+            WHERE lot_id = ? AND status IN ({_check_in(COMMITTABLE_JOB_STATUSES)})
+            """,
+            (lot_id,),
+        ).fetchone()
+        return int(row[0])
+
     def request_cancel_for_lot(self, lot_id: str) -> int:
         now = _now()
         cursor = self.connection.execute(
@@ -1243,6 +1335,22 @@ class JobsRepository:
             WHERE lot_id = ? AND status IN ({_check_in(ACTIVE_JOB_STATUSES)})
             """,
             (now, now, lot_id),
+        )
+        return cursor.rowcount
+
+    def cancel_queued_for_lot(self, lot_id: str) -> int:
+        now = _now()
+        cursor = self.connection.execute(
+            """
+            UPDATE jobs
+            SET
+                status = 'canceled',
+                cancel_requested_at = COALESCE(cancel_requested_at, ?),
+                finished_at = COALESCE(finished_at, ?),
+                updated_at = ?
+            WHERE lot_id = ? AND status = 'queued'
+            """,
+            (now, now, now, lot_id),
         )
         return cursor.rowcount
 
@@ -1670,6 +1778,115 @@ class ProblemsRepository:
         return cursor.rowcount
 
 
+class PurgeTracesRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def upsert(
+        self,
+        *,
+        lot_id_hash: str,
+        lot_created_at: str | None,
+        lot_deleted_at: str | None,
+        purged_at: str,
+        final_status: str,
+        trace: Mapping[str, Any],
+        trace_schema_version: int = 1,
+        trace_id: str | None = None,
+    ) -> dict[str, Any]:
+        existing = self.get_by_lot_id_hash(lot_id_hash)
+        now = _now()
+        if existing is None:
+            row_id = trace_id or _new_id("purge_trace")
+            self.connection.execute(
+                """
+                INSERT INTO purge_traces (
+                    id, created_at, updated_at, lot_id_hash, lot_created_at,
+                    lot_deleted_at, purged_at, final_status, trace_json,
+                    trace_schema_version
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row_id,
+                    now,
+                    now,
+                    lot_id_hash,
+                    lot_created_at,
+                    lot_deleted_at,
+                    purged_at,
+                    final_status,
+                    _json(trace),
+                    trace_schema_version,
+                ),
+            )
+        else:
+            row_id = existing["id"]
+            self.connection.execute(
+                """
+                UPDATE purge_traces
+                SET
+                    updated_at = ?,
+                    lot_created_at = ?,
+                    lot_deleted_at = ?,
+                    purged_at = ?,
+                    final_status = ?,
+                    trace_json = ?,
+                    trace_schema_version = ?
+                WHERE id = ?
+                """,
+                (
+                    now,
+                    lot_created_at,
+                    lot_deleted_at,
+                    purged_at,
+                    final_status,
+                    _json(trace),
+                    trace_schema_version,
+                    row_id,
+                ),
+            )
+        return self.get_required(row_id)
+
+    def get(self, trace_id: str) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            "SELECT * FROM purge_traces WHERE id = ?",
+            (trace_id,),
+        )
+
+    def get_required(self, trace_id: str) -> dict[str, Any]:
+        row = self.get(trace_id)
+        if row is None:
+            raise KeyError(trace_id)
+        return row
+
+    def get_by_lot_id_hash(self, lot_id_hash: str) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            "SELECT * FROM purge_traces WHERE lot_id_hash = ?",
+            (lot_id_hash,),
+        )
+
+    def latest(self) -> dict[str, Any] | None:
+        return _fetch_one(
+            self.connection,
+            """
+            SELECT * FROM purge_traces
+            ORDER BY purged_at DESC, id DESC
+            LIMIT 1
+            """,
+            (),
+        )
+
+    def prune_before(self, cutoff: str) -> int:
+        cursor = self.connection.execute(
+            "DELETE FROM purge_traces WHERE purged_at < ?",
+            (cutoff,),
+        )
+        return cursor.rowcount
+
+
 def _ensure_schema_migrations_table(connection: sqlite3.Connection) -> None:
     connection.execute(
         """
@@ -1741,6 +1958,35 @@ def _apply_schema_v4(connection: sqlite3.Connection) -> None:
     connection.execute(
         "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
         (4, "active_job_per_step", _now()),
+    )
+
+
+def _apply_schema_v5(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS purge_traces (
+            id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            lot_id_hash TEXT NOT NULL UNIQUE,
+            lot_created_at TEXT,
+            lot_deleted_at TEXT,
+            purged_at TEXT NOT NULL,
+            final_status TEXT NOT NULL,
+            trace_json TEXT NOT NULL DEFAULT '{}',
+            trace_schema_version INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_purge_traces_purged_at
+        ON purge_traces(purged_at)
+        """
+    )
+    connection.execute(
+        "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+        (5, "purge_traces", _now()),
     )
 
 

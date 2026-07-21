@@ -74,6 +74,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                         "artefacts",
                         "evenements",
                         "problemes",
+                        "purge_traces",
                     },
                     table_names(connection),
                 )
@@ -87,10 +88,18 @@ class DatabaseMigrationTest(unittest.TestCase):
                 ).fetchone()
                 user_version = connection.execute("PRAGMA user_version").fetchone()[0]
                 self.assertEqual(migration["version"], SCHEMA_VERSION)
-                self.assertEqual(migration["name"], "active_job_per_step")
+                self.assertEqual(migration["name"], "purge_traces")
                 self.assertEqual(user_version, SCHEMA_VERSION)
 
-                for table in ("lots", "etapes", "jobs", "artefacts", "evenements", "problemes"):
+                for table in (
+                    "lots",
+                    "etapes",
+                    "jobs",
+                    "artefacts",
+                    "evenements",
+                    "problemes",
+                    "purge_traces",
+                ):
                     self.assertTrue(
                         {"id", "created_at", "updated_at"}.issubset(
                             table_columns(connection, table)
@@ -108,6 +117,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                         "idx_artefacts_lot_step_run",
                         "idx_evenements_lot_created",
                         "idx_problemes_lot_status",
+                        "idx_purge_traces_purged_at",
                     }.issubset(index_names(connection))
                 )
                 self.assertTrue(
@@ -173,6 +183,17 @@ class DatabaseMigrationTest(unittest.TestCase):
                         "technical_json",
                     }.issubset(table_columns(connection, "problemes"))
                 )
+                self.assertTrue(
+                    {
+                        "lot_id_hash",
+                        "lot_created_at",
+                        "lot_deleted_at",
+                        "purged_at",
+                        "final_status",
+                        "trace_json",
+                        "trace_schema_version",
+                    }.issubset(table_columns(connection, "purge_traces"))
+                )
             finally:
                 connection.close()
 
@@ -201,7 +222,7 @@ class DatabaseMigrationTest(unittest.TestCase):
             connection = connect_sqlite(sqlite_path)
             try:
                 connection.execute("DROP INDEX idx_jobs_active_lot_step")
-                connection.execute("DELETE FROM schema_migrations WHERE version = 4")
+                connection.execute("DELETE FROM schema_migrations WHERE version >= 4")
                 connection.execute("PRAGMA user_version = 3")
                 connection.execute(
                     """

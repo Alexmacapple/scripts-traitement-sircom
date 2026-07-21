@@ -134,7 +134,7 @@ class LotsApiTest(unittest.TestCase):
         self.assertEqual(missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND")
         self.assertNotIn("lot_missing", str(missing_response.json()))
 
-    def test_delete_lot_marks_deleted_without_purge_and_is_idempotent(self) -> None:
+    def test_delete_lot_purges_idle_lot_and_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
             lot_id = client.post("/api/lots", json={"title": "Lot a supprimer"}).json()["lot"]["id"]
@@ -146,10 +146,12 @@ class LotsApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(second_response.status_code, 200)
-        self.assertEqual(response.json()["lot"]["status"], "supprime")
+        self.assertEqual(response.json()["lot"]["status"], "purge")
+        self.assertEqual(response.json()["purge"]["status"], "purged")
+        self.assertEqual(second_response.json()["purge"]["status"], "already_purged")
         self.assertIsNotNone(response.json()["lot"]["deleted_at"])
         self.assertEqual(list_response.json()["items"], [])
-        self.assertEqual(detail_response.json()["lot"]["status"], "supprime")
+        self.assertEqual(detail_response.json()["lot"]["status"], "purge")
 
     def test_delete_lot_with_active_job_requests_cancel_and_returns_202(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -270,7 +272,7 @@ class LotsUiTest(unittest.TestCase):
 
         deleted_html = deleted_response.text
         self.assertEqual(deleted_response.status_code, 200)
-        self.assertIn("Supprimé", deleted_html)
+        self.assertIn("Purgé", deleted_html)
         self.assertNotIn('id="delete-lot-button"', deleted_html)
 
         missing_html = missing_response.text
