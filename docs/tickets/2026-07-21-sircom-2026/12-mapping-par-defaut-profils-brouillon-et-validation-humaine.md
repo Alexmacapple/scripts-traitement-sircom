@@ -1,6 +1,6 @@
 # 12 - Mapping par défaut, profils brouillon et validation humaine
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 11.
 

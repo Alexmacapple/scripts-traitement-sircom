@@ -174,8 +174,9 @@ utilisateur, zip images libre, rapport métier et package final.
 - Le nom du zip est libre ; l'application valide le contenu, pas le nom.
 - Un seul zip images est accepté par lot.
 - Les images doivent être à la racine du zip.
-- Si le zip contient uniquement des images dans des sous-dossiers, le zip est
-  refusé avec un message clair.
+- Toute image placée dans un sous-dossier du zip est refusée en V1 avec un
+  message clair ; seuls les fichiers système explicitement ignorables
+  (`__MACOSX/`, `.DS_Store`) peuvent être écartés sans bloquer.
 - L'absence de zip images n'empêche pas l'export CSV ; l'application produit une
   alerte forte et indique que le package sera sans images.
 - Un zip fourni sans image traitable n'empêche pas l'export CSV ; le rapport

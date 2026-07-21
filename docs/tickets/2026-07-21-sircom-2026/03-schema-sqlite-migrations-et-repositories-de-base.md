@@ -1,6 +1,6 @@
 # 03 - Schéma SQLite, migrations et repositories de base
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 01.
 

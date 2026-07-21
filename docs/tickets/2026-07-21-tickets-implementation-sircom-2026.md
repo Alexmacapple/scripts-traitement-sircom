@@ -21,6 +21,15 @@ ouvert. Le ticket 03 et les tickets qui dépendent du schéma, du worker, du CSV
 des images ou de la purge ne doivent pas être ouverts avant la passe de décisions
 listée dans `docs/2026-07-21-synthese-verification-globale-sircom-2026.md`.
 
+Statuts courants utilisés dans les fichiers unitaires :
+
+- `ready-for-agent` : lançable dès que ses dépendances sont satisfaites ;
+- `ready-apres-01` : lançable après livraison du ticket 01 ;
+- `ready-intrinseque-non-frontier` : contrat intrinsèque prêt, mais dépendances
+  amont non livrées ;
+- `a-corriger` : critères à compléter avant ouverture ;
+- `a-recadrer` : décision d'architecture à publier avant ouverture.
+
 Sources :
 
 - `docs/specs/2026-07-21-contrat-fonctionnel-sircom-2026.md`
@@ -233,21 +242,25 @@ qui manque encore pour que l'implémentation démarre sans ambiguïté".
 
 ### Verdict connu-inconnu
 
-Verdict : Prêt pour implémentation progressive.
+Verdict historique avant revues GLM/SOL/Codex : Prêt pour implémentation
+progressive.
 
-Les dépendances restantes sont des prérequis d'ordre entre tickets, pas des
-blocages de cadrage pour agent. La frontier démarre au ticket 01.
+Remplacé par la synthèse post-revues : le ticket 01 est prêt, le ticket 02 est
+ouvrable après 01, et les tickets aval marqués `a-corriger` ou `a-recadrer`
+restent bloqués par une passe de décisions.
 
 ## Passe finale tension LLM
 
-Verdict : aucune tension LLM bloquante détectée dans les tickets unitaires.
+Verdict historique avant revues GLM/SOL/Codex : aucune tension LLM bloquante
+détectée dans les tickets unitaires.
 
 - `Dépend de` décrit uniquement l'ordre d'exécution des tickets.
 - Les décisions encore différées sont bornées par des tickets dédiés :
   authentification VPS hors V1, HEIC dans le ticket 19, rapport/package dans les
   tickets 21 et 22.
-- Les tickets ne demandent pas à l'agent de choisir seul une architecture, une
-  politique d'upload, un format CSV ou un format de package.
+- Remplacé par la synthèse post-revues : plusieurs tickets aval ne doivent pas
+  être donnés à un agent tant que le schéma, le worker, le DAG, le mapping, les
+  bindings images et la purge ne sont pas recadrés.
 - Le seul point immédiatement exécutable reste le ticket 01.
 
 ## Couverture des specs

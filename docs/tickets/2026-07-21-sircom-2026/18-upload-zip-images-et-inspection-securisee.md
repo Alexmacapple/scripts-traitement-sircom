@@ -1,6 +1,6 @@
 # 18 - Upload zip images et inspection sécurisée
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 05, 08.
 

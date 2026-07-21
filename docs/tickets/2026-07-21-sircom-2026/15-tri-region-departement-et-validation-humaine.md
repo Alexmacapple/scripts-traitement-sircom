@@ -1,6 +1,6 @@
 # 15 - Tri région/département et validation humaine
 
-Statut : `ready-for-agent`
+Statut : `a-corriger`
 
 Dépend de : 14.
 

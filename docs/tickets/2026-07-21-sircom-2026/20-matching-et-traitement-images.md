@@ -1,6 +1,6 @@
 # 20 - Matching et traitement images
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 12, 18, 19.
 

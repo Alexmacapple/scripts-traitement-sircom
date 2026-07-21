@@ -1,6 +1,6 @@
 # 16 - Vérificateur de contrat CSV InDesign
 
-Statut : `ready-for-agent`
+Statut : `a-corriger`
 
 Dépend de : 14.
 

@@ -70,8 +70,10 @@ valeurs ou la sémantique readiness.
 - Les téléchargements par `artifact_id` retournent publiquement 404 pour artefact
   absent, supprimé, obsolète ou appartenant à un autre lot.
 - Les tickets 02 et 05 portent le test d'indistinction publique 404.
-- La route `DELETE /api/lots/{lot_id}` est alignée sur la purge avec annulation
-  coopérative : 202 si un job actif doit d'abord s'arrêter, pas 409.
+- La route `DELETE /api/lots/{lot_id}` est alignée sur le ticket 04 : elle pose
+  une suppression logique/tombstone. Si un job actif doit s'arrêter, elle répond
+  202 et déclenche l'annulation coopérative ; la purge physique reste portée par
+  le ticket 23.
 - Les index de tickets signalent que seul le ticket 01 est exécutable tant que
   la passe aval n'est pas fermée.
 
@@ -80,6 +82,7 @@ valeurs ou la sémantique readiness.
 | Échéance | Tickets bloqués | Décision à publier |
 |---|---|---|
 | Avant 03 | 03, 05, 06, 07, 08 | Schéma run-scopé : `run_id`, idempotency key, `lease_version`, états artefacts, contraintes uniques et index. |
+| Avant 05 | 05, 07, 08, 22, 23 | Store d'artefacts : protocole de commit atomique, réconciliation au démarrage, quarantaine/suppression des fichiers sans ligne, obsolescence des lignes sans fichier ou hash invalide, rejet des commits tardifs par `run_id + lease_version`. |
 | Avant 04/06 | 04, 06, 08 | Matrice exhaustive `statut + événement -> statut suivant`, y compris annulation, invalidation et purge. |
 | Avant 07 | 07 | Worker : TTL de lease, heartbeat, reclaim, compare-and-set, stratégie SQLite et arrêt gracieux. |
 | Avant 08 | 08 | DAG d'invalidation complet et fingerprints SHA-256 de JSON canonique versionné. |

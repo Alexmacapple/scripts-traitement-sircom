@@ -1,6 +1,6 @@
 # 19 - Spike formats images Mac/VPS
 
-Statut : `ready-for-agent`
+Statut : `ready-intrinseque-non-frontier`
 
 Dépend de : 18.
 

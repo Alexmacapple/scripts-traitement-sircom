@@ -1,6 +1,6 @@
 # 02 - Politique d'accès locale et erreurs API structurées
 
-Statut : `ready-for-agent`
+Statut : `ready-apres-01`
 
 Dépend de : 01.
 

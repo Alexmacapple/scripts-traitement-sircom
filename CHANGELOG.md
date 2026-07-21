@@ -10,6 +10,9 @@
 - Clarification documentaire des exceptions de nommage `id_dossier`,
   `imageid`, `@pathimg`, du refus V1 des images en sous-dossiers de zip et du
   téléchargement 404 indiscernable par `artifact_id`.
+- Alignement post-revue SOL : statuts unitaires des tickets aval, route DELETE
+  en suppression logique/tombstone, politique zip stricte partout et décision
+  dédiée sur la réconciliation du store d'artefacts avant ticket 05.
 - Ajout de `sircom2026.excel_diagnostic` et `scripts-2026/diagnose_excel.py` pour diagnostiquer les inputs Excel 2026 sans exposer les données métier.
 - Ajout de `sircom2026.synthetic_excels` et `scripts-2026/create_synthetic_excels.py` pour générer des classeurs synthétiques de test.
 - Ajout de tests unitaires ciblés pour les cas multi-onglets valides et les refus V1 : ID manquant, ID dupliqué, ID ambigu, cellules fusionnées, colonne masquée, formule et en-tête multi-ligne.

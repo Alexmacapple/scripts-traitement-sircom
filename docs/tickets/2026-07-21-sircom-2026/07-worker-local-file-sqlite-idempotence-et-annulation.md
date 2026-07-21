@@ -1,6 +1,6 @@
 # 07 - Worker local, file SQLite, idempotence et annulation
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 05, 06.
 

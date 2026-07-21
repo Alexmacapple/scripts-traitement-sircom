@@ -1,6 +1,6 @@
 # 10 - Diagnostic Excel persisté
 
-Statut : `ready-for-agent`
+Statut : `a-corriger`
 
 Dépend de : 09.
 

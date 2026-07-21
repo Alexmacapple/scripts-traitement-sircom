@@ -1,6 +1,6 @@
 # 06 - Statuts métier, événements, problèmes structurés et logs séparés
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 03, 04.
 

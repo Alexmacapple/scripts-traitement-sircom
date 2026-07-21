@@ -1,6 +1,6 @@
 # 05 - Store d'artefacts atomique et téléchargements par `artifact_id`
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 02, 03, 04.
 

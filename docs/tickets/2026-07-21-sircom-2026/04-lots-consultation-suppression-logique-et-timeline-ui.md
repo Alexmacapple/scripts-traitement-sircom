@@ -1,6 +1,6 @@
 # 04 - Lots, consultation, suppression logique et timeline UI
 
-Statut : `ready-for-agent`
+Statut : `a-corriger`
 
 Dépend de : 02, 03.
 

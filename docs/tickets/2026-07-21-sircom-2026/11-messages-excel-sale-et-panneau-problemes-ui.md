@@ -1,6 +1,6 @@
 # 11 - Messages Excel sale et panneau problèmes UI
 
-Statut : `ready-for-agent`
+Statut : `ready-intrinseque-non-frontier`
 
 Dépend de : 06, 10.
 

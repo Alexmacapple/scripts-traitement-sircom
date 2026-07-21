@@ -1,6 +1,6 @@
 # 08 - Retry et invalidation aval par fingerprints
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 07.
 

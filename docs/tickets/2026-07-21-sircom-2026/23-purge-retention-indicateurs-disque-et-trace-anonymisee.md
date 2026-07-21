@@ -1,6 +1,6 @@
 # 23 - Purge, rétention, indicateurs disque et trace anonymisée
 
-Statut : `ready-for-agent`
+Statut : `a-recadrer`
 
 Dépend de : 22.
 

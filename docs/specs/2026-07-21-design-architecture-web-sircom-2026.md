@@ -683,7 +683,7 @@ Statut global : à implémenter et à tester.
 | POST | `/api/lots` | nom optionnel | lot créé | 400 entrée invalide | lot en base |
 | GET | `/api/lots` | filtres simples | liste paginée | 400 filtre invalide | pagination |
 | GET | `/api/lots/{lot_id}` | lot_id | détail lot | 404 inconnu | état + étapes |
-| DELETE | `/api/lots/{lot_id}` | lot_id | purge demandée/effectuée | 404 ; 202 si annulation coopérative requise | artefacts supprimés |
+| DELETE | `/api/lots/{lot_id}` | lot_id | suppression logique demandée | 404 ; 202 si annulation coopérative requise | tombstone persisté |
 | POST | `/api/lots/{lot_id}/excel` | fichier Excel | artefact upload + job diagnostic | 413, 415, 422 | upload borné |
 | GET | `/api/lots/{lot_id}/excel/diagnostic` | lot_id | diagnostic structuré | 404, 409 non prêt | problèmes affichables |
 | PUT | `/api/lots/{lot_id}/mapping` | mapping draft | mapping sauvegardé | 422 mapping invalide | provenance complète |
@@ -1128,8 +1128,9 @@ verrouillées avant les tickets qui touchent stockage, sécurité, export et UI.
 - `[^]` Frontend V1 : décider templates FastAPI/Jinja + DSFR ou autre stack.
 - `[^]` Format final des profils de mapping : décider fingerprint,
   compatibilité partielle et comportement en cas d'écart.
-- `[^]` Politique zip avec sous-dossiers : refuser, ignorer ou accepter avec
-  avertissement.
+- `[~]` Politique zip avec sous-dossiers : résolue en V1. Toute image dans un
+  sous-dossier est refusée ; seuls `__MACOSX/` et `.DS_Store` peuvent être
+  ignorés sans bloquer.
 - `[~]` Support HEIC réel : décider si V1 supporte, refuse clairement ou dépend
   d'une option d'installation.
 - `[~]` Sauvegarde du répertoire de données : décider hors V1, manuel ou
@@ -1183,7 +1184,8 @@ verrouillées avant les tickets qui touchent stockage, sécurité, export et UI.
    SQLite sont cohérents après échec simulé ?
 3. Quel jeu de fixtures devient l'oracle CSV officiel : référence 2025 seule,
    synthétique dédié, ou les deux ?
-4. La V1 refuse-t-elle explicitement les zip images avec sous-dossiers ?
+4. Résolu V1 : les zip images avec sous-dossiers sont refusés dès qu'une image
+   s'y trouve ; `__MACOSX/` et `.DS_Store` seuls peuvent être ignorés.
 5. Le frontend V1 part-il sur templates FastAPI/Jinja + DSFR par défaut ?
 
 ### Verdict connu-inconnu

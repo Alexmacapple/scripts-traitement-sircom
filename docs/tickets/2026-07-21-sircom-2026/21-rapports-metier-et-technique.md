@@ -1,6 +1,6 @@
 # 21 - Rapports métier et technique
 
-Statut : `ready-for-agent`
+Statut : `a-corriger`
 
 Dépend de : 17, 20.
 
