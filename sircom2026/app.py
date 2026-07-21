@@ -5,12 +5,20 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from sircom2026 import __version__
+from sircom2026.api.errors import ApiError, register_error_handlers
+from sircom2026.api.security import (
+    AccessAction,
+    AccessPolicy,
+    ActorContext,
+    LocalAccessPolicy,
+    require_action,
+)
 from sircom2026.config import ConfigError, Settings, load_settings
 
 
@@ -36,7 +44,11 @@ class ReadinessCheck:
         return payload
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    access_policy: AccessPolicy | None = None,
+) -> FastAPI:
     settings_error: ConfigError | None = None
     if settings is None:
         try:
@@ -52,6 +64,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.settings_error = settings_error
+    app.state.access_policy = access_policy or LocalAccessPolicy()
+    register_error_handlers(app)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/", include_in_schema=False)
@@ -80,14 +94,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.get("/api/config/limits", tags=["config"])
-    async def config_limits() -> dict[str, object]:
+    async def config_limits(
+        _actor: ActorContext = Depends(require_action(AccessAction.CONFIG_READ)),
+    ) -> dict[str, object]:
         if app.state.settings_error is not None:
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "code": "SIRCOM_CONFIG_INVALID",
-                    "message": "Configuration invalide.",
-                },
+            raise ApiError(
+                500,
+                "SIRCOM_CONFIG_INVALID",
+                "Configuration invalide.",
             )
         return {"limits": app.state.settings.public_limits()}
 

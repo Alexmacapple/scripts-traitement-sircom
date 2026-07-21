@@ -246,7 +246,7 @@ class WebSocleTest(unittest.TestCase):
         response = client.get("/api/config/limits")
 
         self.assertEqual(response.status_code, 500)
-        self.assertEqual(response.json()["detail"]["code"], "SIRCOM_CONFIG_INVALID")
+        self.assertEqual(response.json()["error"]["code"], "SIRCOM_CONFIG_INVALID")
 
     def test_openapi_and_docs_are_available(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
