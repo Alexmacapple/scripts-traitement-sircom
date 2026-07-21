@@ -14,7 +14,7 @@ Objectif 2026 : construire une application web qui permet au Sircom d'uploader u
 - `CLAUDE.md` : pointeur de compatibilité vers ce fichier.
 - `TODO.md` : tâches à traiter et points d'implémentation à ne pas oublier.
 - `CHANGELOG.md` : historique synthétique des décisions et changements.
-- `cuisine-moi/2026-07-20-interface-web-sircom-2026.md` : source de cadrage 2026 pour mapping, images, CSV, UI, risques et décisions.
+- `docs/cuisine-moi/2026-07-20-interface-web-sircom-2026.md` : source de cadrage 2026 pour mapping, images, CSV, UI, risques et décisions.
 - `sircom_master_script.py` : orchestration de la chaîne complète.
 - `scripts-2025/` : scripts d'étapes numérotés `0-*.py` à `12-*.py` et utilitaire `0-extract_departement_to_sircom.py`.
 - `livrables-miweb-2025/livrables-miweb-1-2025/9-final-sircom-indesign-utf16.csv` : référence d'output CSV InDesign 2025.

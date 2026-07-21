@@ -1,0 +1,375 @@
+"""Excel structure diagnostics for the Sircom 2026 import flow.
+
+The diagnostic intentionally reports workbook structure, headers and counts, not
+business cell values. It is meant to be reused by the future FastAPI upload
+endpoint and by the local CLI.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import unicodedata
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Iterable
+
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+
+
+ID_HEADER_RE = re.compile(r"^(id|id[_\s-]*dossier|dossier[_\s-]*id)$", re.I)
+REGION_RE = re.compile(r"\bregion\b|\brégion\b", re.I)
+DEPARTMENT_RE = re.compile(r"departement|département|code\s*postal", re.I)
+DATE_RE = re.compile(r"\bdate\b|\bcréé\b|\bcree\b|\bdéposé\b|\bdepose\b|\btraité\b|\btraite\b|\ble$", re.I)
+IMAGE_RE = re.compile(r"photo|image|logo|piece|pièce|fichier", re.I)
+SENSITIVE_RE = re.compile(
+    r"id|siret|siren|téléphone|telephone|code\s*postal|département|departement|code\s+insee|rna|tva",
+    re.I,
+)
+
+
+@dataclass
+class ColumnCandidate:
+    column: str
+    header: str
+    non_empty_values: int | None = None
+    unique_values: int | None = None
+    duplicate_values: int | None = None
+    blank_values: int | None = None
+
+
+@dataclass
+class SheetDiagnostic:
+    name: str
+    state: str
+    rows: int
+    columns: int
+    ignored: bool = False
+    ignore_reason: str | None = None
+    importable: bool = True
+    blockers: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    header_row: int | None = None
+    non_empty_headers: int = 0
+    empty_header_columns_with_data: list[str] = field(default_factory=list)
+    duplicate_headers: list[str] = field(default_factory=list)
+    cleaned_header_collisions: list[str] = field(default_factory=list)
+    id_candidates: list[ColumnCandidate] = field(default_factory=list)
+    region_candidates: list[ColumnCandidate] = field(default_factory=list)
+    department_candidates: list[ColumnCandidate] = field(default_factory=list)
+    date_candidates: list[ColumnCandidate] = field(default_factory=list)
+    image_candidates: list[ColumnCandidate] = field(default_factory=list)
+    sensitive_candidates: list[ColumnCandidate] = field(default_factory=list)
+    hidden_columns: list[str] = field(default_factory=list)
+    hidden_rows: list[int] = field(default_factory=list)
+    merged_ranges: list[str] = field(default_factory=list)
+    formula_cells_sample: list[str] = field(default_factory=list)
+    headers_preview: list[str] = field(default_factory=list)
+
+
+@dataclass
+class WorkbookDiagnostic:
+    path: str
+    filename: str
+    sheet_count: int
+    importable: bool
+    blockers: list[str]
+    warnings: list[str]
+    sheets: list[SheetDiagnostic]
+
+
+def normalize_header(value: object) -> str:
+    text = "" if value is None else str(value)
+    text = text.replace("\n", " ").replace("\r", " ").strip()
+    return re.sub(r"\s+", " ", text)
+
+
+def ascii_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+    return ascii_value.lower().strip()
+
+
+def clean_indesign_header(value: str) -> str:
+    cleaned = ascii_key(value)
+    cleaned = re.sub(r"[^\w]", "", cleaned)
+    return cleaned[:10]
+
+
+def iter_non_empty_values(ws, column: int, start_row: int) -> Iterable[str]:
+    for row in range(start_row, ws.max_row + 1):
+        value = normalize_header(ws.cell(row=row, column=column).value)
+        if value:
+            yield value
+
+
+def count_non_empty_cells(ws) -> int:
+    count = 0
+    for row in ws.iter_rows():
+        for cell in row:
+            if normalize_header(cell.value):
+                count += 1
+    return count
+
+
+def detect_header_row(ws, max_scan: int = 8) -> int | None:
+    best_row = None
+    best_score = 0.0
+    for row in range(1, min(max_scan, ws.max_row) + 1):
+        values = [normalize_header(ws.cell(row=row, column=col).value) for col in range(1, ws.max_column + 1)]
+        present = [value for value in values if value]
+        if len(present) < 2:
+            continue
+        text_ratio = sum(any(char.isalpha() for char in value) for value in present) / len(present)
+        unique_ratio = len(set(present)) / len(present)
+        density = len(present) / max(1, ws.max_column)
+        score = text_ratio + unique_ratio + density
+        if score > best_score:
+            best_score = score
+            best_row = row
+    if best_score < 1.8:
+        return None
+    return best_row
+
+
+def hidden_column_ranges(ws) -> list[str]:
+    hidden: list[str] = []
+    for key, dimension in ws.column_dimensions.items():
+        if dimension.hidden:
+            hidden.append(key)
+    return hidden
+
+
+def hidden_row_numbers(ws) -> list[int]:
+    return [index for index, dimension in ws.row_dimensions.items() if dimension.hidden]
+
+
+def formula_cell_sample(ws, limit: int = 20) -> list[str]:
+    sample: list[str] = []
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                sample.append(cell.coordinate)
+                if len(sample) >= limit:
+                    return sample
+    return sample
+
+
+def make_id_candidate(ws, column: int, header: str, header_row: int) -> ColumnCandidate:
+    values = list(iter_non_empty_values(ws, column, header_row + 1))
+    unique = set(values)
+    return ColumnCandidate(
+        column=get_column_letter(column),
+        header=header,
+        non_empty_values=len(values),
+        unique_values=len(unique),
+        duplicate_values=len(values) - len(unique),
+        blank_values=max(0, ws.max_row - header_row - len(values)),
+    )
+
+
+def make_simple_candidate(column: int, header: str) -> ColumnCandidate:
+    return ColumnCandidate(column=get_column_letter(column), header=header)
+
+
+def diagnose_sheet(ws) -> SheetDiagnostic:
+    diagnostic = SheetDiagnostic(
+        name=ws.title,
+        state=ws.sheet_state,
+        rows=ws.max_row,
+        columns=ws.max_column,
+    )
+
+    if count_non_empty_cells(ws) == 0:
+        diagnostic.ignored = True
+        diagnostic.ignore_reason = "empty sheet"
+        diagnostic.importable = True
+        diagnostic.warnings.append("Onglet vide ignore.")
+        return diagnostic
+
+    diagnostic.hidden_columns = hidden_column_ranges(ws)
+    diagnostic.hidden_rows = hidden_row_numbers(ws)
+    diagnostic.merged_ranges = [str(cell_range) for cell_range in ws.merged_cells.ranges]
+    diagnostic.formula_cells_sample = formula_cell_sample(ws)
+
+    if ws.sheet_state != "visible":
+        diagnostic.blockers.append("Onglet masque.")
+    if diagnostic.hidden_columns:
+        diagnostic.blockers.append(f"{len(diagnostic.hidden_columns)} colonne(s) masquee(s).")
+    if diagnostic.hidden_rows:
+        diagnostic.blockers.append(f"{len(diagnostic.hidden_rows)} ligne(s) masquee(s).")
+    if diagnostic.merged_ranges:
+        diagnostic.blockers.append(f"{len(diagnostic.merged_ranges)} cellule(s) fusionnee(s).")
+    if diagnostic.formula_cells_sample:
+        diagnostic.blockers.append("Formules detectees.")
+
+    header_row = detect_header_row(ws)
+    diagnostic.header_row = header_row
+    if header_row is None:
+        diagnostic.blockers.append("En-tete non detecte.")
+        diagnostic.importable = False
+        return diagnostic
+    if header_row != 1:
+        diagnostic.blockers.append("En-tete detecte hors premiere ligne.")
+
+    headers = [normalize_header(ws.cell(row=header_row, column=column).value) for column in range(1, ws.max_column + 1)]
+    non_empty_headers = [(index, header) for index, header in enumerate(headers, start=1) if header]
+    diagnostic.non_empty_headers = len(non_empty_headers)
+    diagnostic.headers_preview = [header for _, header in non_empty_headers[:30]]
+
+    for index, header in enumerate(headers, start=1):
+        if header:
+            continue
+        has_values = any(iter_non_empty_values(ws, index, header_row + 1))
+        if has_values:
+            diagnostic.empty_header_columns_with_data.append(get_column_letter(index))
+    if diagnostic.empty_header_columns_with_data:
+        diagnostic.blockers.append("Colonne(s) avec donnees mais sans en-tete.")
+
+    seen_headers: dict[str, int] = {}
+    for _, header in non_empty_headers:
+        seen_headers[header] = seen_headers.get(header, 0) + 1
+    diagnostic.duplicate_headers = sorted(header for header, count in seen_headers.items() if count > 1)
+    if diagnostic.duplicate_headers:
+        diagnostic.warnings.append(
+            "En-tetes sources dupliques ; la provenance par lettre de colonne permet de les distinguer."
+        )
+
+    cleaned_headers: dict[str, int] = {}
+    for index, header in non_empty_headers:
+        cleaned = clean_indesign_header(f"{get_column_letter(index)}_{header}")
+        cleaned_headers[cleaned] = cleaned_headers.get(cleaned, 0) + 1
+    diagnostic.cleaned_header_collisions = sorted(name for name, count in cleaned_headers.items() if count > 1)
+    if diagnostic.cleaned_header_collisions:
+        diagnostic.blockers.append("Collision apres nettoyage des en-tetes InDesign.")
+
+    for index, header in non_empty_headers:
+        key = ascii_key(header)
+        if ID_HEADER_RE.match(key):
+            diagnostic.id_candidates.append(make_id_candidate(ws, index, header, header_row))
+        if REGION_RE.search(header) or REGION_RE.search(key):
+            diagnostic.region_candidates.append(make_simple_candidate(index, header))
+        if DEPARTMENT_RE.search(header) or DEPARTMENT_RE.search(key):
+            diagnostic.department_candidates.append(make_simple_candidate(index, header))
+        if DATE_RE.search(header) or DATE_RE.search(key):
+            diagnostic.date_candidates.append(make_simple_candidate(index, header))
+        if IMAGE_RE.search(header) or IMAGE_RE.search(key):
+            diagnostic.image_candidates.append(make_simple_candidate(index, header))
+        if SENSITIVE_RE.search(header) or SENSITIVE_RE.search(key):
+            diagnostic.sensitive_candidates.append(make_simple_candidate(index, header))
+
+    if not diagnostic.id_candidates:
+        diagnostic.blockers.append("Colonne id_dossier non detectee.")
+    elif len(diagnostic.id_candidates) > 1:
+        diagnostic.blockers.append("Plusieurs colonnes id_dossier candidates.")
+    else:
+        candidate = diagnostic.id_candidates[0]
+        if candidate.duplicate_values:
+            diagnostic.blockers.append("Valeurs id_dossier dupliquees dans l'onglet.")
+        if candidate.blank_values:
+            diagnostic.warnings.append("Ligne(s) sans id_dossier a signaler et supprimer a l'export.")
+
+    diagnostic.importable = not diagnostic.blockers
+    return diagnostic
+
+
+def diagnose_workbook(path: Path) -> WorkbookDiagnostic:
+    workbook = load_workbook(path, read_only=False, data_only=False)
+    try:
+        sheets = [diagnose_sheet(sheet) for sheet in workbook.worksheets]
+    finally:
+        workbook.close()
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+    for sheet in sheets:
+        for blocker in sheet.blockers:
+            blockers.append(f"{sheet.name}: {blocker}")
+        for warning in sheet.warnings:
+            warnings.append(f"{sheet.name}: {warning}")
+
+    return WorkbookDiagnostic(
+        path=str(path),
+        filename=path.name,
+        sheet_count=len(sheets),
+        importable=not blockers,
+        blockers=blockers,
+        warnings=warnings,
+        sheets=sheets,
+    )
+
+
+def format_text_report(diagnostics: list[WorkbookDiagnostic]) -> str:
+    lines: list[str] = []
+    for workbook in diagnostics:
+        status = "ACCEPTABLE" if workbook.importable else "REFUSE"
+        lines.append(f"## {workbook.filename} - {status}")
+        lines.append(f"path: {workbook.path}")
+        lines.append(f"sheets: {workbook.sheet_count}")
+        if workbook.blockers:
+            lines.append("blockers:")
+            lines.extend(f"- {item}" for item in workbook.blockers)
+        if workbook.warnings:
+            lines.append("warnings:")
+            lines.extend(f"- {item}" for item in workbook.warnings)
+        for sheet in workbook.sheets:
+            ignored = " ignored" if sheet.ignored else ""
+            sheet_status = "OK" if sheet.importable else "BLOCKED"
+            lines.append(f"- sheet {sheet.name!r}: {sheet_status}{ignored}, {sheet.rows} rows x {sheet.columns} cols")
+            if sheet.ignore_reason:
+                lines.append(f"  ignore_reason: {sheet.ignore_reason}")
+            lines.append(f"  header_row: {sheet.header_row}, non_empty_headers: {sheet.non_empty_headers}")
+            if sheet.id_candidates:
+                ids = ", ".join(
+                    f"{candidate.column}:{candidate.header} "
+                    f"(non_empty={candidate.non_empty_values}, unique={candidate.unique_values}, "
+                    f"duplicates={candidate.duplicate_values}, blanks={candidate.blank_values})"
+                    for candidate in sheet.id_candidates
+                )
+                lines.append(f"  id_candidates: {ids}")
+            else:
+                lines.append("  id_candidates: none")
+            if sheet.region_candidates:
+                lines.append(
+                    "  region_candidates: "
+                    + ", ".join(f"{candidate.column}:{candidate.header}" for candidate in sheet.region_candidates[:8])
+                )
+            if sheet.department_candidates:
+                lines.append(
+                    "  department_candidates: "
+                    + ", ".join(f"{candidate.column}:{candidate.header}" for candidate in sheet.department_candidates[:8])
+                )
+            if sheet.date_candidates:
+                lines.append(f"  date_candidates: {len(sheet.date_candidates)}")
+            if sheet.image_candidates:
+                lines.append(
+                    "  image_candidates: "
+                    + ", ".join(f"{candidate.column}:{candidate.header}" for candidate in sheet.image_candidates[:8])
+                )
+            if sheet.duplicate_headers:
+                lines.append("  duplicate_headers: " + ", ".join(sheet.duplicate_headers[:12]))
+            if sheet.headers_preview:
+                lines.append("  headers_preview: " + " | ".join(sheet.headers_preview[:12]))
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Diagnose Sircom 2026 Excel input structure.")
+    parser.add_argument("workbooks", nargs="+", type=Path)
+    parser.add_argument("--json", action="store_true", help="Print JSON instead of a text report.")
+    args = parser.parse_args(argv)
+
+    diagnostics = [diagnose_workbook(path) for path in args.workbooks]
+    if args.json:
+        print(json.dumps([asdict(diagnostic) for diagnostic in diagnostics], ensure_ascii=False, indent=2))
+    else:
+        print(format_text_report(diagnostics), end="")
+
+    return 0 if all(diagnostic.importable for diagnostic in diagnostics) else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
