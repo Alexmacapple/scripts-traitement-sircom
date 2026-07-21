@@ -351,6 +351,7 @@
               {% endif %}
 
               {% set mapping_payload = selected_lot.mapping if selected_lot.mapping is defined else none %}
+              {% set mapping_error = selected_lot.mapping_error if selected_lot.mapping_error is defined else none %}
               {% if mapping_payload %}
                 {% set mapping = mapping_payload.mapping %}
                 {% set profiles = mapping_payload.profiles %}
@@ -548,6 +549,22 @@
                       </div>
                     </form>
                   {% endif %}
+                </section>
+              {% elif mapping_error %}
+                <section class="fr-mt-5v" aria-labelledby="mapping-unavailable-title">
+                  <h3 id="mapping-unavailable-title">Mapping</h3>
+                  <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
+                    <h4 class="fr-alert__title">{{ mapping_error.title }}</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      {{ mapping_error.cause }}
+                    </p>
+                    <p class="fr-mb-1v">
+                      <strong>Action attendue :</strong>
+                      {{ mapping_error.action }}
+                    </p>
+                    <p class="fr-text--xs fr-mb-0">Code {{ mapping_error.code }}.</p>
+                  </div>
                 </section>
               {% endif %}
 

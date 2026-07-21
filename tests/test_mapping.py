@@ -4,12 +4,14 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
 
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
+from sircom2026.mapping import MappingError
 from sircom2026.synthetic_excels import create_synthetic_excels
 from sircom2026.worker_runner import run_worker_once
 
@@ -376,6 +378,29 @@ class MappingApiTest(unittest.TestCase):
 
 
 class MappingUiTest(unittest.TestCase):
+    def test_home_ui_renders_mapping_unavailable_message(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = client.post("/api/lots", json={"title": "Lot ancien"}).json()["lot"]["id"]
+
+            with patch(
+                "sircom2026.app.get_mapping_payload",
+                side_effect=MappingError(
+                    409,
+                    "SIRCOM_MAPPING_SOURCE_HEADERS_MISSING",
+                    "La liste structurée des colonnes est absente du diagnostic Excel.",
+                ),
+            ):
+                response = client.get(f"/?lot_id={lot_id}")
+
+        html = response.text
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Mapping indisponible", html)
+        self.assertIn("SIRCOM_MAPPING_SOURCE_HEADERS_MISSING", html)
+        self.assertIn("redéposer l&#39;Excel", html)
+
     def test_home_ui_renders_mapping_validation_screen_after_diagnostic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)

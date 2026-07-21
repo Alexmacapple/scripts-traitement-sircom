@@ -219,8 +219,10 @@ def load_index_context(
                             settings=settings,
                             lot_id=lot_id,
                         )
-                    except MappingError:
+                    except MappingError as exc:
                         selected_lot["mapping"] = None
+                        if exc.code != "SIRCOM_MAPPING_DIAGNOSTIC_NOT_READY":
+                            selected_lot["mapping_error"] = mapping_ui_error(exc)
                     context["selected_lot"] = selected_lot
                 except KeyError:
                     context["ui_error"] = ui_error(
@@ -242,6 +244,24 @@ def ui_error(title: str, cause: str, action: str) -> dict[str, str]:
         "title": title,
         "cause": cause,
         "action": action,
+    }
+
+
+def mapping_ui_error(exc: MappingError) -> dict[str, str]:
+    if exc.code == "SIRCOM_MAPPING_SOURCE_HEADERS_MISSING":
+        action = (
+            "Relancer le diagnostic Excel ou redéposer l'Excel pour reconstruire "
+            "les métadonnées de colonnes."
+        )
+    elif exc.code == "SIRCOM_MAPPING_DIAGNOSTIC_BLOCKED":
+        action = "Corriger l'Excel bloquant puis redéposer le fichier."
+    else:
+        action = "Relancer l'étape précédente ou redéposer l'Excel."
+    return {
+        "title": "Mapping indisponible",
+        "cause": exc.message,
+        "action": action,
+        "code": exc.code,
     }
 
 
