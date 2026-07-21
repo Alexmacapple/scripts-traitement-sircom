@@ -159,14 +159,14 @@
   humaine.
 - [x] Conserver l'ordre Excel avec alerte non bloquante si les colonnes de tri ne
   sont pas détectées.
-- [ ] Créer un vérificateur de contrat CSV avant le writer final :
-  - [ ] UTF-16 avec BOM ;
-  - [ ] séparateur virgule ;
-  - [ ] LF ;
-  - [ ] guillemets automatiques seulement si nécessaire ;
-  - [ ] cellules vides conservées ;
-  - [ ] comparaison structurelle avec le CSV 2025 de référence.
-- [ ] Ajouter les tests de sortie CSV UTF-16 compatibles avec
+- [x] Créer un vérificateur de contrat CSV avant le writer final :
+  - [x] UTF-16 avec BOM ;
+  - [x] séparateur virgule ;
+  - [x] LF ;
+  - [x] guillemets automatiques seulement si nécessaire ;
+  - [x] cellules vides conservées ;
+  - [x] comparaison structurelle avec le CSV 2025 de référence.
+- [x] Ajouter les tests de sortie CSV UTF-16 compatibles avec
   `livrables-miweb-2025/livrables-miweb-1-2025/9-final-sircom-indesign-utf16.csv`.
 - [ ] Implémenter l'aperçu CSV avec en-têtes finaux, premières lignes, colonnes
   supprimées, lignes supprimées et alertes.

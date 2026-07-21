@@ -76,6 +76,7 @@ EVENT_TYPE_LABELS = {
     "excel.diagnostic_completed": "Excel diagnostiqué",
     "excel.uploaded": "Excel déposé",
     "fusion.completed": "Fusion multi-onglets terminée",
+    "csv_contract.verified": "Contrat CSV vérifié",
     "lot.created": "Lot créé",
     "lot.deleted": "Suppression logique demandée",
     "artifact.commit_rejected": "Commit d'artefact refusé",

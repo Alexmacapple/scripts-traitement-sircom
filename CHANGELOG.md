@@ -49,6 +49,9 @@
 - Implémentation du ticket 15 Sircom 2026 : proposition de tri
   région/département, validation humaine persistée, repli ordre source avec
   alerte si les colonnes ne sont pas détectées et refus des détections ambiguës.
+- Implémentation du ticket 16 Sircom 2026 : vérificateur exécutable du contrat
+  CSV InDesign avec contrôle UTF-16 LE BOM, virgule, LF, en-têtes métier,
+  cellules vides, valeurs interdites et comparaison structurelle au CSV 2025.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.
