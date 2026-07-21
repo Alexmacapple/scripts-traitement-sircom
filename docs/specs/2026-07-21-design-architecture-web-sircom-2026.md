@@ -66,6 +66,12 @@ Routes froides :
 - `GET /health` doit répondre sans charger de fichier Excel, d'image ou de lot.
 - `GET /health/ready` vérifie la base SQLite, le répertoire de données et
   l'espace disque minimal.
+- `GET /health/ready` retourne 200 seulement si la configuration est valide,
+  `SIRCOM_DATA_DIR` est créable et inscriptible, une connexion SQLite `SELECT 1`
+  réussit sur `SIRCOM_SQLITE_PATH` même au premier démarrage, et l'espace libre
+  est supérieur ou égal à `SIRCOM_DISK_FREE_MIN_MB`. Sinon la route retourne
+  503 avec un code stable. Le schéma métier complet reste hors périmètre de
+  cette readiness jusqu'au ticket 03.
 - `/docs` et `/openapi.json` restent disponibles sans job lancé.
 
 Ressources au démarrage :
@@ -170,19 +176,30 @@ Variables minimales :
 
 Valeurs V1 recommandées :
 
+- data dir : `.sircom2026-data` ;
+- SQLite : `${SIRCOM_DATA_DIR}/sircom.sqlite3` ;
 - Excel : 50 Mo ;
 - zip images : 1 Go ;
 - images : 1500 ;
 - taille image : 50 Mo ;
 - décompressé : 3 Go ;
 - rétention : 7 jours ;
-- racine InDesign : `/Users/victoria/Documents/export-jpg-resize`.
+- racine InDesign : `/Users/victoria/Documents/export-jpg-resize` ;
+- bind HTTP : `127.0.0.1` ;
+- port HTTP : `8000` ;
+- worker local : activé ;
+- worker ID : `local-1` ;
+- jobs actifs maximum : `1` ;
+- disque libre minimal : `5120` MiB.
 
 Tests :
 
 - defaults ;
 - surcharge par environnement ;
 - refus des valeurs invalides.
+- readiness au premier démarrage sans fichier SQLite existant ;
+- readiness avec data dir non inscriptible ;
+- readiness avec disque juste sous le seuil et au seuil.
 
 ### `sircom2026.api`
 
@@ -376,7 +393,9 @@ Règles :
 
 - zip source uploadé par lot ;
 - images attendues à la racine du zip en V1 ;
-- sous-dossiers signalés selon politique V1 à confirmer ;
+- toute image placée dans un sous-dossier du zip est refusée en V1 ; seuls les
+  fichiers système explicitement ignorables (`__MACOSX/`, `.DS_Store`) peuvent
+  être écartés sans bloquer ;
 - une image principale par dossier ;
 - absence d'image non bloquante ;
 - images non référencées ignorées mais listées ;
@@ -664,7 +683,7 @@ Statut global : à implémenter et à tester.
 | POST | `/api/lots` | nom optionnel | lot créé | 400 entrée invalide | lot en base |
 | GET | `/api/lots` | filtres simples | liste paginée | 400 filtre invalide | pagination |
 | GET | `/api/lots/{lot_id}` | lot_id | détail lot | 404 inconnu | état + étapes |
-| DELETE | `/api/lots/{lot_id}` | lot_id | purge demandée/effectuée | 404, 409 job actif | artefacts supprimés |
+| DELETE | `/api/lots/{lot_id}` | lot_id | purge demandée/effectuée | 404 ; 202 si annulation coopérative requise | artefacts supprimés |
 | POST | `/api/lots/{lot_id}/excel` | fichier Excel | artefact upload + job diagnostic | 413, 415, 422 | upload borné |
 | GET | `/api/lots/{lot_id}/excel/diagnostic` | lot_id | diagnostic structuré | 404, 409 non prêt | problèmes affichables |
 | PUT | `/api/lots/{lot_id}/mapping` | mapping draft | mapping sauvegardé | 422 mapping invalide | provenance complète |
@@ -676,12 +695,15 @@ Statut global : à implémenter et à tester.
 | GET | `/api/lots/{lot_id}/images/status` | lot_id | bilan images | 404 | problèmes images |
 | POST | `/api/lots/{lot_id}/images/problems/{problem_id}/resolve` | résolution | problème résolu | 404, 409, 422 | résolution persistée |
 | POST | `/api/lots/{lot_id}/package` | décision | job package | 409 prérequis manquant | package artifact |
-| GET | `/api/lots/{lot_id}/downloads/{artifact_id}` | ids | flux fichier | 404, 403 lot mismatch | chemin non exposé |
+| GET | `/api/lots/{lot_id}/downloads/{artifact_id}` | ids | flux fichier | 404 absent, supprimé, obsolète ou mauvais lot | chemin non exposé |
 | POST | `/api/lots/{lot_id}/retry` | étape | job relancé | 409 état incompatible | invalidation aval |
 | POST | `/api/lots/{lot_id}/cancel` | lot_id | annulation demandée | 404 | cancel flag |
 | GET | `/api/storage` | aucune | usage global + lots | 500 | indicateurs disque |
 
 Les routes de téléchargement doivent vérifier que l'artefact appartient au lot.
+La réponse publique reste indiscernable : 404 pour artefact absent, supprimé,
+obsolète ou appartenant à un autre lot ; le motif réel reste seulement dans un
+événement technique anonymisé.
 Les routes de mutation doivent contrôler le statut courant avant d'accepter une
 transition.
 
@@ -913,7 +935,7 @@ Contraintes VPS futures :
 Pour le squelette FastAPI :
 
 - `/health` répond ;
-- `/health/ready` couvre SQLite et data dir ;
+- `/health/ready` couvre SQLite, data dir et disque ;
 - OpenAPI généré ;
 - configuration testée.
 

@@ -18,13 +18,15 @@ Critères d'acceptation :
 - [ ] Les doublons de noms après normalisation Unicode/casse sont détectés et
       signalés.
 - [ ] Les images à la racine sont listées.
-- [ ] Un zip avec uniquement des images en sous-dossiers est refusé en V1 avec
-      message actionnable.
+- [ ] Toute image placée dans un sous-dossier du zip est refusée en V1 avec
+      message actionnable ; seuls les fichiers système explicitement ignorables
+      (`__MACOSX/`, `.DS_Store`) peuvent être écartés sans bloquer.
 - [ ] Un zip sans image traitable produit une alerte non bloquante pour le CSV.
 - [ ] L'inspection nettoie le répertoire temporaire du lot en cas d'échec.
 - [ ] Un nouvel upload zip invalide le traitement images et le package.
-- [ ] Tests pour zip valide, signature invalide, traversal, sous-dossiers,
-      doublons normalisés, zip vide et zip trop gros.
+- [ ] Tests pour zip valide, signature invalide, traversal, sous-dossier seul,
+      zip mixte racine/sous-dossier, doublons normalisés, zip vide et zip trop
+      gros.
 
 Hors périmètre :
 

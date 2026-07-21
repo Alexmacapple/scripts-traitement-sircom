@@ -16,8 +16,11 @@ Critères d'acceptation :
 - [ ] Le choix frontend V1 est explicite : templates FastAPI/Jinja et DSFR
       statique, sans SPA sauf décision ultérieure documentée.
 - [ ] `GET /health` répond sans dépendre de SQLite, Excel, images ou worker.
-- [ ] `GET /health/ready` vérifie au minimum configuration, data dir et
-      possibilité d'ouvrir SQLite si le fichier existe.
+- [ ] `GET /health/ready` retourne 200 seulement si la configuration est valide,
+      le data dir est créable et inscriptible, une connexion SQLite `SELECT 1`
+      réussit même au premier démarrage et l'espace libre est supérieur ou égal
+      à `SIRCOM_DISK_FREE_MIN_MB`; sinon 503 avec code stable. Le schéma métier
+      reste hors périmètre jusqu'au ticket 03.
 - [ ] `GET /api/config/limits` retourne les limites configurées sans exposer de
       chemins disque internes.
 - [ ] `/docs` et `/openapi.json` sont disponibles.
@@ -32,9 +35,12 @@ Critères d'acceptation :
       `SIRCOM_DISK_FREE_MIN_MB`.
 - [ ] `.sircom2026-data/` est ajouté au `.gitignore`.
 - [ ] Tests de configuration pour valeurs par défaut, surcharge par
-      environnement et valeur invalide.
+      environnement et valeur invalide, incluant `SIRCOM_MAX_ACTIVE_JOBS=1` et
+      `SIRCOM_DISK_FREE_MIN_MB=5120`.
 - [ ] Tests `TestClient` pour `/health`, `/health/ready`,
       `/api/config/limits` et OpenAPI.
+- [ ] Tests readiness pour premier démarrage sans SQLite existante, data dir non
+      inscriptible, disque juste sous le seuil et disque au seuil.
 
 Hors périmètre :
 

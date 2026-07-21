@@ -13,6 +13,10 @@ Critères d'acceptation :
       défaut.
 - [ ] Le mapping conserve onglet source, lettre colonne, nom original, nom CSV,
       statut exporté ou supprimé et position de sortie.
+- [ ] Les en-têtes CSV finaux suivent exactement la règle 2025 : préfixe de la
+      lettre de colonne Excel (`a_`, `b_`, ..., `aa_`), puis minuscules, sans
+      accents, sans caractères spéciaux, longueur maximale 10 caractères.
+      `id_dossier`, `imageid` et `@pathimg` sont les seules exceptions V1.
 - [ ] Le format du profil contient version, fingerprint structurel, onglets,
       en-têtes, lettres, types logiques confirmés et date de dernière
       utilisation.
@@ -24,8 +28,8 @@ Critères d'acceptation :
 - [ ] Les incompatibilités de profil sont affichées.
 - [ ] La validation est refusée si aucune colonne métier n'est sélectionnée.
 - [ ] Les collisions de noms CSV après nettoyage bloquent la validation.
-- [ ] Tests pour mapping par défaut, profil compatible, profil incompatible et
-      collision.
+- [ ] Tests pour mapping par défaut, profil compatible, profil incompatible,
+      collision et nom original accentué de plus de 10 caractères.
 
 Hors périmètre :
 

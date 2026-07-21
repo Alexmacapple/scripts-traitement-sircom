@@ -25,6 +25,9 @@ Sources à lire réellement :
 
 Limites :
 - Ne touche pas au code applicatif.
+- À part le rapport Markdown attendu, ne modifie aucun fichier. Si tu recommandes
+  une correction, fournis un patch proposé ou une liste précise
+  fichier/ligne/nouveau texte, mais n'applique rien.
 - Ne modifie aucun fichier de données réel, Excel, zip, image, export, log ou artefact généré.
 - Ne commite rien et ne pousse rien.
 - Ne déplace pas les specs ni les tickets.
@@ -57,6 +60,15 @@ Produis un rapport Markdown dans :
 `/Users/alex/Claude/projets-heberges/madeinfrance/docs/2026-07-21-verification-globale-sircom-2026.md`
 
 Structure du rapport :
+Ajoute tout en haut du rapport un bloc `Décision actionnable` avec :
+- Verdict :
+- Frontier exacte :
+- Nombre de corrections bloquantes :
+- Nombre de corrections mineures :
+- Fichiers à modifier avant ticket 01 :
+- Ticket 01 lançable maintenant : oui/non + raison.
+
+Puis structure le rapport ainsi :
 1. Verdict court : `GO ticket 01`, `GO avec corrections mineures`, ou `STOP avant implémentation`.
 2. Résumé exécutif en 5 à 10 lignes.
 3. Matrice de couverture : cuisine-moi/specs -> tickets.

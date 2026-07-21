@@ -13,7 +13,13 @@ Index secondaire : `docs/tickets/2026-07-21-sircom-2026/README.md`.
 Revue détaillée par ticket :
 `docs/tickets/2026-07-21-sircom-2026/revue-connus-inconnus-avocat-du-diable.md`.
 
-Statut cible des tickets : `ready-for-agent`.
+Statut cible initial des tickets : `ready-for-agent`.
+
+Note post-revues GLM/SOL/Codex : après correction P0, seule la frontier
+`{01}` est exécutable. Après livraison du ticket 01, le ticket 02 peut être
+ouvert. Le ticket 03 et les tickets qui dépendent du schéma, du worker, du CSV,
+des images ou de la purge ne doivent pas être ouverts avant la passe de décisions
+listée dans `docs/2026-07-21-synthese-verification-globale-sircom-2026.md`.
 
 Sources :
 

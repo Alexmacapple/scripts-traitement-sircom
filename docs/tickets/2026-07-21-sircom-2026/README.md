@@ -6,6 +6,13 @@ Revue détaillée : [revue connu-inconnu et avocat du diable](revue-connus-incon
 
 Frontier initiale : ticket 01 uniquement.
 
+Note post-revues GLM/SOL/Codex : après correction P0, seul le ticket 01 est
+exécutable. Après livraison du ticket 01, le ticket 02 peut être ouvert. Le
+ticket 03 et les tickets qui dépendent du schéma, du worker, du CSV, des images
+ou de la purge conservent le découpage validé, mais restent à durcir par la
+passe de décisions documentée dans
+../../2026-07-21-synthese-verification-globale-sircom-2026.md avant ouverture.
+
 | N | Ticket | Dépend de |
 |---|---|---|
 | 01 | [Socle FastAPI, configuration, santé et UI shell DSFR](01-socle-fastapi-configuration-sante-et-ui-shell-dsfr.md) | aucun, peut commencer immédiatement. |

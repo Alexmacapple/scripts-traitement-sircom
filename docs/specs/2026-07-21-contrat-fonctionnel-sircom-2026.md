@@ -452,6 +452,12 @@ doivent être converties en décisions ou en tests avant `/to-tickets`.
 
 ## Questions ouvertes
 
+- Couplage gabarit InDesign 2026 : confirmer avec le Sircom si le gabarit de
+  publipostage 2026 référence les noms 2026 (`id_dossier` et noms nettoyés issus
+  du mapping) ou réemploie les noms de champ 2025 (`b_id`, `a_madeinfr`, etc.).
+  Dans le second cas, prévoir un adaptateur de noms ou faire adapter le gabarit.
+  La fidélité au format 2025 ne couvre pas l'identité des noms de colonnes ; un
+  test InDesign sur échantillon reste le contrôle final hors automatisation V1.
 - Format de stockage et portée des profils de mapping.
 - Format exact du rapport téléchargeable.
 - Liste exacte des fichiers du package final au-delà du minimum.
@@ -495,9 +501,10 @@ doivent être converties en décisions ou en tests avant `/to-tickets`.
   CSV. Le package peut être produit sans images avec alerte forte, sauf si une
   autre règle bloquante s'applique.
 - Zip avec sous-dossiers vs zip sans image traitable : la V1 ne traite que les
-  images à la racine. Un zip dont les seules images sont en sous-dossiers est
-  refusé comme source images, tout en laissant possible l'export CSV sans images
-  avec alerte forte si les autres critères sont valides.
+  images à la racine. Toute image placée dans un sous-dossier est refusée en V1,
+  sauf fichiers système explicitement ignorables (`__MACOSX/`, `.DS_Store`). Un
+  zip sans image traitable peut laisser possible l'export CSV sans images avec
+  alerte forte si les autres critères sont valides.
 - Téléchargements séparés vs package requis : les téléchargements séparés sont
   optionnels ; le package zip complet est le livrable obligatoire.
 - Mapping libre vs compatibilité InDesign : l'utilisateur choisit les champs,

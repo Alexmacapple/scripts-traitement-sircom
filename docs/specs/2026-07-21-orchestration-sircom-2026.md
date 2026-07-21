@@ -358,8 +358,7 @@ résolve seul les ambiguïtés de la spec.
 - Contrat de cohérence entre SQLite, artefacts disque et purge.
 - Graphe exact d'invalidation entre étapes et empreintes d'inputs.
 - Règles de sécurité d'extraction zip et de normalisation des noms de fichiers.
-- Seuils de pression disque globale, concurrence maximale et réservation
-  d'espace.
+- Réservation d'espace distincte avant job lourd.
 - Transitions techniques exhaustives à formaliser dans les tests du module
   d'orchestration.
 
@@ -373,3 +372,12 @@ résolve seul les ambiguïtés de la spec.
   de données métier réelles.
 - Les libellés UI sont en français ; les identifiants internes restent stables et
   sans accents.
+
+## Décisions V1 complémentaires post-revue
+
+- Concurrence locale : `SIRCOM_MAX_ACTIVE_JOBS=1`.
+- Disque libre minimal : `SIRCOM_DISK_FREE_MIN_MB=5120`.
+- Ces valeurs sont surchargeables par variables d'environnement, validées au
+  démarrage et appliquées par `/health/ready`.
+- Aucune réservation d'espace distincte n'est définie en P0 ; elle reste à
+  arbitrer avant les jobs lourds images/package.

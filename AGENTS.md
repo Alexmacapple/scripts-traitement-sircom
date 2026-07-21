@@ -109,7 +109,7 @@ Le package final 2026 doit contenir au minimum :
 - Sans mapping utilisateur, toutes les colonnes de tous les onglets sont mises à plat ; avec mapping, seules les colonnes sélectionnées sont exportées.
 - Import Excel : refuser l'import si la structure est ambiguë ou non fiable, notamment cellules fusionnées, en-têtes sur plusieurs lignes, colonnes masquées, formules ou impossibilité d'identifier proprement les en-têtes et `id_dossier`; afficher un message clair indiquant quoi corriger.
 - Mapping interne avec provenance complète : onglet source, lettre colonne, nom original, nom CSV final, statut exporté ou supprimé.
-- Renommage des colonnes selon 2025 : préfixe lettre Excel, minuscules, sans accents, sans caractères spéciaux, 10 caractères maximum.
+- Renommage des colonnes selon 2025 : préfixe lettre Excel, minuscules, sans accents, sans caractères spéciaux, 10 caractères maximum. Exceptions 2026 : la clé logique exportée reste `id_dossier`, et les colonnes ajoutées restent `imageid` et `@pathimg`.
 - `imageid` et `@pathimg` sont placés juste après `id_dossier`.
 - Sortie CSV finale strictement fidèle au CSV 2025 de référence : UTF-16 avec BOM, séparateur virgule, LF, guillemets automatiques si nécessaire, cellules vides conservées en sortie.
 - Les absences doivent être signalées dans l'interface et le rapport, même si elles sortent en cellule vide dans le CSV.

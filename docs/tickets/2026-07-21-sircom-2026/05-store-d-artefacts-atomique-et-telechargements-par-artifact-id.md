@@ -16,6 +16,9 @@ Critères d'acceptation :
 - [ ] Le téléchargement passe par `artifact_id` et vérifie l'appartenance au lot.
 - [ ] Un artefact `pending`, `obsolete` ou supprimé n'est pas téléchargeable
       comme artefact courant.
+- [ ] Un artefact absent, supprimé, obsolète ou appartenant à un autre lot
+      retourne publiquement le même 404 stable ; aucun 403 ne révèle qu'il
+      existe ailleurs.
 - [ ] Aucun chemin absolu interne n'est exposé dans l'API.
 - [ ] Les états `pending`, `committed` et `obsolete` sont testés.
 - [ ] Un test simule un échec avant commit et vérifie que l'artefact n'est pas
@@ -31,7 +34,8 @@ Hors périmètre :
 
 Preuve attendue :
 
-- tests unitaires du store et test API de téléchargement.
+- tests unitaires du store et test API de téléchargement, dont le cas 404
+  indiscernable.
 
 ---
 

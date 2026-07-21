@@ -18,7 +18,11 @@ Critères d'acceptation :
       optionnels, identifiant de corrélation si disponible.
 - [ ] Les réponses d'erreur n'exposent pas de chemin disque interne.
 - [ ] Les erreurs d'accès ne révèlent pas de données d'un autre lot.
-- [ ] Tests pour accès autorisé, accès refusé et erreur structurée.
+- [ ] Pour un artefact absent, supprimé, obsolète ou appartenant à un autre lot,
+      la réponse publique reste 404 avec le même code stable ; le motif réel
+      reste uniquement dans un événement technique anonymisé.
+- [ ] Tests pour accès autorisé, accès refusé, erreur structurée et
+      indistinction publique 404.
 
 Hors périmètre :
 

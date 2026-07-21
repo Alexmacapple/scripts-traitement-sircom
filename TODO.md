@@ -45,6 +45,14 @@
   avertissement ou extraction encadrée.
 - [x] Encadrer la décision HEIC dans le ticket 19 : support testé, refus clair
   ou dépendance optionnelle documentée.
+- [x] Appliquer le patch P0 de lancement ticket 01 : defaults V1
+  `SIRCOM_MAX_ACTIVE_JOBS=1`, `SIRCOM_DISK_FREE_MIN_MB=5120` et contrat
+  `/health/ready` testable.
+- [ ] Fermer la passe de décisions avant tickets 03 et aval : schéma run-scopé,
+  machine d'états, worker lease/fencing, DAG/fingerprints, bindings images,
+  mapping profils/rôles, purge/disque et sémantique CSV/package.
+- [ ] Clarifier avec le Sircom le couplage gabarit InDesign 2026 : nouveaux noms
+  `id_dossier`/mapping ou réemploi des champs 2025.
 
 ## Prochain incrément - Socle web local
 
