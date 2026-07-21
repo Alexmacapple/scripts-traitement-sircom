@@ -154,6 +154,7 @@ sélectionner et supprimer logiquement des lots.
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[test]"
+.venv/bin/python -m playwright install chromium
 .venv/bin/python -m uvicorn sircom2026.app:app --host 127.0.0.1 --port 8000
 ```
 
