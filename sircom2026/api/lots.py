@@ -32,6 +32,11 @@ from sircom2026.mapping import (
     save_profile_from_validated_mapping,
     validate_mapping,
 )
+from sircom2026.sorting import (
+    SortDecisionError,
+    get_sort_payload,
+    validate_sort_decision,
+)
 
 
 router = APIRouter(prefix="/api/lots", tags=["lots"])
@@ -71,6 +76,10 @@ class SaveMappingProfileRequest(BaseModel):
 
 class ApplyMappingProfileRequest(BaseModel):
     profile_id: str = Field(min_length=1, max_length=160)
+
+
+class SortDecisionRequest(BaseModel):
+    decision: str = Field(min_length=1, max_length=32)
 
 
 @router.post("", status_code=201)
@@ -398,6 +407,64 @@ async def apply_lot_mapping_profile_as_draft(
     }
 
 
+@router.get("/{lot_id}/tri")
+async def read_lot_sort(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
+    database: Annotated[Database, Depends(get_database)],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    with database.session() as repositories:
+        try:
+            payload = get_sort_payload(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+            )
+        except SortDecisionError as exc:
+            raise sort_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    artifact = payload["artifact"]
+    return {
+        "proposal": payload["proposal"],
+        "decision": payload["decision"],
+        "artifact": mapping_artifact_response(artifact, lot_id) if artifact else None,
+    }
+
+
+@router.post("/{lot_id}/tri/validate")
+async def validate_lot_sort(
+    lot_id: str,
+    request: Request,
+    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
+    database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[SortDecisionRequest, Body()],
+) -> dict[str, object]:
+    settings = request.app.state.settings
+    idempotency_key = idempotency_key_from_request(request) or f"sort_validate:{uuid.uuid4().hex}"
+    with database.transaction() as repositories:
+        try:
+            result = validate_sort_decision(
+                repositories,
+                settings=settings,
+                lot_id=lot_id,
+                decision=payload.decision,
+                idempotency_key=idempotency_key,
+            )
+        except SortDecisionError as exc:
+            raise sort_api_error(exc) from exc
+        except KeyError as exc:
+            raise lot_not_found() from exc
+    return {
+        "decision": result.decision,
+        "artifact": mapping_artifact_response(result.artifact, lot_id),
+        "lot": result.lot,
+        "invalidated_steps": list(result.invalidated_steps),
+    }
+
+
 @router.get("")
 async def read_lots(
     _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_READ))],
@@ -483,6 +550,15 @@ def mapping_artifact_response(artifact: dict[str, object], lot_id: str) -> dict[
 
 
 def mapping_api_error(exc: MappingError) -> ApiError:
+    return ApiError(
+        exc.status_code,
+        exc.code,
+        exc.message,
+        details=exc.details,
+    )
+
+
+def sort_api_error(exc: SortDecisionError) -> ApiError:
     return ApiError(
         exc.status_code,
         exc.code,

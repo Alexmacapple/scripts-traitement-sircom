@@ -46,6 +46,9 @@
   fusion, conversion des retours ligne en `<br>`, trim/réduction des espaces,
   dates valides en `dd/mm/yyyy`, alertes pour dates invalides ou absentes et
   préservation texte des champs sensibles.
+- Implémentation du ticket 15 Sircom 2026 : proposition de tri
+  région/département, validation humaine persistée, repli ordre source avec
+  alerte si les colonnes ne sont pas détectées et refus des détections ambiguës.
 - Ajout des contrats complémentaires d'implémentation Sircom 2026 : index
   normatif, UI DSFR, exécution/stockage/worker, données CSV/images et
   exploitation/purge.

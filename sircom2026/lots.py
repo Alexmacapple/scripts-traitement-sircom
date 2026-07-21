@@ -94,6 +94,7 @@ EVENT_TYPE_LABELS = {
     "mapping.validated": "Mapping validé",
     "problem.recorded": "Problème enregistré",
     "retry.requested": "Relance demandée",
+    "sort.validated": "Décision de tri validée",
     "step.input_changed": "Input modifié",
     "step.invalidated": "Étape invalidée",
     "step.ready": "Étape prête",

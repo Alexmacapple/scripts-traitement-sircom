@@ -7,7 +7,7 @@ from typing import Any
 
 from sircom2026.database import Database, Repositories
 from sircom2026.pipeline import FINGERPRINT_REQUIRED_STEP_KEYS
-from sircom2026.state import complete_step, transition_step
+from sircom2026.state import complete_step, require_human_validation, transition_step
 
 
 class WorkerCancelled(RuntimeError):
@@ -25,6 +25,7 @@ class JobResult:
     expected_input_fingerprint: str | None = None
     final_step_status: str | None = None
     enqueue_next_steps: tuple[str, ...] = ()
+    require_next_validations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -278,6 +279,28 @@ class LocalWorker:
                                 f"{next_step_key}:{job['step_key']}:{job['run_id']}"
                             ),
                             input_fingerprint=next_input_fingerprint,
+                        )
+                if job_result.require_next_validations:
+                    from sircom2026.invalidation import step_input_fingerprint
+
+                    for next_step_key in job_result.require_next_validations:
+                        next_input_fingerprint = step_input_fingerprint(
+                            repositories,
+                            lot_id=job["lot_id"],
+                            step_key=next_step_key,
+                        )
+                        next_run_id = _new_run_id()
+                        repositories.steps.prepare_run(
+                            lot_id=job["lot_id"],
+                            step_key=next_step_key,
+                            run_id=next_run_id,
+                            input_fingerprint=next_input_fingerprint,
+                        )
+                        require_human_validation(
+                            repositories,
+                            lot_id=job["lot_id"],
+                            step_key=next_step_key,
+                            run_id=next_run_id,
                         )
             repositories.events.create(
                 lot_id=job["lot_id"],

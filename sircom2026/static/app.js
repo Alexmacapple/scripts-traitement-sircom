@@ -5,11 +5,13 @@ const excelUploadForm = document.querySelector("#excel-upload-form");
 const mappingForm = document.querySelector("#mapping-form");
 const mappingProfileForm = document.querySelector("#mapping-profile-form");
 const applyMappingProfileButtons = document.querySelectorAll("[data-apply-mapping-profile-id]");
+const sortDecisionButtons = document.querySelectorAll("[data-sort-decision]");
 const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
 let excelUploadInFlight = false;
 let mappingInFlight = false;
+let sortInFlight = false;
 
 function showError(title, cause, action) {
   if (!messageBox) return;
@@ -261,6 +263,35 @@ applyMappingProfileButtons.forEach((button) => {
         "Profil impossible",
         error.message,
         "Choisir un profil compatible avec l'Excel courant."
+      );
+    }
+  });
+});
+
+sortDecisionButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    const lotId = button.dataset.sortLotId;
+    const decision = button.dataset.sortDecision;
+    if (!lotId || !decision || sortInFlight) return;
+
+    sortInFlight = true;
+    try {
+      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/tri/validate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": nextIdempotencyKey(),
+        },
+        body: JSON.stringify({ decision }),
+      });
+      await parseJsonResponse(response);
+      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    } catch (error) {
+      sortInFlight = false;
+      showError(
+        "Tri impossible",
+        error.message,
+        "Vérifier les rôles région et département puis réessayer."
       );
     }
   });

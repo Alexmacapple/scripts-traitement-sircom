@@ -155,9 +155,9 @@
   confirmées comme dates.
 - [x] Signaler les dates invalides ou absentes tout en gardant des cellules vides
   dans le CSV final.
-- [ ] Implémenter la proposition de tri région puis département avec validation
+- [x] Implémenter la proposition de tri région puis département avec validation
   humaine.
-- [ ] Conserver l'ordre Excel avec alerte non bloquante si les colonnes de tri ne
+- [x] Conserver l'ordre Excel avec alerte non bloquante si les colonnes de tri ne
   sont pas détectées.
 - [ ] Créer un vérificateur de contrat CSV avant le writer final :
   - [ ] UTF-16 avec BOM ;

@@ -29,6 +29,7 @@ from sircom2026.config import ConfigError, Settings, load_settings
 from sircom2026.database import Database, SchemaVersionError, connect_sqlite
 from sircom2026.lots import get_lot_detail, list_lots
 from sircom2026.mapping import MappingError, get_mapping_payload
+from sircom2026.sorting import SortDecisionError, get_sort_payload
 
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -223,6 +224,14 @@ def load_index_context(
                         selected_lot["mapping"] = None
                         if exc.code != "SIRCOM_MAPPING_DIAGNOSTIC_NOT_READY":
                             selected_lot["mapping_error"] = mapping_ui_error(exc)
+                    try:
+                        selected_lot["sort"] = get_sort_payload(
+                            repositories,
+                            settings=settings,
+                            lot_id=lot_id,
+                        )
+                    except SortDecisionError:
+                        selected_lot["sort"] = None
                     context["selected_lot"] = selected_lot
                 except KeyError:
                     context["ui_error"] = ui_error(

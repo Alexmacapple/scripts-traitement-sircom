@@ -354,6 +354,7 @@ def run_content_normalization_job(context: WorkerJobContext, *, settings: Settin
     return JobResult(
         with_warnings=normalization_result.has_warnings,
         output_fingerprint=output_fingerprint,
+        require_next_validations=("tri_region_departement",),
     )
 
 
