@@ -167,13 +167,13 @@ async def retry_lot_step(
             raise ApiError(
                 400,
                 "SIRCOM_STEP_INVALID",
-                "Etape inconnue.",
+                "Étape inconnue.",
             ) from exc
         except RetryNotAllowedError as exc:
             raise ApiError(
                 409,
                 "SIRCOM_RETRY_NOT_ALLOWED",
-                "Relance impossible pour cette etape.",
+                "Relance impossible pour cette étape.",
             ) from exc
         except KeyError as exc:
             raise lot_not_found() from exc
