@@ -1,0 +1,134 @@
+              {% set reports_payload = selected_lot.reports if selected_lot.reports is defined else none %}
+              {% set reports_step = selected_lot.steps | selectattr("key", "equalto", "rapports") | first %}
+              {% if active_view == "rapports" %}
+              <section class="fr-mt-5v" aria-labelledby="reports-title">
+                <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                  <div class="fr-col">
+                    <h3 id="reports-title">Récupérer les livrables</h3>
+                  </div>
+                  <div class="fr-col-auto">
+                    {% if reports_payload %}
+                      <p class="fr-badge fr-badge--success fr-badge--sm">Prêts</p>
+                    {% else %}
+                      <p class="fr-badge fr-badge--info fr-badge--sm">
+                        {{ reports_step.status_label if reports_step else "Non démarrée" }}
+                      </p>
+                    {% endif %}
+                  </div>
+                </div>
+
+                {% if reports_payload %}
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Métier</dt>
+                      <dd>{{ reports_payload.business_report_artifact.size_bytes }} octets</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Technique</dt>
+                      <dd>{{ reports_payload.technical_report_artifact.size_bytes }} octets</dd>
+                    </div>
+                  </dl>
+
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                    <li>
+                      <a
+                        class="fr-btn fr-icon-download-line fr-btn--icon-left"
+                        href="{{ reports_payload.business_report_artifact.download_url }}"
+                      >
+                        Télécharger le rapport métier
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="fr-btn fr-icon-download-line fr-btn--icon-left"
+                        href="{{ reports_payload.technical_report_artifact.download_url }}"
+                      >
+                        Télécharger le rapport technique
+                      </a>
+                    </li>
+                  </ul>
+                {% else %}
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Rapports en attente</h4>
+                    <p class="fr-mb-1v">
+                      Les rapports seront générés après validation de l'aperçu CSV
+                      et traitement des images disponibles.
+                    </p>
+                    <p class="fr-text--sm fr-mb-0">
+                      Le rapport technique ne contient pas de valeurs métier.
+                    </p>
+                  </div>
+                {% endif %}
+              </section>
+              {% endif %}
+
+              {% set package_payload = selected_lot.package if selected_lot.package is defined else none %}
+              {% set package_step = selected_lot.steps | selectattr("key", "equalto", "package_final") | first %}
+              {% if active_view == "package_final" %}
+              <section class="fr-mt-5v" aria-labelledby="package-title">
+                <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                  <div class="fr-col">
+                    <h3 id="package-title">Package final</h3>
+                  </div>
+                  <div class="fr-col-auto">
+                    {% if package_payload %}
+                      <p class="fr-badge fr-badge--success fr-badge--sm">Prêt</p>
+                    {% else %}
+                      <p class="fr-badge fr-badge--info fr-badge--sm">
+                        {{ package_step.status_label if package_step else "Non démarrée" }}
+                      </p>
+                    {% endif %}
+                  </div>
+                </div>
+
+                {% if package_payload %}
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Zip</dt>
+                      <dd>{{ package_payload.artifact.size_bytes }} octets</dd>
+                    </div>
+                  </dl>
+
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                    <li>
+                      <a
+                        class="fr-btn fr-icon-download-line fr-btn--icon-left"
+                        href="{{ package_payload.artifact.download_url }}"
+                      >
+                        Télécharger le package final
+                      </a>
+                    </li>
+                  </ul>
+                {% elif reports_payload %}
+                  <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
+                    <h4 class="fr-alert__title">Validation finale attendue</h4>
+                    <p class="fr-mb-1v">
+                      Les rapports sont prêts. Le package final sera assemblé par le traitement local.
+                    </p>
+                    <p class="fr-text--sm fr-mb-0">
+                      Les alertes images ouvertes sont acceptées pour cette génération.
+                    </p>
+                  </div>
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                    <li>
+                      <button
+                        class="fr-btn fr-icon-archive-line fr-btn--icon-left"
+                        id="package-generate-button"
+                        type="button"
+                        data-package-generate-lot-id="{{ selected_lot.id }}"
+                        data-package-accept-warnings="true"
+                      >
+                        Générer le package final
+                      </button>
+                    </li>
+                  </ul>
+                {% else %}
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Package en attente</h4>
+                    <p class="fr-mb-0">
+                      Le package final sera disponible après les rapports.
+                    </p>
+                  </div>
+                {% endif %}
+              </section>
+              {% endif %}

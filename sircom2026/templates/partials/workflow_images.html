@@ -1,0 +1,221 @@
+              {% if active_view in ["inspection_images", "matching_images"] and lot_ui and lot_ui.image_workflow_steps %}
+                <section class="fr-mt-5v" aria-labelledby="image-workflow-title">
+                  <h3 id="image-workflow-title">{{ active_step.label if active_step else "Traiter les images" }}</h3>
+                  {% if lot_ui.image_workflow_started %}
+                    <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                      <h4 class="fr-alert__title">Étape pilotée par le traitement local</h4>
+                      <p class="fr-mb-1v">
+                        <strong>État :</strong>
+                        {{ active_step.ui_status_label if active_step else selected_lot.status_label }}.
+                      </p>
+                      <p class="fr-mb-0">
+                        Les détails utiles de cette étape sont affichés ci-dessous quand ils sont disponibles.
+                      </p>
+                    </div>
+                  {% else %}
+                    <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                      <h4 class="fr-alert__title">Images à venir</h4>
+                      <p class="fr-mb-0">
+                        Déposer le zip images produit quand les sources sont prêtes.
+                      </p>
+                    </div>
+                  {% endif %}
+                </section>
+              {% endif %}
+
+              {% set image_inspection = selected_lot.image_inspection if selected_lot.image_inspection is defined else none %}
+              {% if active_view == "inspection_images" and image_inspection %}
+                <section class="fr-mt-5v" aria-labelledby="image-inspection-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="image-inspection-title">Inspection images</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      {% if image_inspection.inspectable %}
+                        <p class="fr-badge fr-badge--success fr-badge--sm">Zip inspectable</p>
+                      {% else %}
+                        <p class="fr-badge fr-badge--error fr-badge--sm">Zip refusé</p>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Images</dt>
+                      <dd>{{ image_inspection.image_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Entrées</dt>
+                      <dd>{{ image_inspection.entries_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Fichiers</dt>
+                      <dd>{{ image_inspection.files_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Ignorées</dt>
+                      <dd>{{ image_inspection.ignored_entries_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Décompressé</dt>
+                      <dd>{{ image_inspection.total_uncompressed_bytes }} octets</dd>
+                    </div>
+                  </dl>
+
+                  {% if image_inspection.images %}
+                    <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll">
+                      <div class="fr-table__wrapper">
+                        <div class="fr-table__container">
+                          <div class="fr-table__content">
+                            <table>
+                              <caption>Images détectées à la racine du zip</caption>
+                              <thead>
+                                <tr>
+                                  <th scope="col">Nom</th>
+                                  <th scope="col">Format</th>
+                                  <th scope="col">Taille</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for image in image_inspection.images %}
+                                  <tr>
+                                    <td>{{ image.name }}</td>
+                                    <td>{{ image.extension }}</td>
+                                    <td>{{ image.size_bytes }} octets</td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% else %}
+                    <p class="fr-mt-3v">Aucune image traitable détectée.</p>
+                  {% endif %}
+                </section>
+              {% endif %}
+
+              {% set image_matching_payload = selected_lot.image_matching if selected_lot.image_matching is defined else none %}
+              {% if active_view == "matching_images" and image_matching_payload %}
+                {% set image_matching = image_matching_payload.matching %}
+                <section class="fr-mt-5v" aria-labelledby="image-matching-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="image-matching-title">Association images</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      {% if image_matching.blocking %}
+                        <p class="fr-badge fr-badge--error fr-badge--sm">Résolution attendue</p>
+                      {% elif image_matching.has_warnings %}
+                        <p class="fr-badge fr-badge--warning fr-badge--sm">Avec alertes</p>
+                      {% else %}
+                        <p class="fr-badge fr-badge--success fr-badge--sm">Images traitées</p>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Associées</dt>
+                      <dd>{{ image_matching.matched_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Manquantes</dt>
+                      <dd>{{ image_matching.missing_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Ambiguës</dt>
+                      <dd>{{ image_matching.ambiguous_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Non référencées</dt>
+                      <dd>{{ image_matching.unreferenced_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Secours</dt>
+                      <dd>{{ image_matching.fallback_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-2">
+                      <dt>Tolérance</dt>
+                      <dd>{{ image_matching.tolerant_count }}</dd>
+                    </div>
+                  </dl>
+
+                  {% if image_matching_payload.processed_images_artifact %}
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                      <li>
+                        <a
+                          class="fr-btn fr-icon-download-line fr-btn--icon-left"
+                          href="{{ image_matching_payload.processed_images_artifact.download_url }}"
+                        >
+                          Télécharger les images traitées
+                        </a>
+                      </li>
+                    </ul>
+                  {% endif %}
+
+                  {% if image_matching.bindings %}
+                    <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll">
+                      <div class="fr-table__wrapper">
+                        <div class="fr-table__container">
+                          <div class="fr-table__content">
+                            <table>
+                              <caption>Liaisons image par dossier</caption>
+                              <thead>
+                                <tr>
+                                  <th scope="col">Dossier</th>
+                                  <th scope="col">Statut</th>
+                                  <th scope="col">Niveau</th>
+                                  <th scope="col">Source</th>
+                                  <th scope="col">Image finale</th>
+                                  <th scope="col">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for binding in image_matching.bindings %}
+                                  {% if loop.index <= 50 %}
+                                    <tr>
+                                      <td>{{ binding.id_dossier }}</td>
+                                      <td>{{ binding.status_label }}</td>
+                                      <td>{{ binding.match_level_label }}</td>
+                                      <td>{{ binding.source_name or "" }}</td>
+                                      <td>{{ binding.final_name }}</td>
+                                      <td>
+                                        {% set choices = binding.candidates if binding.candidates else binding.suggestions %}
+                                        {% if binding.status == "ambiguous" and choices %}
+                                          <form
+                                            data-image-resolution-form
+                                            data-image-resolution-lot-id="{{ selected_lot.id }}"
+                                            data-image-resolution-id-dossier="{{ binding.id_dossier }}"
+                                          >
+                                            <div class="fr-select-group fr-mb-2v">
+                                              <label class="fr-label" for="image-resolution-{{ loop.index }}">
+                                                Image source à associer
+                                              </label>
+                                              <select class="fr-select" id="image-resolution-{{ loop.index }}" name="source_name">
+                                                {% for choice in choices %}
+                                                  <option value="{{ choice.name }}">{{ choice.name }}</option>
+                                                {% endfor %}
+                                              </select>
+                                            </div>
+                                            <button class="fr-btn fr-btn--sm fr-icon-check-line fr-btn--icon-left" id="image-resolution-submit-{{ loop.index }}" type="submit">
+                                              Valider cette image
+                                            </button>
+                                          </form>
+                                        {% else %}
+                                          {{ binding.match_level_label }}
+                                        {% endif %}
+                                      </td>
+                                    </tr>
+                                  {% endif %}
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% endif %}
+                </section>
+              {% endif %}

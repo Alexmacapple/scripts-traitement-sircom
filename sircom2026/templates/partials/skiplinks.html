@@ -1,0 +1,35 @@
+    <div class="fr-skiplinks">
+      <nav class="fr-container" aria-label="Accès rapide">
+        <ul class="fr-skiplinks__list">
+          <li>
+            <a class="fr-link" href="#contenu">Accéder au contenu</a>
+          </li>
+          {% if page_mode != "workflow" %}
+            <li>
+              <a class="fr-link" href="#create-lot-title">Accéder à la création de lot</a>
+            </li>
+            <li>
+              <a class="fr-link" href="#lots-title">Accéder aux lots</a>
+            </li>
+            {% if selected_lot %}
+              <li>
+                <a class="fr-link" href="#lot-actions-title">Accéder au dépôt des sources</a>
+              </li>
+            {% endif %}
+          {% elif selected_lot %}
+            <li>
+              <a class="fr-link" href="#steps-menu-title">Accéder aux étapes du lot</a>
+            </li>
+            <li>
+              <a class="fr-link" href="#lot-workspace-title">Accéder à l'étape active</a>
+            </li>
+            <li>
+              <a class="fr-link" href="#lot-details">Accéder aux détails techniques</a>
+            </li>
+          {% endif %}
+          <li>
+            <a class="fr-link" href="#footer">Accéder au pied de page</a>
+          </li>
+        </ul>
+      </nav>
+    </div>

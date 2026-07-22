@@ -1,0 +1,30 @@
+      {% if selected_lot %}
+        {% set top_lot_ui = selected_lot.ui if selected_lot.ui is defined else none %}
+        <div class="fr-container fr-pt-4v">
+          <nav role="navigation" class="fr-breadcrumb fr-mb-0" aria-label="vous êtes ici :">
+            <button class="fr-breadcrumb__button" aria-expanded="false" aria-controls="breadcrumb-lot">
+              Voir le fil d'Ariane
+            </button>
+            <div class="fr-collapse" id="breadcrumb-lot">
+              <ol class="fr-breadcrumb__list">
+                <li>
+                  <a class="fr-breadcrumb__link" href="/">Accueil</a>
+                </li>
+                <li>
+                  <a class="fr-breadcrumb__link" href="/#lots-title">Lots</a>
+                </li>
+                <li>
+                  <a class="fr-breadcrumb__link" href="/?lot_id={{ selected_lot.id }}#lot-detail-title">
+                    {{ selected_lot.title or selected_lot.id }}
+                  </a>
+                </li>
+                <li>
+                  <a class="fr-breadcrumb__link" aria-current="page">
+                    {{ top_lot_ui.breadcrumb_label if top_lot_ui else selected_lot.status_label }}
+                  </a>
+                </li>
+              </ol>
+            </div>
+          </nav>
+        </div>
+      {% endif %}

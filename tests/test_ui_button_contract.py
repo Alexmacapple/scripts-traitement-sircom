@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 
+from tests.template_contracts import read_template_with_includes
+
 
 TEMPLATE_ROOT = Path(__file__).resolve().parents[1] / "sircom2026" / "templates"
 TEMPLATE_PATHS = tuple(sorted(TEMPLATE_ROOT.rglob("*.html")))
@@ -102,7 +104,7 @@ def parse_buttons(path: Path) -> list[ButtonElement]:
 
 class UiButtonContractTest(unittest.TestCase):
     def test_current_step_navigation_is_not_rendered_as_button(self) -> None:
-        html = (TEMPLATE_ROOT / "index.html").read_text(encoding="utf-8")
+        html = read_template_with_includes(TEMPLATE_ROOT / "index.html")
 
         self.assertIn(
             'class="fr-link {{ primary_action.icon_class }} fr-link--icon-right"',
@@ -124,10 +126,14 @@ class UiButtonContractTest(unittest.TestCase):
             'class="fr-btn fr-btn--secondary fr-icon-arrow-left-line fr-btn--icon-left"',
             html,
         )
-        self.assertNotIn(
-            'class="fr-btn fr-icon-arrow-right-line fr-btn--icon-left"',
-            html,
-        )
+        step_navigation_buttons = [
+            button
+            for path in TEMPLATE_PATHS
+            for button in parse_buttons(path)
+            if button.text.startswith(("Étape précédente", "Étape suivante"))
+            and "fr-btn" in button.classes.split()
+        ]
+        self.assertEqual(step_navigation_buttons, [])
         self.assertIn(
             'class="fr-link fr-icon-arrow-down-line fr-link--icon-right"',
             html,

@@ -1,0 +1,319 @@
+              {% if active_view in ["fusion_multi_onglets", "normalisation_contenu", "verification_csv_indesign"] and active_step %}
+                <section class="fr-mt-5v" aria-labelledby="csv-workflow-title">
+                  <h3 id="csv-workflow-title">{{ active_step.label }}</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Étape pilotée par le traitement local</h4>
+                    <p class="fr-mb-1v">
+                      <strong>État :</strong>
+                      {{ active_step.ui_status_label }}.
+                    </p>
+                    <p class="fr-mb-0">
+                      L'application lance cette étape quand les validations précédentes sont terminées.
+                      Aucune action utilisateur n'est attendue ici.
+                    </p>
+                  </div>
+                </section>
+              {% endif %}
+
+              {% set sort_payload = selected_lot.sort if selected_lot.sort is defined else none %}
+              {% if active_view == "tri_region_departement" and sort_payload %}
+                {% set sort_proposal = sort_payload.proposal %}
+                {% set sort_decision = sort_payload.decision %}
+                <section class="fr-mt-5v" aria-labelledby="sort-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="sort-title">Tri région/département</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      <p class="fr-badge fr-badge--sm">
+                        {{ sort_proposal.detection_status_label }}
+                      </p>
+                    </div>
+                  </div>
+
+                  {% if sort_decision %}
+                    <div class="fr-alert fr-alert--success fr-mt-2v" role="status">
+                      <h4 class="fr-alert__title">Décision enregistrée</h4>
+                      <p class="fr-mb-0">{{ sort_decision.decision_label }}</p>
+                    </div>
+                  {% elif sort_proposal.can_sort %}
+                    <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                      <h4 class="fr-alert__title">Colonnes détectées</h4>
+                      <p class="fr-mb-1v">
+                        Région : {{ sort_proposal.region_column.source_header }}
+                        ({{ sort_proposal.region_column.csv_name }}).
+                      </p>
+                      <p class="fr-mb-0">
+                        Département : {{ sort_proposal.department_column.source_header }}
+                        ({{ sort_proposal.department_column.csv_name }}).
+                      </p>
+                    </div>
+                  {% else %}
+                    <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
+                      <h4 class="fr-alert__title">Aucun tri région/département proposé</h4>
+                      <p class="fr-mb-1v">
+                        Les colonnes Région et Département ne sont pas détectées clairement dans le mapping.
+                      </p>
+                      <p class="fr-mb-0">
+                        Choix disponible : conserver l'ordre source, ou revenir au mapping pour renseigner les rôles région et département.
+                      </p>
+                    </div>
+                  {% endif %}
+
+                  {% if sort_proposal.preview_rows %}
+                    <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll">
+                      <div class="fr-table__wrapper">
+                        <div class="fr-table__container">
+                          <div class="fr-table__content">
+                            <table>
+                              <caption>
+                                {% if sort_proposal.can_sort %}
+                                  Aperçu du tri
+                                {% else %}
+                                  Aperçu de l'ordre source
+                                {% endif %}
+                              </caption>
+                              <thead>
+                                <tr>
+                                  <th scope="col">ID dossier</th>
+                                  {% if sort_proposal.can_sort %}
+                                    <th scope="col">Région</th>
+                                    <th scope="col">Département</th>
+                                  {% else %}
+                                    <th scope="col">Position source</th>
+                                  {% endif %}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for row in sort_proposal.preview_rows %}
+                                  <tr>
+                                    <td>{{ row.id_dossier }}</td>
+                                    {% if sort_proposal.can_sort %}
+                                      <td>{{ row.region }}</td>
+                                      <td>{{ row.departement }}</td>
+                                    {% else %}
+                                      <td>{{ row.source_rank }}</td>
+                                    {% endif %}
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% endif %}
+
+                  {% if not sort_decision %}
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                      {% if sort_proposal.can_sort %}
+                        <li>
+                          <button
+                            class="fr-btn fr-icon-sort-asc fr-btn--icon-left"
+                            id="sort-confirm"
+                            type="button"
+                            data-sort-lot-id="{{ selected_lot.id }}"
+                            data-sort-decision="tri_region_departement"
+                          >
+                            Confirmer le tri
+                          </button>
+                        </li>
+                      {% endif %}
+                      <li>
+                        <button
+                          class="fr-btn {% if sort_proposal.can_sort %}fr-btn--secondary {% endif %}fr-icon-list-ordered fr-btn--icon-left"
+                          id="sort-order-source"
+                          type="button"
+                          data-sort-lot-id="{{ selected_lot.id }}"
+                          data-sort-decision="ordre_source"
+                        >
+                          Conserver l'ordre source
+                        </button>
+                      </li>
+                      {% if not sort_proposal.can_sort %}
+                        <li>
+                          <a
+                            class="fr-btn fr-btn--secondary fr-icon-edit-line fr-btn--icon-left"
+                            href="/lots/{{ selected_lot.id }}/excel?view=mapping#mapping-step-title"
+                          >
+                            Corriger le mapping
+                          </a>
+                        </li>
+                      {% endif %}
+                    </ul>
+                  {% endif %}
+                </section>
+              {% elif active_view == "tri_region_departement" %}
+                <section class="fr-mt-5v" aria-labelledby="sort-title">
+                  <h3 id="sort-title">Tri région/département</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Tri en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      la proposition de tri n'est pas encore disponible.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      valider le mapping puis laisser le traitement local préparer cette étape.
+                    </p>
+                  </div>
+                </section>
+              {% endif %}
+
+              {% set csv_preview_payload = selected_lot.csv_preview if selected_lot.csv_preview is defined else none %}
+              {% if active_view == "previsualisation_csv" and csv_preview_payload %}
+                {% set csv_preview = csv_preview_payload.preview %}
+                <section class="fr-mt-5v" aria-labelledby="csv-preview-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="csv-preview-title">Aperçu CSV</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      {% if csv_preview.validated %}
+                        <p class="fr-badge fr-badge--success fr-badge--sm">Validé</p>
+                      {% else %}
+                        <p class="fr-badge fr-badge--info fr-badge--sm">Action requise</p>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  {% if csv_preview.warnings %}
+                    {% for warning in csv_preview.warnings %}
+                      <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
+                        <h4 class="fr-alert__title">{{ warning.title }}</h4>
+                        <p class="fr-mb-1v">
+                          <strong>Cause :</strong>
+                          {{ warning.cause }}
+                        </p>
+                        <p class="fr-mb-1v">
+                          <strong>Action attendue :</strong>
+                          {{ warning.action }}
+                        </p>
+                        <p class="fr-text--xs fr-mb-0">Code {{ warning.code }}.</p>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+
+                  <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Colonnes</dt>
+                      <dd>{{ csv_preview.headers_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Lignes</dt>
+                      <dd>{{ csv_preview.rows_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Colonnes supprimées</dt>
+                      <dd>{{ csv_preview.removed_columns_count }}</dd>
+                    </div>
+                    <div class="fr-col-6 fr-col-md-3">
+                      <dt>Lignes sans ID</dt>
+                      <dd>{{ csv_preview.removed_rows_without_id_count }}</dd>
+                    </div>
+                  </dl>
+
+                  {% if csv_preview.removed_columns %}
+                    <section class="fr-mt-3v" aria-labelledby="csv-preview-removed-columns-title">
+                      <h4 id="csv-preview-removed-columns-title">Colonnes supprimées</h4>
+                      <ul>
+                        {% for column in csv_preview.removed_columns %}
+                          <li>
+                            {{ column.csv_name or column.source_header or column.id }}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+
+                  {% if csv_preview.removed_rows %}
+                    <section class="fr-mt-3v" aria-labelledby="csv-preview-removed-rows-title">
+                      <h4 id="csv-preview-removed-rows-title">Lignes supprimées</h4>
+                      <ul>
+                        {% for row in csv_preview.removed_rows %}
+                          <li>
+                            Rang source {{ row.source_rank or row.row_number or loop.index }}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+
+                  <p class="fr-text--sm fr-mt-3v fr-mb-0">
+                    Lignes affichées : {{ csv_preview.rows | length }} sur {{ csv_preview.rows_count }} (maximum {{ csv_preview.preview_rows_limit }}).
+                  </p>
+                  <div
+                    class="fr-table fr-table--bordered fr-table--layout-fixed fr-mt-2v sircom-csv-preview-table"
+                    style="--sircom-csv-preview-columns: {{ csv_preview.headers_count }};"
+                  >
+                    <div class="fr-table__wrapper">
+                      <div class="fr-table__container">
+                        <div class="fr-table__content">
+                          <table>
+                            <caption>
+                              Premières lignes du CSV final
+                            </caption>
+                            <thead>
+                              <tr>
+                                {% for header in csv_preview.headers %}
+                                  <th scope="col">{{ header }}</th>
+                                {% endfor %}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for row in csv_preview.rows %}
+                                <tr>
+                                  {% for header in csv_preview.headers %}
+                                    <td>{{ row["values"][header] }}</td>
+                                  {% endfor %}
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                    {% if not csv_preview.validated %}
+                      <li>
+                        <button
+                          class="fr-btn fr-icon-check-line fr-btn--icon-left"
+                          id="csv-preview-validate-button"
+                          type="button"
+                          data-csv-preview-validate
+                          data-csv-preview-lot-id="{{ selected_lot.id }}"
+                        >
+                          Valider l'aperçu CSV
+                        </button>
+                      </li>
+                    {% endif %}
+                    {% if csv_preview_payload.csv_artifact %}
+                      <li>
+                        <a
+                          class="fr-btn{% if not csv_preview.validated %} fr-btn--secondary{% endif %} fr-icon-download-line fr-btn--icon-left"
+                          href="/api/lots/{{ selected_lot.id }}/downloads/{{ csv_preview_payload.csv_artifact.id }}"
+                        >
+                          Télécharger le CSV final
+                        </a>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </section>
+              {% elif active_view == "previsualisation_csv" %}
+                <section class="fr-mt-5v" aria-labelledby="csv-preview-title">
+                  <h3 id="csv-preview-title">Aperçu CSV</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Aperçu CSV en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      le CSV final n'a pas encore été généré pour aperçu.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      terminer les étapes précédentes puis actualiser cette page.
+                    </p>
+                  </div>
+                </section>
+              {% endif %}

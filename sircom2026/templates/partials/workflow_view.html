@@ -1,0 +1,176 @@
+        {% if selected_lot and page_mode == "workflow" %}
+          {% if lot_ui.workflow_screens %}
+            <nav class="fr-mt-6v sircom-workflow-screens" aria-labelledby="workflow-screens-title">
+              <h2 id="workflow-screens-title" class="fr-sr-only">Parcours métier du lot</h2>
+              <ul class="fr-raw-list fr-grid-row fr-grid-row--gutters">
+                {% for screen in lot_ui.workflow_screens %}
+                  <li class="fr-col-12 fr-col-md-4">
+                    <a
+                      class="sircom-workflow-screen-link{% if screen.is_active %} sircom-workflow-screen-link--active{% endif %}"
+                      href="{{ screen.href }}"
+                      {% if screen.is_active %}aria-current="page"{% endif %}
+                    >
+                      <span class="sircom-workflow-screen-label">{{ screen.label }}</span>
+                      <span class="fr-badge fr-badge--{{ screen.badge_class }} fr-badge--sm">
+                        {{ screen.status_label }}
+                      </span>
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </nav>
+          {% endif %}
+          <section class="fr-mt-8v" id="lot-detail" aria-labelledby="lot-workspace-title">
+              <div class="fr-grid-row fr-grid-row--gutters fr-mt-5v">
+                <aside class="fr-col-12 fr-col-lg-4">
+                  <nav class="fr-sidemenu" aria-labelledby="steps-menu-title">
+                    <div class="fr-sidemenu__inner">
+                      <button
+                        class="fr-sidemenu__btn"
+                        aria-controls="steps-menu-list"
+                        aria-expanded="false"
+                        type="button"
+                      >
+                        Étapes du traitement
+                      </button>
+                      <div class="fr-collapse" id="steps-menu-list">
+                        <div class="fr-sidemenu__title" id="steps-menu-title">
+                          {{ lot_ui.active_screen.label if lot_ui.active_screen else "Parcours métier" }}
+                        </div>
+                        <ul class="fr-sidemenu__list">
+                          {% for step in lot_ui.screen_step_navigation %}
+                            <li class="fr-sidemenu__item">
+                              <a
+                                class="fr-sidemenu__link"
+                                href="{{ step.href }}"
+                                {% if step.is_active_view %}aria-current="page"{% endif %}
+                              >
+                                {{ step.screen_number }}. {{ step.label }} - {{ step.ui_status_label }}
+                              </a>
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      </div>
+                    </div>
+                  </nav>
+                </aside>
+
+                <section class="fr-col-12 fr-col-lg-8" id="lot-workspace" aria-labelledby="lot-workspace-title">
+                  <p class="fr-badge fr-badge--{{ active_step.ui_badge_class if active_step else 'info' }} fr-badge--sm fr-mb-2v">
+                    Étape {{ active_step.screen_number if active_step and active_step.screen_number is defined else active_step.number if active_step else lot_ui.current_step_number }} sur {{ lot_ui.screen_steps_total or lot_ui.steps_total }} - {{ active_step.ui_status_label if active_step else selected_lot.status_label }}
+                  </p>
+                  <h3 id="lot-workspace-title">{{ active_step.label if active_step else "Où en est le lot ?" }}</h3>
+                  <p class="fr-text--lead">
+                    {{ active_step.ui_description if active_step else "Suivre l'état du lot et reprendre le traitement." }}
+                  </p>
+                  {% if active_step and active_step.ui_guidance %}
+                    <div class="fr-callout fr-icon-info-line fr-mt-3v">
+                      <h4 class="fr-callout__title">Ce qui se passe sur cette étape</h4>
+                      <dl class="fr-grid-row fr-grid-row--gutters fr-mb-0">
+                        <div class="fr-col-12 fr-col-md-4">
+                          <dt class="fr-text--bold">Action utilisateur</dt>
+                          <dd class="fr-mb-0">{{ active_step.ui_guidance.user_action }}</dd>
+                        </div>
+                        <div class="fr-col-12 fr-col-md-4">
+                          <dt class="fr-text--bold">Traitement local</dt>
+                          <dd class="fr-mb-0">{{ active_step.ui_guidance.system_action }}</dd>
+                        </div>
+                        <div class="fr-col-12 fr-col-md-4">
+                          <dt class="fr-text--bold">Résultat attendu</dt>
+                          <dd class="fr-mb-0">{{ active_step.ui_guidance.result }}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  {% endif %}
+                  <div class="fr-grid-row fr-grid-row--gutters">
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Parcours</h4>
+                            <p class="fr-card__desc">
+                              {% if lot_ui.completed %}
+                                Terminé
+                              {% elif lot_ui.current_step %}
+                                {{ lot_ui.current_step.label }}
+                              {% else %}
+                                {{ selected_lot.counters.steps_done }} /
+                                {{ selected_lot.counters.steps_total }} terminées
+                              {% endif %}
+                            </p>
+                            <div class="fr-card__end">
+                              <p class="fr-card__detail">
+                                {{ selected_lot.counters.steps_done }} /
+                                {{ selected_lot.counters.steps_total }} étapes techniques terminées
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Artefacts</h4>
+                            <p class="fr-card__desc">{{ selected_lot.counters.artifacts_count }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Stockage</h4>
+                            <p class="fr-card__desc">
+                              {{ selected_lot.storage.size_label if selected_lot.storage else "0 o" }}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Problèmes ouverts</h4>
+                            <p class="fr-card__desc">{{ selected_lot.counters.problems_open_count }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <ul class="fr-raw-list fr-mt-4v sircom-step-navigation" aria-label="Navigation entre étapes">
+                    {% if lot_ui.previous_view_step %}
+                      <li>
+                        <a class="fr-link fr-icon-arrow-left-line fr-link--icon-left" href="{{ lot_ui.previous_view_step.href }}">
+                          Étape précédente : {{ lot_ui.previous_view_step.label }}
+                        </a>
+                      </li>
+                    {% endif %}
+	                    {% if lot_ui.next_view_step %}
+	                      <li>
+	                        <a class="fr-link fr-icon-arrow-right-line fr-link--icon-right" href="{{ lot_ui.next_view_step.href }}">
+	                          Étape suivante : {{ lot_ui.next_view_step.label }}
+	                        </a>
+	                      </li>
+	                    {% endif %}
+	                  </ul>
+	                </section>
+	              </div>
+
+	              {% include "partials/workflow_source_actions.html" %}
+
+              {% include "partials/workflow_images.html" %}
+
+              {% include "partials/workflow_excel.html" %}
+
+              {% include "partials/workflow_csv.html" %}
+
+              {% include "partials/workflow_deliverables.html" %}
+
+              {% include "partials/workflow_details.html" %}
+	          </section>
+	        {% endif %}

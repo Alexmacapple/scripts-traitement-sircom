@@ -124,6 +124,117 @@ def chromium_browser() -> Iterator[Any]:
     "Set SIRCOM_RUN_PLAYWRIGHT=1 to run browser UI checks.",
 )
 class LotsPlaywrightTest(unittest.TestCase):
+    def test_dom_contract_keeps_home_and_workflow_hooks(self) -> None:
+        with LiveServer() as server:
+            lot = server.create_lot("Lot Playwright Contrat DOM")
+            lot_id = str(lot["id"])
+
+            with chromium_browser() as browser:
+                page = browser.new_page(viewport={"width": 1280, "height": 900})
+                page.goto(f"{server.base_url}/?lot_id={lot_id}", wait_until="networkidle")
+
+                self.assertEqual(page.locator("main#contenu").count(), 1)
+                self.assertEqual(page.locator("#ui-message [data-error-title]").count(), 1)
+                self.assertEqual(page.locator("#ui-message [data-error-cause]").count(), 1)
+                self.assertEqual(page.locator("#ui-message [data-error-action]").count(), 1)
+                self.assertEqual(
+                    page.locator("nav[aria-label='vous êtes ici :'] #breadcrumb-lot").count(),
+                    1,
+                )
+                self.assertTrue(
+                    page.evaluate(
+                        """() => {
+                            const ids = [
+                                "create-lot-form",
+                                "lots-panel",
+                                "lot-summary",
+                                "lot-actions",
+                                "overview-title",
+                            ];
+                            const nodes = ids.map((id) => document.getElementById(id));
+                            return nodes.every(Boolean)
+                                && nodes.slice(0, -1).every((node, index) => (
+                                    node.compareDocumentPosition(nodes[index + 1])
+                                    & Node.DOCUMENT_POSITION_FOLLOWING
+                                ));
+                        }"""
+                    )
+                )
+
+                delete_button = page.locator("#delete-lot-button")
+                self.assertEqual(delete_button.get_attribute("data-lot-id"), lot_id)
+                self.assertEqual(
+                    delete_button.get_attribute("data-lot-title"),
+                    "Lot Playwright Contrat DOM",
+                )
+
+                excel_form = page.locator("#excel-upload-form")
+                self.assertEqual(excel_form.get_attribute("data-excel-upload-lot-id"), lot_id)
+                self.assertIn(
+                    "excel-file-hint",
+                    page.locator("#excel-file").get_attribute("aria-describedby") or "",
+                )
+                self.assertEqual(
+                    page.locator("#excel-file-selected-message").get_attribute(
+                        "data-file-selected-message"
+                    ),
+                    "excel",
+                )
+                self.assertEqual(
+                    page.locator("#excel-upload-submit").get_attribute("data-upload-submit"),
+                    "excel",
+                )
+
+                image_form = page.locator("#image-upload-form")
+                self.assertEqual(image_form.get_attribute("data-image-upload-lot-id"), lot_id)
+                self.assertIn(
+                    "image-zip-file-hint",
+                    page.locator("#image-zip-file").get_attribute("aria-describedby") or "",
+                )
+                self.assertEqual(
+                    page.locator("#image-zip-file-selected-message").get_attribute(
+                        "data-file-selected-message"
+                    ),
+                    "images",
+                )
+                self.assertEqual(
+                    page.locator("#image-upload-submit").get_attribute("data-upload-submit"),
+                    "images",
+                )
+
+                page.goto(
+                    f"{server.base_url}/lots/{lot_id}/excel?view=upload_excel",
+                    wait_until="networkidle",
+                )
+
+                self.assertEqual(page.locator("#workflow-screens-title").count(), 1)
+                self.assertEqual(
+                    page.locator(".sircom-workflow-screens [aria-current='page']").count(),
+                    1,
+                )
+                self.assertEqual(page.locator("#steps-menu-list").count(), 1)
+                self.assertTrue(
+                    page.locator(
+                        "#lot-workspace[aria-labelledby='lot-workspace-title']"
+                    ).is_visible()
+                )
+                self.assertEqual(
+                    page.locator(".fr-sidemenu__link[aria-current='page']").count(),
+                    1,
+                )
+                self.assertEqual(
+                    page.locator("#timeline-title").get_attribute("aria-controls"),
+                    "timeline-panel",
+                )
+                self.assertEqual(
+                    page.locator("#lot-problems-title").get_attribute("aria-controls"),
+                    "lot-problems-panel",
+                )
+                self.assertEqual(
+                    page.locator("#lot-events-title").get_attribute("aria-controls"),
+                    "lot-events-panel",
+                )
+
     def test_desktop_create_select_timeline_and_delete_lot(self) -> None:
         with LiveServer() as server:
             with chromium_browser() as browser:

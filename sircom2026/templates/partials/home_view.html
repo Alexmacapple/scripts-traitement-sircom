@@ -1,0 +1,256 @@
+        {% if page_mode != "workflow" %}
+        <section class="fr-mt-8v" aria-labelledby="create-lot-title">
+          <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+            <div class="fr-col-12 fr-col-lg-5">
+              <h2 id="create-lot-title">Créer ou reprendre un lot</h2>
+              <p class="fr-text--sm fr-mb-0">
+                Un lot regroupe l'Excel, les images, les validations et le package final.
+              </p>
+            </div>
+            <form id="create-lot-form" class="fr-col-12 fr-col-lg-7 fr-grid-row fr-grid-row--gutters sircom-create-lot-form">
+              <div class="fr-col-12 fr-col-md-8">
+                <div class="fr-input-group">
+                  <label class="fr-label" for="lot-title">
+                    Nom du lot (optionnel)
+                    <span class="fr-hint-text">Exemple : sélection Made in France 2026.</span>
+                  </label>
+                  <input class="fr-input" id="lot-title" name="title" type="text" maxlength="120" placeholder="Nom du lot (optionnel)">
+                </div>
+              </div>
+              <div class="fr-col-12 fr-col-md-4 sircom-create-lot-action">
+                <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left sircom-action-group">
+                  <li>
+                    <button class="fr-btn fr-icon-add-line fr-btn--icon-left" type="submit">
+                      Créer le lot
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        {% if selected_lot %}
+          {% set lot_ui = selected_lot.ui if selected_lot.ui is defined else none %}
+          {% set lot_sources = selected_lot.sources if selected_lot.sources is defined else none %}
+          {% set lot_is_closed = selected_lot.status in ["supprime", "purge", "annule"] %}
+          {% set uploaded_kind = upload_confirmation.kind if upload_confirmation else none %}
+          {% set active_view = lot_ui.active_view_key if lot_ui and lot_ui.active_view_key is defined else none %}
+          {% set active_step = lot_ui.active_step if lot_ui and lot_ui.active_step is defined else none %}
+        {% endif %}
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mt-8v">
+          <section class="fr-col-12" id="lots-panel" aria-labelledby="lots-title">
+            <h2 id="lots-title" class="fr-mb-3v">Lots</h2>
+            {% if lots %}
+              <ul class="fr-grid-row fr-grid-row--gutters fr-raw-list">
+                {% for lot in lots %}
+                  {% set is_current_lot = selected_lot and selected_lot.id == lot.id %}
+                  <li class="fr-col-12">
+                    <div class="fr-card fr-enlarge-link{% if is_current_lot %} fr-card--grey{% endif %}">
+                      <div class="fr-card__body">
+                        <div class="fr-card__content">
+                          <h3 class="fr-card__title">
+                            <a href="/?lot_id={{ lot.id }}">{{ lot.title or lot.id }}</a>
+                          </h3>
+                          <p class="fr-card__desc">
+                            {{ lot.storage.size_label if lot.storage else "0 o" }}
+                          </p>
+                          <div class="fr-card__start">
+                            <ul class="fr-badges-group">
+                              <li>
+                                <p class="fr-badge fr-badge--sm">{{ lot.status_label }}</p>
+                              </li>
+                              {% if is_current_lot %}
+                                <li>
+                                  <p class="fr-badge fr-badge--info fr-badge--sm">Sélectionné</p>
+                                </li>
+                              {% endif %}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="fr-callout fr-icon-info-line">
+                <h3 class="fr-callout__title">Aucun lot actif</h3>
+                <p class="fr-callout__text">
+                  Créer un premier lot pour déposer l'Excel et les images.
+                </p>
+              </div>
+            {% endif %}
+          </section>
+
+          <section class="fr-col-12" id="lot-summary" aria-labelledby="lot-detail-title">
+            {% if selected_lot %}
+              <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                <div class="fr-col">
+                  <h2 id="lot-detail-title">{{ selected_lot.title or selected_lot.id }}</h2>
+                  <p class="fr-mb-0">
+                    <span class="fr-badge">{{ selected_lot.status_label }}</span>
+                  </p>
+                </div>
+                {% if selected_lot.actions.can_delete %}
+                  <div class="fr-col-auto">
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-btns-group--right sircom-action-group">
+                      <li>
+                        <button
+                          class="fr-btn fr-btn--secondary fr-icon-delete-bin-line fr-btn--icon-left"
+                          id="delete-lot-button"
+                          type="button"
+                          data-lot-id="{{ selected_lot.id }}"
+                          data-lot-title="{{ (selected_lot.title or selected_lot.id)|e }}"
+                        >
+                          Supprimer le lot
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                {% endif %}
+              </div>
+
+              {% if lot_is_closed %}
+                <section class="fr-mt-4v" aria-labelledby="closed-lot-title">
+                  <div class="fr-alert fr-alert--warning" role="alert">
+                    <h3 class="fr-alert__title" id="closed-lot-title">Upload impossible : lot purgé</h3>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      ce lot a été supprimé ou purgé. Il reste consultable, mais il n'accepte plus de dépôt Excel ni de zip images.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      créer un nouveau lot ou sélectionner un lot actif dans la liste.
+                    </p>
+                  </div>
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v">
+                    <li>
+                      <a class="fr-btn fr-icon-add-line fr-btn--icon-left" href="#lot-title">
+                        Créer un nouveau lot
+                      </a>
+                    </li>
+                    <li>
+                      <a class="fr-btn fr-btn--secondary fr-icon-list-unordered fr-btn--icon-left" href="#lots-title">
+                        Voir les lots actifs
+                      </a>
+                    </li>
+                  </ul>
+                </section>
+              {% endif %}
+
+              {% if lot_ui and lot_ui.steps_total and not lot_is_closed %}
+                {% set primary_action = lot_ui.primary_action if lot_ui.primary_action is defined else none %}
+                <section class="fr-mt-4v" aria-labelledby="now-title">
+                  <div class="fr-callout fr-icon-info-line">
+                    <h3 class="fr-callout__title" id="now-title">Maintenant</h3>
+                    <p class="fr-callout__text">
+                      {% if lot_ui.completed %}
+                        Le traitement du lot est terminé.
+                      {% elif lot_ui.current_step %}
+                        {{ lot_ui.current_step.label }} :
+                        {{ lot_ui.current_step.ui_status_label if lot_ui.current_step.ui_status_label is defined else lot_ui.current_step.status_label }}.
+                      {% else %}
+                        {{ selected_lot.status_label }}.
+                      {% endif %}
+                    </p>
+                    {% if primary_action %}
+                      <p class="fr-mt-3v fr-mb-1v">
+                        <a class="fr-link {{ primary_action.icon_class }} fr-link--icon-right" href="{{ primary_action.href }}">
+                          {{ primary_action.label }}
+                        </a>
+                      </p>
+                      <p class="fr-text--sm fr-mb-0">{{ primary_action.hint }}</p>
+                    {% endif %}
+                  </div>
+                </section>
+
+                <div class="fr-stepper fr-mt-4v">
+                  <h3 class="fr-stepper__title">
+                    <span class="fr-stepper__state">
+                      {% if lot_ui.completed %}
+                        {{ lot_ui.steps_total }} étapes terminées
+                      {% else %}
+                        Étape {{ lot_ui.current_step_number }} sur {{ lot_ui.steps_total }}
+                      {% endif %}
+                    </span>
+                    {% if lot_ui.completed %}
+                      Traitement terminé
+                    {% elif lot_ui.current_step %}
+                      {{ lot_ui.current_step.label }}
+                    {% else %}
+                      {{ selected_lot.status_label }}
+                    {% endif %}
+                  </h3>
+                  <div
+                    class="fr-stepper__steps"
+                    data-fr-current-step="{{ lot_ui.current_step_number }}"
+                    data-fr-steps="{{ lot_ui.steps_total }}"
+                  ></div>
+                  {% if lot_ui.next_step and not lot_ui.completed %}
+                    <p class="fr-stepper__details">
+                      <span class="fr-text--bold">Étape suivante :</span>
+                      {{ lot_ui.next_step.label }}
+                    </p>
+                  {% endif %}
+                </div>
+                {% if lot_ui.completed %}
+                  <div
+                    class="fr-alert fr-alert--{{ 'warning' if selected_lot.status == 'termine_avec_alertes' else 'success' }} fr-mt-3v"
+                    role="status"
+                  >
+                    <h4 class="fr-alert__title">{{ selected_lot.status_label }}</h4>
+                    <p class="fr-mb-0">
+                      Les étapes du lot sont terminées. Les livrables disponibles restent accessibles dans les sections dédiées.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status == "pret" %}
+                  <div class="fr-alert fr-alert--info fr-mt-3v" role="status">
+                    <h4 class="fr-alert__title">Traitement automatique en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>À faire maintenant :</strong>
+                      laisser le traitement local avancer sur {{ lot_ui.current_step.label }}.
+                    </p>
+                    <p class="fr-mb-0">
+                      Actualiser la page quand le statut change ou après la fin du traitement.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status == "en_cours" %}
+                  <div class="fr-alert fr-alert--info fr-mt-3v" role="status">
+                    <h4 class="fr-alert__title">Traitement automatique en cours</h4>
+                    <p class="fr-mb-0">
+                      Aucune saisie n'est attendue pour le moment.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status == "action_requise" %}
+                  <div class="fr-alert fr-alert--warning fr-mt-3v" role="alert">
+                    <h4 class="fr-alert__title">Action utilisateur attendue</h4>
+                    <p class="fr-mb-0">
+                      Ouvrir l'étape {{ lot_ui.current_step.label }} et valider les choix demandés.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status in ["non_demarre", "invalide"] %}
+                  <div class="fr-alert fr-alert--info fr-mt-3v" role="status">
+                    <h4 class="fr-alert__title">À faire maintenant</h4>
+                    <p class="fr-mb-0">
+                      {{ lot_ui.current_step.label }}.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status in ["bloque", "echoue"] %}
+                  <div class="fr-alert fr-alert--error fr-mt-3v" role="alert">
+                    <h4 class="fr-alert__title">Étape à corriger</h4>
+                    <p class="fr-mb-0">
+                      Consulter les problèmes du lot, corriger la cause puis relancer le traitement concerné.
+                    </p>
+                  </div>
+	                {% endif %}
+	              {% endif %}
+                {% include "partials/source_uploads.html" %}
+	            {% else %}
+	              <h2 id="lot-detail-title">Détail du lot</h2>
+	              <p>Sélectionnez un lot.</p>
+	            {% endif %}
+	          </section>
+	        </div>
+        {% endif %}

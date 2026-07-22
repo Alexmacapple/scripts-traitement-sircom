@@ -1,0 +1,382 @@
+              {% set excel_diagnostic = selected_lot.excel_diagnostic if selected_lot.excel_diagnostic is defined else none %}
+              {% if active_view == "diagnostic_excel" and excel_diagnostic %}
+                <section class="fr-mt-5v" aria-labelledby="excel-diagnostic-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="excel-diagnostic-title">Vérifier l'Excel</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      <p class="fr-badge fr-badge--{{ excel_diagnostic.badge_class }} fr-badge--sm">
+                        {{ excel_diagnostic.status_label }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="fr-alert fr-alert--{{ excel_diagnostic.alert_class }} fr-mt-2v" role="alert">
+                    <h4 class="fr-alert__title">{{ excel_diagnostic.title }}</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      {{ excel_diagnostic.cause }}
+                    </p>
+                    <p class="fr-mb-1v">
+                      <strong>Action attendue :</strong>
+                      {{ excel_diagnostic.action }}
+                    </p>
+                    {% if excel_diagnostic.note %}
+                      <p class="fr-text--sm fr-mb-0">{{ excel_diagnostic.note }}</p>
+                    {% endif %}
+                  </div>
+
+                  {% if excel_diagnostic.has_problems %}
+                    <ul class="fr-badges-group fr-mt-3v" aria-label="Synthèse des problèmes Excel">
+                      {% for _severity, group in excel_diagnostic.problem_groups.items() %}
+                        <li>
+                          <p class="fr-badge fr-badge--{{ group['alert_class'] }} fr-badge--sm">
+                            {{ group['label'] }} : {{ excel_diagnostic.counts[group['severity']] }}
+                          </p>
+                        </li>
+                      {% endfor %}
+                    </ul>
+
+                    {% for _severity, group in excel_diagnostic.problem_groups.items() %}
+                      {% if group['items'] %}
+                        <section class="fr-mt-4v" aria-labelledby="excel-diagnostic-{{ group['severity'] }}-title">
+                          {% set problem_count = group['items'] | length %}
+                          <h4 id="excel-diagnostic-{{ group['severity'] }}-title">
+                            {{ group['label'] }} : {{ problem_count }} {{ "points" if problem_count > 1 else "point" }}
+                          </h4>
+                          <ul class="fr-raw-list sircom-problem-list fr-mt-2v">
+                            {% for problem in group['items'] %}
+                              <li class="sircom-problem-item fr-py-3v">
+                                <div class="sircom-problem-heading fr-mb-2v">
+                                  <span class="fr-badge fr-badge--{{ problem.alert_class }} fr-badge--sm">
+                                    {{ problem.severity_label }}
+                                  </span>
+                                  <p class="sircom-problem-title fr-mb-0">{{ problem.title }}</p>
+                                </div>
+                                <dl class="sircom-problem-details fr-mt-2v fr-mb-0">
+                                  <dt>Cause</dt>
+                                  <dd>{{ problem.cause }}</dd>
+                                  <dt>Emplacement</dt>
+                                  <dd>{{ problem.location_label }}</dd>
+                                  <dt>Action attendue</dt>
+                                  <dd>{{ problem.action }}</dd>
+                                </dl>
+                                {% if problem.technical_items %}
+                                  <div class="fr-accordions-group fr-mt-2v">
+                                    <section class="fr-accordion">
+                                      <h5 class="fr-accordion__title">
+                                        <button
+                                          class="fr-accordion__btn"
+                                          aria-expanded="false"
+                                          aria-controls="diagnostic-tech-{{ problem.id }}"
+                                          type="button"
+                                        >
+                                          Détails techniques
+                                        </button>
+                                      </h5>
+                                      <div class="fr-collapse" id="diagnostic-tech-{{ problem.id }}">
+                                        <dl class="fr-mt-2v">
+                                          {% for key, value in problem.technical_items %}
+                                            <dt>{{ key }}</dt>
+                                            <dd>{{ value }}</dd>
+                                          {% endfor %}
+                                        </dl>
+                                      </div>
+                                    </section>
+                                  </div>
+                                {% endif %}
+                                <p class="sircom-problem-code fr-text--xs fr-mt-2v fr-mb-0">
+                                  Code {{ problem.code }}.
+                                </p>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </section>
+                      {% endif %}
+                    {% endfor %}
+                  {% endif %}
+                </section>
+              {% elif active_view == "diagnostic_excel" %}
+                <section class="fr-mt-5v" aria-labelledby="excel-diagnostic-title">
+                  <h3 id="excel-diagnostic-title">Vérifier l'Excel</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Diagnostic Excel en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      aucun résultat de diagnostic n'est encore disponible pour ce lot.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      déposer l'Excel source puis attendre la fin du traitement local.
+                    </p>
+                  </div>
+                </section>
+              {% endif %}
+
+              {% set mapping_payload = selected_lot.mapping if selected_lot.mapping is defined else none %}
+              {% set mapping_error = selected_lot.mapping_error if selected_lot.mapping_error is defined else none %}
+              {% if active_view == "mapping" and mapping_payload %}
+                {% set mapping = mapping_payload.mapping %}
+                {% set profiles = mapping_payload.profiles %}
+                {% set mapping_source_labels = {
+                  "default": "proposé",
+                  "draft": "brouillon",
+                  "profile_draft": "profil en brouillon",
+                  "validated": "validé"
+                } %}
+                {% set role_labels = {
+                  "texte": "Texte",
+                  "date": "Date",
+                  "region": "Région",
+                  "departement": "Département",
+                  "nom_image_source": "Nom de l'image source",
+                  "siret": "SIRET",
+                  "telephone": "Téléphone",
+                  "code_postal": "Code postal",
+                  "code_administratif": "Code administratif",
+                  "id_dossier": "Identifiant dossier"
+                } %}
+                <section class="fr-mt-5v" aria-labelledby="mapping-step-title">
+                  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                    <div class="fr-col">
+                      <h3 id="mapping-step-title">Choisir les colonnes</h3>
+                    </div>
+                    <div class="fr-col-auto">
+                      <p class="fr-badge fr-badge--sm">
+                        {{ mapping_source_labels.get(mapping.source, mapping.source) }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="fr-alert fr-alert--info fr-mt-2v">
+                    <h4 class="fr-alert__title">Décision à prendre sur le mapping</h4>
+                    <p class="fr-mb-1v">
+                      Colonnes proposées : {{ mapping.columns | length }}.
+                      Vérifier les colonnes exportées, les rôles et les noms CSV.
+                    </p>
+                    <p class="fr-mb-0">
+                      Le mapping conserve la provenance onglet, lettre et nom original sans afficher les valeurs métier.
+                    </p>
+                  </div>
+
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                    <li>
+                      <button
+                        class="fr-btn fr-icon-check-line fr-btn--icon-left"
+                        id="mapping-validate-top"
+                        form="mapping-form"
+                        type="submit"
+                        data-mapping-action="validate"
+                      >
+                        Valider le mapping
+                      </button>
+                    </li>
+                  </ul>
+                  <p class="fr-mt-2v fr-mb-0">
+                    <a class="fr-link fr-icon-arrow-down-line fr-link--icon-right" href="#mapping-columns-title">
+                      Vérifier les colonnes
+                    </a>
+                  </p>
+
+                  {% if profiles.compatible %}
+                    <section class="fr-mt-4v" aria-labelledby="mapping-compatible-profiles-title">
+                      <h4 id="mapping-compatible-profiles-title">Profils compatibles</h4>
+                      <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--sm fr-btns-group--icon-left sircom-action-group">
+                        {% for profile in profiles.compatible %}
+                          <li>
+                            <button
+                              class="fr-btn fr-btn--secondary fr-icon-download-line fr-btn--icon-left"
+                              id="mapping-profile-{{ loop.index }}"
+                              type="button"
+                              data-apply-mapping-profile-id="{{ profile.id }}"
+                              data-apply-mapping-lot-id="{{ selected_lot.id }}"
+                            >
+                              Charger {{ profile.name }}
+                            </button>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+
+                  {% if profiles.incompatible %}
+                    <div class="fr-alert fr-alert--warning fr-mt-4v" role="alert">
+                      <h4 class="fr-alert__title">Profils incompatibles</h4>
+                      <ul>
+                        {% for profile in profiles.incompatible %}
+                          <li>
+                            {{ profile.name }} :
+                            {{ profile.reasons | join(", ") }}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endif %}
+
+                  <form
+                    id="mapping-form"
+                    class="fr-mt-4v"
+                    data-mapping-lot-id="{{ selected_lot.id }}"
+                    data-mapping-structural-fingerprint="{{ mapping.structural_fingerprint }}"
+                  >
+                    <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                      <div class="fr-col">
+                        <h4 id="mapping-columns-title" class="fr-h6 fr-mb-0">Colonnes du mapping</h4>
+                      </div>
+                      <div class="fr-col-auto">
+                        <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--sm sircom-action-group" aria-label="Sélection des colonnes exportées">
+                          <li>
+                            <button class="fr-btn fr-btn--secondary" type="button" data-mapping-bulk-action="select">
+                              Tout sélectionner
+                            </button>
+                          </li>
+                          <li>
+                            <button class="fr-btn fr-btn--secondary" type="button" data-mapping-bulk-action="deselect">
+                              Tout désélectionner
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="fr-table fr-table--bordered fr-table--layout-fixed sircom-mapping-columns-table">
+                      <div class="fr-table__wrapper">
+                        <div class="fr-table__container">
+                          <div class="fr-table__content">
+                            <table>
+                              <caption>Colonnes du mapping</caption>
+                              <thead>
+                                <tr>
+                                  <th scope="col">Exporter</th>
+                                  <th scope="col">Colonne source</th>
+                                  <th scope="col">Paramètres CSV</th>
+                                  <th scope="col">Position</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for column in mapping.columns %}
+                                  <tr
+                                    data-mapping-column
+                                    data-column-id="{{ column.id }}"
+                                    data-column-locked="{{ 'true' if column.locked else 'false' }}"
+                                  >
+                                    <td>
+                                      <div class="fr-checkbox-group fr-checkbox-group--sm">
+                                        <input
+                                          id="mapping-export-{{ loop.index }}"
+                                          data-mapping-exported
+                                          type="checkbox"
+                                          {% if column.status == "exporte" %}checked{% endif %}
+                                          {% if column.locked %}disabled aria-disabled="true"{% endif %}
+                                        >
+                                        <label class="fr-label" for="mapping-export-{{ loop.index }}">
+                                          Exporter
+                                        </label>
+                                      </div>
+                                    </td>
+                                    <th scope="row">
+                                      {% if column.system %}
+                                        <p class="fr-badge fr-badge--sm fr-mb-1v">Système</p>
+                                      {% else %}
+                                        <p class="fr-badge fr-badge--info fr-badge--sm fr-mb-1v">
+                                          {{ column.source_sheet }} {{ column.source_column_letter }}
+                                        </p>
+                                      {% endif %}
+                                      <p class="fr-mb-0 sircom-mapping-source-header">{{ column.source_header }}</p>
+                                    </th>
+                                    <td>
+                                      <div class="fr-grid-row fr-grid-row--gutters">
+                                        <div class="fr-col-12 fr-col-md-5">
+                                          <div class="fr-select-group">
+                                            <label class="fr-label" for="mapping-role-{{ loop.index }}">
+                                              Rôle logique
+                                            </label>
+                                            <select
+                                              class="fr-select"
+                                              id="mapping-role-{{ loop.index }}"
+                                              data-mapping-role
+                                              {% if column.locked %}disabled aria-disabled="true"{% endif %}
+                                            >
+                                              {% for role in ["texte", "date", "region", "departement", "nom_image_source", "siret", "telephone", "code_postal", "code_administratif"] %}
+                                                <option value="{{ role }}" {% if column.logical_role == role %}selected{% endif %}>{{ role_labels.get(role, role) }}</option>
+                                              {% endfor %}
+                                              {% if column.logical_role == "id_dossier" %}
+                                                <option value="id_dossier" selected>{{ role_labels.get("id_dossier") }}</option>
+                                              {% endif %}
+                                            </select>
+                                          </div>
+                                        </div>
+                                        <div class="fr-col-12 fr-col-md-7">
+                                          <div class="fr-input-group">
+                                            <label class="fr-label" for="mapping-csv-name-{{ loop.index }}">
+                                              Nom CSV
+                                            </label>
+                                            <input
+                                              class="fr-input"
+                                              id="mapping-csv-name-{{ loop.index }}"
+                                              data-mapping-csv-name
+                                              type="text"
+                                              value="{{ column.csv_name }}"
+                                              {% if column.locked %}readonly{% endif %}
+                                            >
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      {% if column.output_position %}
+                                        {{ column.output_position }}
+                                      {% else %}
+                                        Supprimée
+                                      {% endif %}
+                                    </td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3v sircom-action-group">
+                      <li>
+                        <button class="fr-btn fr-icon-check-line fr-btn--icon-left" id="mapping-validate-bottom" type="submit" data-mapping-action="validate">
+                          Valider le mapping
+                        </button>
+                      </li>
+                      <li>
+                        <button class="fr-btn fr-btn--secondary fr-icon-archive-line fr-btn--icon-left" id="mapping-draft" type="button" data-mapping-action="draft">
+                          Sauvegarder le brouillon
+                        </button>
+                      </li>
+                    </ul>
+                  </form>
+                </section>
+              {% elif active_view == "mapping" and mapping_error %}
+                <section class="fr-mt-5v" aria-labelledby="mapping-step-title">
+                  <h3 id="mapping-step-title">Choisir les colonnes</h3>
+                  <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
+                    <h4 class="fr-alert__title">{{ mapping_error.title }}</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      {{ mapping_error.cause }}
+                    </p>
+                    <p class="fr-mb-1v">
+                      <strong>Action attendue :</strong>
+                      {{ mapping_error.action }}
+                    </p>
+                    <p class="fr-text--xs fr-mb-0">Code {{ mapping_error.code }}.</p>
+                  </div>
+                </section>
+              {% elif active_view == "mapping" %}
+                <section class="fr-mt-5v" aria-labelledby="mapping-step-title">
+                  <h3 id="mapping-step-title">Choisir les colonnes</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Mapping en attente</h4>
+                    <p class="fr-mb-0">
+                      Le mapping sera disponible après le diagnostic Excel.
+                    </p>
+                  </div>
+                </section>
+              {% endif %}
