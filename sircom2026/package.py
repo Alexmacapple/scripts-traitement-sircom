@@ -371,7 +371,7 @@ def _build_package_sources(
     if image_zip_source is None:
         matching = None
         processed_images = None
-        has_image_warnings = False
+        has_image_warnings = True
     else:
         matching = _required_json_artifact(
             repositories,

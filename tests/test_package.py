@@ -199,6 +199,16 @@ class PackageApiTest(unittest.TestCase):
             client = TestClient(create_app(settings))
             lot_id = _prepare_lot_until_reports_without_images(client, settings, workbook_path)
 
+            without_warning_acceptance = client.post(
+                f"/api/lots/{lot_id}/package",
+                json={"accept_warnings": False},
+                headers={"X-Idempotency-Key": "package-no-images-no-warnings"},
+            )
+            self.assertEqual(without_warning_acceptance.status_code, 409)
+            self.assertEqual(
+                without_warning_acceptance.json()["error"]["code"],
+                "SIRCOM_PACKAGE_WARNINGS_DECISION_REQUIRED",
+            )
             enqueue = client.post(
                 f"/api/lots/{lot_id}/package",
                 json={"accept_warnings": True},
