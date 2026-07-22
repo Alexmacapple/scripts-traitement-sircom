@@ -61,14 +61,13 @@ CI verte à chaque commit.
 
 ## Découpage recommandé
 
-1. Extraire des helpers ou modules de repositories depuis `database.py`, sans
-   changer les noms publics utilisés par les tests.
-2. Séparer dans `app.py` ce qui relève du montage FastAPI, des pages HTML, du
-   cycle de vie applicatif et des tâches périodiques.
-3. Découper `templates/index.html` en partials Jinja, en gardant les mêmes ids,
-   attributs `data-*`, rôles ARIA et textes visibles.
-4. Reporter `visual-tests/*` seulement si ce harnais est réutilisé après la
-   stabilisation CI.
+1. [24A - Inventaire imports et contrat public `database.py`](24a-inventaire-imports-et-contrat-public-database.md),
+   sans refactor lourd.
+2. 24B - Première extraction repository/database, avec compatibilité imports.
+3. 24C - Découpage `app.py` autour du lifespan, du worker et des routes, avec
+   tests worker et web.
+4. 24D - Découpage Jinja de `index.html`, précédé d'un test de contrat
+   DOM/Playwright.
 
 ## Critères d'acceptation
 
