@@ -6,12 +6,61 @@
   justify-content: center;
   max-width: 100%;
   min-height: 3rem;
+  overflow: visible;
   text-align: center;
   white-space: normal;
+  width: auto;
+}
+
+.sircom-action-group .fr-btn[class*=" fr-icon-"],
+.sircom-action-group .fr-btn[class^="fr-icon-"] {
+  max-height: none;
+  max-width: 100%;
+  overflow: visible;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: auto;
 }
 
 .sircom-action-group .fr-btn::before {
   flex: 0 0 auto;
+}
+
+.fr-icon-arrow-left-line::before,
+.fr-icon-arrow-left-line::after {
+  -webkit-mask-image: url("/static/dsfr/1.14.4/icons/arrows/arrow-left-line.svg");
+  mask-image: url("/static/dsfr/1.14.4/icons/arrows/arrow-left-line.svg");
+}
+
+.fr-icon-arrow-right-line::before,
+.fr-icon-arrow-right-line::after {
+  -webkit-mask-image: url("/static/dsfr/1.14.4/icons/arrows/arrow-right-line.svg");
+  mask-image: url("/static/dsfr/1.14.4/icons/arrows/arrow-right-line.svg");
+}
+
+.fr-icon-arrow-down-line::before,
+.fr-icon-arrow-down-line::after {
+  -webkit-mask-image: url("/static/dsfr/1.14.4/icons/arrows/arrow-down-line.svg");
+  mask-image: url("/static/dsfr/1.14.4/icons/arrows/arrow-down-line.svg");
+}
+
+.sircom-create-lot-form {
+  align-items: flex-end;
+}
+
+.sircom-create-lot-action {
+  align-items: flex-end;
+  display: flex;
+}
+
+.sircom-create-lot-action .fr-btns-group {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.sircom-create-lot-action .fr-btn {
+  min-height: 2.5rem;
+  width: 100%;
 }
 
 .sircom-table-no-scroll .fr-table__content {
@@ -33,6 +82,81 @@
 .sircom-table-no-scroll .fr-input,
 .sircom-table-no-scroll .fr-select {
   min-width: 0;
+}
+
+.sircom-mapping-columns-table .fr-table__content {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.sircom-mapping-columns-table .fr-table__container {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.sircom-mapping-columns-table table {
+  min-width: 64rem;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.sircom-mapping-columns-table th,
+.sircom-mapping-columns-table td {
+  max-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.sircom-mapping-source-header {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.sircom-mapping-columns-table .fr-input,
+.sircom-mapping-columns-table .fr-select {
+  min-width: 0;
+}
+
+.sircom-csv-preview-table .fr-table__content,
+.sircom-csv-preview-table .fr-table__container {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.sircom-csv-preview-table table {
+  min-width: max(64rem, calc(var(--sircom-csv-preview-columns, 8) * 8rem));
+  table-layout: fixed;
+  width: 100%;
+}
+
+.sircom-csv-preview-table th,
+.sircom-csv-preview-table td {
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.sircom-step-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+}
+
+.sircom-step-navigation li,
+.sircom-step-navigation .fr-link {
+  max-width: 100%;
+}
+
+.sircom-step-navigation .fr-link {
+  overflow-wrap: anywhere;
 }
 
 .sircom-step-state {

@@ -4,7 +4,6 @@ const deleteLotButton = document.querySelector("#delete-lot-button");
 const excelUploadForm = document.querySelector("#excel-upload-form");
 const imageUploadForm = document.querySelector("#image-upload-form");
 const mappingForm = document.querySelector("#mapping-form");
-const mappingProfileForm = document.querySelector("#mapping-profile-form");
 const applyMappingProfileButtons = document.querySelectorAll("[data-apply-mapping-profile-id]");
 const sortDecisionButtons = document.querySelectorAll("[data-sort-decision]");
 const csvPreviewValidateButtons = document.querySelectorAll("[data-csv-preview-validate]");
@@ -119,17 +118,23 @@ function currentViewKey() {
   return params.get("view") || "";
 }
 
-function lotUrl(lotId, options = {}) {
+function lotSourceUrl(lotId, options = {}) {
   const params = new URLSearchParams();
   params.set("lot_id", lotId);
-  const view = options.view || currentViewKey();
-  if (view) {
-    params.set("view", view);
-  }
   if (options.uploaded) {
     params.set("uploaded", options.uploaded);
   }
   return `/?${params.toString()}`;
+}
+
+function lotWorkflowUrl(lotId, options = {}) {
+  const params = new URLSearchParams();
+  const view = options.view || currentViewKey();
+  if (view) {
+    params.set("view", view);
+  }
+  const query = params.toString();
+  return `/lots/${encodeURIComponent(lotId)}${query ? `?${query}` : ""}`;
 }
 
 function restorePostSubmitFocus() {
@@ -229,7 +234,7 @@ if (createLotForm) {
         body: JSON.stringify({ title: title || null }),
       });
       const payload = await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(payload.lot.id)}`);
+      window.location.assign(lotSourceUrl(payload.lot.id));
     } catch (error) {
       createLotInFlight = false;
       createLotIdempotencyKey = null;
@@ -300,7 +305,7 @@ if (excelUploadForm) {
       });
       await parseJsonResponse(response);
       rememberActionFocus(submitButton, "excel-upload-feedback");
-      window.location.assign(lotUrl(lotId, { view: "upload_excel", uploaded: "excel" }));
+      window.location.assign(lotSourceUrl(lotId, { uploaded: "excel" }));
     } catch (error) {
       excelUploadInFlight = false;
       setButtonBusy(submitButton, false);
@@ -346,7 +351,7 @@ if (imageUploadForm) {
       });
       await parseJsonResponse(response);
       rememberActionFocus(submitButton, "image-upload-feedback");
-      window.location.assign(lotUrl(lotId, { view: "upload_images", uploaded: "images" }));
+      window.location.assign(lotSourceUrl(lotId, { uploaded: "images" }));
     } catch (error) {
       imageUploadInFlight = false;
       setButtonBusy(submitButton, false);
@@ -406,7 +411,7 @@ async function submitMapping(action, button) {
     });
     await parseJsonResponse(response);
     rememberActionFocus(button, "mapping-step-title");
-    window.location.assign(lotUrl(lotId, { view: "mapping" }));
+    window.location.assign(lotWorkflowUrl(lotId, { view: "mapping" }));
   } catch (error) {
     mappingInFlight = false;
     setButtonBusy(button, false);
@@ -419,6 +424,17 @@ async function submitMapping(action, button) {
 }
 
 if (mappingForm) {
+  mappingForm.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-mapping-bulk-action]");
+    if (!button || !mappingForm.contains(button)) return;
+    event.preventDefault();
+    const shouldExport = button.dataset.mappingBulkAction === "select";
+    mappingForm.querySelectorAll("[data-mapping-exported]:not(:disabled)").forEach((checkbox) => {
+      checkbox.checked = shouldExport;
+      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+
   mappingForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const submitButton = event.submitter || mappingForm.querySelector('[data-mapping-action="validate"]');
@@ -431,38 +447,6 @@ if (mappingForm) {
       submitMapping("draft", draftButton);
     });
   }
-}
-
-if (mappingProfileForm) {
-  mappingProfileForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const submitButton = event.submitter || mappingProfileForm.querySelector('button[type="submit"]');
-    const lotId = mappingProfileForm.dataset.mappingProfileLotId;
-    if (!lotId) return;
-    const formData = new FormData(mappingProfileForm);
-    const name = String(formData.get("name") || "").trim();
-
-    setButtonBusy(submitButton, true, "Sauvegarde en cours");
-    try {
-      const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/mapping/profile`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: name || null }),
-      });
-      await parseJsonResponse(response);
-      rememberActionFocus(submitButton, "mapping-profile-name");
-      window.location.assign(lotUrl(lotId, { view: "mapping" }));
-    } catch (error) {
-      setButtonBusy(submitButton, false);
-      showError(
-        "Profil impossible",
-        error.message,
-        "Vérifier qu'un mapping validé existe puis réessayer."
-      );
-    }
-  });
 }
 
 applyMappingProfileButtons.forEach((button) => {
@@ -484,7 +468,7 @@ applyMappingProfileButtons.forEach((button) => {
       });
       await parseJsonResponse(response);
       rememberActionFocus(button, "mapping-step-title");
-      window.location.assign(lotUrl(lotId, { view: "mapping" }));
+      window.location.assign(lotWorkflowUrl(lotId, { view: "mapping" }));
     } catch (error) {
       mappingInFlight = false;
       setButtonBusy(button, false);
@@ -516,7 +500,7 @@ sortDecisionButtons.forEach((button) => {
       });
       await parseJsonResponse(response);
       rememberActionFocus(button, "sort-title");
-      window.location.assign(lotUrl(lotId, { view: "tri_region_departement" }));
+      window.location.assign(lotWorkflowUrl(lotId, { view: "tri_region_departement" }));
     } catch (error) {
       sortInFlight = false;
       setButtonBusy(button, false);
@@ -545,7 +529,7 @@ csvPreviewValidateButtons.forEach((button) => {
       });
       await parseJsonResponse(response);
       rememberActionFocus(button, "csv-preview-title");
-      window.location.assign(lotUrl(lotId, { view: "previsualisation_csv" }));
+      window.location.assign(lotWorkflowUrl(lotId, { view: "previsualisation_csv" }));
     } catch (error) {
       csvPreviewInFlight = false;
       setButtonBusy(button, false);
@@ -585,7 +569,7 @@ imageResolutionForms.forEach((form) => {
       });
       await parseJsonResponse(response);
       rememberActionFocus(submitButton, "image-matching-title");
-      window.location.assign(lotUrl(lotId, { view: "matching_images" }));
+      window.location.assign(lotWorkflowUrl(lotId, { view: "matching_images" }));
     } catch (error) {
       imageResolutionInFlight = false;
       setButtonBusy(submitButton, false);
@@ -617,7 +601,7 @@ packageGenerateButtons.forEach((button) => {
       });
       await parseJsonResponse(response);
       rememberActionFocus(button, "package-title");
-      window.location.assign(lotUrl(lotId, { view: "package_final" }));
+      window.location.assign(lotWorkflowUrl(lotId, { view: "package_final" }));
     } catch (error) {
       packageInFlight = false;
       setButtonBusy(button, false);
@@ -648,7 +632,7 @@ retryButtons.forEach((button) => {
       });
       await parseJsonResponse(response);
       rememberActionFocus(button, "timeline-title");
-      window.location.assign(lotUrl(lotId, { view: stepKey }));
+      window.location.assign(lotWorkflowUrl(lotId, { view: stepKey }));
     } catch (error) {
       setButtonBusy(button, false);
       showError(

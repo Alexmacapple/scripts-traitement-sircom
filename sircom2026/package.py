@@ -23,6 +23,7 @@ from sircom2026.image_matching import (
     MATCHING_IMAGES_STEP_KEY,
     PROCESSED_IMAGES_ARTIFACT_ROLE,
 )
+from sircom2026.images import UPLOAD_IMAGES_STEP_KEY
 from sircom2026.invalidation import fingerprint_payload, step_input_fingerprint
 from sircom2026.lots import get_lot_detail
 from sircom2026.mapping import MAPPING_STEP_KEY
@@ -335,20 +336,46 @@ def _build_package_sources(
         step_key=MAPPING_STEP_KEY,
         role="validated",
     )
-    matching = _required_json_artifact(
+    image_zip_source = _current_readable_artifact(
         repositories,
         store,
         lot_id=lot_id,
-        step_key=MATCHING_IMAGES_STEP_KEY,
-        role=MATCHING_ARTIFACT_ROLE,
+        step_key=UPLOAD_IMAGES_STEP_KEY,
+        role="source",
     )
-    processed_images = _required_readable_artifact(
-        repositories,
-        store,
-        lot_id=lot_id,
-        step_key=MATCHING_IMAGES_STEP_KEY,
-        role=PROCESSED_IMAGES_ARTIFACT_ROLE,
-    )
+    if image_zip_source is None:
+        matching = None
+        processed_images = None
+        has_image_warnings = False
+    else:
+        matching = _required_json_artifact(
+            repositories,
+            store,
+            lot_id=lot_id,
+            step_key=MATCHING_IMAGES_STEP_KEY,
+            role=MATCHING_ARTIFACT_ROLE,
+        )
+        processed_images = _required_readable_artifact(
+            repositories,
+            store,
+            lot_id=lot_id,
+            step_key=MATCHING_IMAGES_STEP_KEY,
+            role=PROCESSED_IMAGES_ARTIFACT_ROLE,
+        )
+        has_image_warnings = bool(
+            matching.payload.get("has_warnings")
+            or any(
+                int(matching.payload.get(key) or 0) > 0
+                for key in (
+                    "missing_count",
+                    "ambiguous_count",
+                    "unreferenced_count",
+                    "conversion_failed_count",
+                    "fallback_count",
+                    "tolerant_count",
+                )
+            )
+        )
     business_report = _required_readable_artifact(
         repositories,
         store,
@@ -364,20 +391,6 @@ def _build_package_sources(
         role=TECHNICAL_REPORT_ARTIFACT_ROLE,
     )
     _require_csv_path_root(csv_final.path.read_bytes(), settings.indesign_image_root)
-    has_image_warnings = bool(
-        matching.payload.get("has_warnings")
-        or any(
-            int(matching.payload.get(key) or 0) > 0
-            for key in (
-                "missing_count",
-                "ambiguous_count",
-                "unreferenced_count",
-                "conversion_failed_count",
-                "fallback_count",
-                "tolerant_count",
-            )
-        )
-    )
     return {
         "csv_final": csv_final,
         "mapping": mapping,
@@ -439,7 +452,8 @@ def _build_package_zip(
                 source=sources["mapping"],
             )
             _write_directory(package, f"{EXPORT_IMAGES_FOLDER}/")
-            _copy_processed_images(package, entries, source=sources["processed_images"])
+            if sources["processed_images"] is not None:
+                _copy_processed_images(package, entries, source=sources["processed_images"])
             manifest = _manifest_payload(
                 lot_id=lot_id,
                 entries=entries,
@@ -558,6 +572,8 @@ def _source_artifact_manifest(sources: dict[str, Any]) -> list[dict[str, Any]]:
         "technical_report",
     ):
         source = sources[source_key]
+        if source is None:
+            continue
         result.append(
             {
                 "key": source_key,
@@ -621,6 +637,35 @@ def _required_readable_artifact(
         )
     except (ArtifactUnavailableError, KeyError, ValueError) as exc:
         raise PackagePrerequisiteMissing(step_key, role) from exc
+
+
+def _current_readable_artifact(
+    repositories,
+    store: ArtifactStore,
+    *,
+    lot_id: str,
+    step_key: str,
+    role: str,
+):
+    step = repositories.steps.get_by_lot_key(lot_id, step_key)
+    if step is None or not step["current_run_id"] or step["status"] not in READY_STATUSES:
+        return None
+    artifact = repositories.artifacts.get_for_step_run_role(
+        lot_id=lot_id,
+        step_key=step_key,
+        run_id=step["current_run_id"],
+        role=role,
+    )
+    if artifact is None or artifact["status"] != "committed":
+        return None
+    try:
+        return store.open_for_read(
+            repositories,
+            lot_id=lot_id,
+            artifact_id=artifact["id"],
+        )
+    except (ArtifactUnavailableError, KeyError, ValueError):
+        return None
 
 
 @dataclass(frozen=True)

@@ -164,10 +164,13 @@ def _source_matches_request_origin(source: str, request: Request) -> bool:
     if request_parts is None:
         return False
     request_scheme, request_host, request_port = request_parts
+    source_port = _normalized_port(source_parts)
+    if source_port is None:
+        return False
     return (
         source_parts.scheme == request_scheme
         and source_parts.hostname.lower() == request_host
-        and _normalized_port(source_parts) == request_port
+        and source_port == request_port
     )
 
 
@@ -178,10 +181,17 @@ def _request_origin_parts(request: Request) -> tuple[str, str, int] | None:
     parts = urlsplit(f"{request.url.scheme}://{host_header}")
     if not parts.hostname:
         return None
-    return request.url.scheme, parts.hostname.lower(), _normalized_port(parts)
+    request_port = _normalized_port(parts)
+    if request_port is None:
+        return None
+    return request.url.scheme, parts.hostname.lower(), request_port
 
 
-def _normalized_port(parts) -> int:
-    if parts.port is not None:
-        return parts.port
+def _normalized_port(parts) -> int | None:
+    try:
+        port = parts.port
+    except ValueError:
+        return None
+    if port is not None:
+        return port
     return 443 if parts.scheme == "https" else 80

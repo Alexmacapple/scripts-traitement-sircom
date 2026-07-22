@@ -1,4 +1,6 @@
 <header class="fr-header" role="banner">
+  {% set header_selected_lot = selected_lot if selected_lot is defined else none %}
+  {% set header_lot_ui = header_selected_lot.ui if header_selected_lot and header_selected_lot.ui is defined else none %}
   <div class="fr-header__body">
     <div class="fr-container">
       <div class="fr-header__body-row">
@@ -9,15 +11,77 @@
                 République<br>Française
               </p>
             </div>
+            <div class="fr-header__navbar">
+              <button
+                class="fr-btn--menu fr-btn"
+                data-fr-opened="false"
+                aria-controls="header-menu"
+                title="Menu"
+              >
+                Menu
+              </button>
+            </div>
           </div>
           <div class="fr-header__service">
-            <a href="/" title="Accueil - {{ app_name }}">
-              <p class="fr-header__service-title">{{ app_name }}</p>
+            <a href="/" title="Accueil - Sircom - Made in France - traitements excel">
+              <p class="fr-header__service-title">SIRCOM - Made in France - traitements excel</p>
             </a>
-            <p class="fr-header__service-tagline">Interface locale de préparation Sircom</p>
+            <p class="fr-header__service-tagline">Interface de préparation au publipostage</p>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+  <div class="fr-header__menu fr-modal" id="header-menu">
+    <div class="fr-container">
+      <button class="fr-btn--close fr-btn" aria-controls="header-menu" title="Fermer">
+        Fermer
+      </button>
+      <div class="fr-header__menu-links"></div>
+      <nav class="fr-nav" id="header-navigation" role="navigation" aria-label="Navigation principale">
+        <ul class="fr-nav__list">
+          <li class="fr-nav__item">
+            <a class="fr-nav__link" href="/">Accueil</a>
+          </li>
+          <li class="fr-nav__item">
+            <a class="fr-nav__link" href="/#lots-title">Lots</a>
+          </li>
+          {% if header_selected_lot %}
+            <li class="fr-nav__item">
+              <a class="fr-nav__link" href="/?lot_id={{ header_selected_lot.id }}#lot-actions-title">
+                Dépôt des sources
+              </a>
+            </li>
+          {% endif %}
+          {% if header_lot_ui and header_lot_ui.step_navigation %}
+            <li class="fr-nav__item">
+              <button
+                class="fr-nav__btn"
+                id="header-menu-title"
+                aria-expanded="false"
+                aria-controls="header-workflow-menu"
+              >
+                Workflow d'orchestration
+              </button>
+              <div class="fr-collapse fr-menu" id="header-workflow-menu">
+                <ul class="fr-menu__list">
+                  {% for step in header_lot_ui.step_navigation %}
+                    <li>
+                      <a
+                        class="fr-nav__link"
+                        href="{{ step.href }}"
+                        {% if step.is_active_view %}aria-current="page"{% endif %}
+                      >
+                        {{ step.number }}. {{ step.label }} - {{ step.ui_status_label }}
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
     </div>
   </div>
 </header>

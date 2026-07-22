@@ -377,7 +377,7 @@ class InvalidationContractTest(unittest.TestCase):
                     action="Relancer le diagnostic.",
                 )
 
-            ui_response = client.get(f"/?lot_id={lot_id}")
+            ui_response = client.get(f"/lots/{lot_id}")
             first_response = client.post(
                 f"/api/lots/{lot_id}/retry",
                 json={"step_key": "diagnostic_excel"},

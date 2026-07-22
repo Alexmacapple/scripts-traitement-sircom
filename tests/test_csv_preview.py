@@ -12,6 +12,7 @@ from sircom2026.app import create_app
 from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import load_settings
 from sircom2026.csv_contract import verify_indesign_csv_bytes
+from sircom2026.csv_preview import CSV_PREVIEW_ROWS_LIMIT
 from sircom2026.database import Database
 from sircom2026.worker_runner import run_worker_once
 
@@ -58,6 +59,18 @@ def create_no_sort_workbook(path: Path) -> None:
     sheet.append(["id_dossier", "Nom produit"])
     sheet.append(["ID-2", "Produit 2"])
     sheet.append(["ID-1", "Produit 1"])
+    workbook.save(path)
+    workbook.close()
+
+
+def create_large_preview_workbook(path: Path, *, rows_count: int = 12) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Dossiers"
+    sheet.append(["id_dossier", "Nom produit"])
+    for row_index in range(1, rows_count + 1):
+        sheet.append([f"ID-{row_index:02d}", f"Produit {row_index:02d}"])
     workbook.save(path)
     workbook.close()
 
@@ -233,6 +246,34 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertIn(b"schema_version", preview_payload)
         csv_step = next(step for step in lot["steps"] if step["key"] == "previsualisation_csv")
         self.assertEqual(csv_step["status"], "termine_avec_alertes")
+
+    def test_preview_public_payload_and_ui_are_limited_to_ten_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "preview-limit.xlsx"
+            create_large_preview_workbook(workbook_path, rows_count=12)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = prepare_verified_lot(
+                client,
+                settings,
+                workbook_path,
+                key="preview-limit",
+                sort_decision="ordre_source",
+            )
+
+            preview = client.get(f"/api/lots/{lot_id}/csv/preview")
+            html = client.get(f"/?lot_id={lot_id}&view=previsualisation_csv")
+
+        self.assertEqual(preview.status_code, 200, preview.text)
+        payload = preview.json()["preview"]
+        self.assertEqual(payload["rows_count"], 12)
+        self.assertEqual(payload["preview_rows_limit"], CSV_PREVIEW_ROWS_LIMIT)
+        self.assertEqual(len(payload["rows"]), CSV_PREVIEW_ROWS_LIMIT)
+        self.assertEqual(html.status_code, 200, html.text)
+        self.assertIn("Lignes affichées : 10 sur 12", html.text)
+        self.assertIn("sircom-csv-preview-table", html.text)
+        self.assertNotIn("fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll", html.text)
 
     def test_export_refuses_non_current_or_unreadable_final_artifact(self) -> None:
         for case_name, expected_code in (

@@ -163,6 +163,7 @@ class MappingApiTest(unittest.TestCase):
                 f"/api/lots/{lot_id}/mapping/profile",
                 json={"name": "Profil Sircom test"},
             )
+            mapping_view = client.get(f"/?lot_id={lot_id}&view=mapping")
             detail = client.get(f"/api/lots/{lot_id}").json()["lot"]
             validated_mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
 
@@ -197,6 +198,10 @@ class MappingApiTest(unittest.TestCase):
         self.assertTrue(saved_profile["last_used_at"])
         self.assertNotIn("Objet de test", str(saved_profile))
         self.assertNotIn(str(tmpdir), str(saved_profile))
+        self.assertEqual(mapping_view.status_code, 200, mapping_view.text)
+        self.assertNotIn("Nom du profil", mapping_view.text)
+        self.assertNotIn("Sauvegarder un profil", mapping_view.text)
+        self.assertNotIn('id="mapping-profile-form"', mapping_view.text)
 
     def test_compatible_profile_is_only_applied_as_draft_after_user_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -419,21 +424,41 @@ class MappingUiTest(unittest.TestCase):
                 key="mapping-ui",
             )
 
-            response = client.get(f"/?lot_id={lot_id}&view=mapping")
+            response = client.get(f"/lots/{lot_id}?view=mapping")
 
         html = response.text
         self.assertEqual(response.status_code, 200)
         self.assertIn("Choisir les colonnes", html)
         self.assertIn('id="mapping-form"', html)
+        self.assertEqual(html.count('id="breadcrumb-lot"'), 1)
+        self.assertLess(
+            html.index('id="breadcrumb-lot"'),
+            html.index("Workflow du lot Lot UI mapping"),
+        )
+        self.assertIn('id="header-workflow-menu"', html)
+        self.assertIn("Workflow d'orchestration", html)
+        footer_html = html.split('<footer class="fr-footer" id="footer"', 1)[1]
+        self.assertNotIn("Workflow d'orchestration", footer_html)
+        self.assertNotIn("sircom-footer-workflow", footer_html)
+        self.assertIn('id="lot-detail"', html)
+        self.assertNotIn('id="overview-title"', html)
         self.assertIn("Colonne source", html)
         self.assertIn("Paramètres CSV", html)
-        self.assertIn("fr-table--no-scroll", html)
+        self.assertIn("sircom-mapping-columns-table", html)
         self.assertIn("fr-table--layout-fixed", html)
         self.assertIn("Nom CSV", html)
         self.assertIn("Rôle logique", html)
         self.assertIn("Dossiers", html)
         self.assertIn("Nom du produit", html)
         self.assertIn("d_nomdupro", html)
+        self.assertIn("Décision à prendre sur le mapping", html)
+        self.assertIn('class="fr-link fr-icon-arrow-right-line fr-link--icon-right"', html)
+        self.assertIn("Vérifier les colonnes", html)
+        self.assertIn('class="fr-link fr-icon-arrow-down-line fr-link--icon-right"', html)
+        self.assertIn('data-mapping-bulk-action="select"', html)
+        self.assertIn("Tout sélectionner", html)
+        self.assertIn('data-mapping-bulk-action="deselect"', html)
+        self.assertIn("Tout désélectionner", html)
         self.assertIn("Valider le mapping", html)
         self.assertIn("Sauvegarder le brouillon", html)
         self.assertIn('data-mapping-lot-id="', html)

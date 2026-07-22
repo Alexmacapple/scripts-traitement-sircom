@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -68,6 +68,14 @@ IMAGE_WORKFLOW_STEP_KEYS = {
     "inspection_images",
     "matching_images",
 }
+
+
+def static_asset_version() -> str:
+    asset_paths = (STATIC_DIR / "sircom.css", STATIC_DIR / "app.js")
+    mtimes = [path.stat().st_mtime_ns for path in asset_paths if path.exists()]
+    return str(max(mtimes)) if mtimes else __version__
+
+
 UX_PHASE_DEFINITIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "sources",
@@ -155,7 +163,7 @@ STEP_VIEW_DESCRIPTIONS = {
     "mapping": "Choisir les colonnes exportées et valider les noms CSV.",
     "fusion_multi_onglets": "Suivre la fusion à plat des onglets par id_dossier.",
     "normalisation_contenu": "Suivre le nettoyage des contenus avant export.",
-    "tri_region_departement": "Confirmer le tri ou conserver l'ordre source.",
+    "tri_region_departement": "Valider l'ordre des lignes avant l'aperçu CSV.",
     "verification_csv_indesign": "Suivre la vérification du contrat CSV InDesign.",
     "previsualisation_csv": "Contrôler et valider l'aperçu du CSV final.",
     "upload_images": "Déposer uniquement le zip des images produit.",
@@ -191,8 +199,8 @@ STEP_VIEW_GUIDANCE = {
         "result": "Les contenus sont prêts pour le contrat CSV InDesign.",
     },
     "tri_region_departement": {
-        "user_action": "Confirmer le tri proposé ou conserver l'ordre source.",
-        "system_action": "L'application détecte les colonnes région et département issues du mapping.",
+        "user_action": "Confirmer le tri s'il est proposé ; sinon conserver l'ordre source ou corriger le mapping.",
+        "system_action": "L'application vérifie les rôles région et département issus du mapping.",
         "result": "L'ordre retenu est enregistré avant l'aperçu CSV.",
     },
     "verification_csv_indesign": {
@@ -351,23 +359,25 @@ def create_app(
     app.include_router(storage_router)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-    @app.get("/", include_in_schema=False)
-    async def index(
+    def render_app_page(
         request: Request,
-        _actor: ActorContext = Depends(require_action(AccessAction.LOT_READ)),
+        *,
+        page_mode: str,
+        lot_id: str | None,
+        active_view_key: str | None = None,
+        uploaded: str | None = None,
     ):
-        lot_id = request.query_params.get("lot_id")
-        active_view_key = request.query_params.get("view")
-        uploaded = request.query_params.get("uploaded")
         return templates.TemplateResponse(
             request,
             "index.html",
             {
                 "app_name": "Sircom 2026",
                 "app_version": __version__,
+                "static_asset_version": static_asset_version(),
                 "dsfr_assets_path": DSFR_ASSETS_PATH,
                 "dsfr_version": DSFR_VERSION,
                 "limits": app.state.settings.public_limits(),
+                "page_mode": page_mode,
                 "upload_confirmation": upload_confirmation(uploaded),
                 **load_index_context(
                     app.state.settings,
@@ -376,6 +386,44 @@ def create_app(
                     active_view_key=active_view_key,
                 ),
             },
+        )
+
+    @app.get("/", include_in_schema=False)
+    async def index(
+        request: Request,
+        _actor: ActorContext = Depends(require_action(AccessAction.LOT_READ)),
+    ):
+        lot_id = request.query_params.get("lot_id")
+        active_view_key = request.query_params.get("view")
+        uploaded = request.query_params.get("uploaded")
+        if lot_id and active_view_key and active_view_key not in {"upload_excel", "upload_images"}:
+            return RedirectResponse(
+                lot_view_href(lot_id, active_view_key),
+                status_code=303,
+            )
+        return render_app_page(
+            request,
+            page_mode="sources",
+            lot_id=lot_id,
+            active_view_key=active_view_key,
+            uploaded=uploaded,
+        )
+
+    @app.get("/lots/{lot_id}", include_in_schema=False)
+    async def lot_workflow(
+        request: Request,
+        lot_id: str,
+        _actor: ActorContext = Depends(require_action(AccessAction.LOT_READ)),
+    ):
+        active_view_key = request.query_params.get("view")
+        if active_view_key in {"upload_excel", "upload_images"}:
+            anchor = "excel-file" if active_view_key == "upload_excel" else "image-zip-file"
+            return RedirectResponse(lot_sources_href(lot_id, anchor), status_code=303)
+        return render_app_page(
+            request,
+            page_mode="workflow",
+            lot_id=lot_id,
+            active_view_key=active_view_key,
         )
 
     @app.get("/health", tags=["health"])
@@ -413,6 +461,7 @@ def create_app(
             {
                 "app_name": "Sircom 2026",
                 "app_version": __version__,
+                "static_asset_version": static_asset_version(),
                 "dsfr_assets_path": DSFR_ASSETS_PATH,
                 "dsfr_version": DSFR_VERSION,
                 "page": page,
@@ -818,14 +867,13 @@ def enrich_step_navigation(
     lot_id: str,
     active_view_key: str | None,
 ) -> list[dict[str, Any]]:
-    encoded_lot_id = quote(lot_id, safe="")
     enriched: list[dict[str, Any]] = []
     for step in step_navigation:
         view_key = step["key"]
         enriched.append(
             {
                 **step,
-                "href": f"/?lot_id={encoded_lot_id}&view={view_key}#lot-workspace-title",
+                "href": step_href(lot_id, view_key),
                 "is_active_view": view_key == active_view_key,
             }
         )
@@ -982,8 +1030,8 @@ def lot_primary_action(
         )
     if status in {"bloque", "echoue"} and key in {"diagnostic_excel", "upload_excel"}:
         return action_link(
-            "Déposer une nouvelle version Excel",
-            lot_view_href(lot_id, "upload_excel", "excel-file"),
+            "Ouvrir le dépôt Excel",
+            lot_sources_href(lot_id, "excel-file"),
             "fr-icon-upload-line",
             "Corriger le fichier puis redéposer l'Excel source.",
         )
@@ -996,51 +1044,51 @@ def lot_primary_action(
         )
     if key == "upload_excel":
         return action_link(
-            "Déposer le fichier Excel source",
-            lot_view_href(lot_id, "upload_excel", "excel-file"),
+            "Ouvrir le dépôt Excel source",
+            lot_sources_href(lot_id, "excel-file"),
             "fr-icon-upload-line",
             "Le diagnostic Excel démarre après le dépôt.",
         )
     if key == "mapping":
         return action_link(
-            "Valider le mapping",
+            "Ouvrir le mapping",
             lot_view_href(lot_id, "mapping", "mapping-step-title"),
-            "fr-icon-check-line",
+            "fr-icon-arrow-right-line",
             "Choisir les colonnes exportées puis valider.",
         )
     if key == "tri_region_departement":
         return action_link(
-            "Valider le tri région/département",
+            "Ouvrir le tri région/département",
             lot_view_href(lot_id, "tri_region_departement", "sort-title"),
-            "fr-icon-check-line",
-            "Confirmer le tri proposé ou conserver l'ordre source.",
+            "fr-icon-arrow-right-line",
+            "Valider l'ordre des lignes avant l'aperçu CSV.",
         )
     if key == "previsualisation_csv":
         return action_link(
-            "Valider l'aperçu CSV",
+            "Ouvrir l'aperçu CSV",
             lot_view_href(lot_id, "previsualisation_csv", "csv-preview-title"),
-            "fr-icon-check-line",
+            "fr-icon-arrow-right-line",
             "Vérifier l'aperçu avant de produire les livrables.",
         )
     if key == "upload_images":
         return action_link(
-            "Déposer le zip images produit",
-            lot_view_href(lot_id, "upload_images", "image-zip-file"),
+            "Ouvrir le dépôt du zip images",
+            lot_sources_href(lot_id, "image-zip-file"),
             "fr-icon-upload-line",
             "Le traitement images démarre après le dépôt du zip.",
         )
     if key == "matching_images":
         return action_link(
-            "Valider les associations images",
+            "Ouvrir les associations images",
             lot_view_href(lot_id, "matching_images", "image-matching-title"),
-            "fr-icon-check-line",
+            "fr-icon-arrow-right-line",
             "Résoudre les ambiguïtés si l'application en détecte.",
         )
     if key == "package_final":
         return action_link(
-            "Générer le package final",
+            "Ouvrir le package final",
             lot_view_href(lot_id, "package_final", "package-title"),
-            "fr-icon-archive-line",
+            "fr-icon-arrow-right-line",
             "Assembler le CSV, les images et les rapports dans un zip final.",
         )
     return action_link(
@@ -1056,8 +1104,21 @@ def lot_primary_action(
 
 
 def lot_view_href(lot_id: str, view_key: str, anchor: str | None = None) -> str:
-    href = f"/?lot_id={quote(lot_id, safe='')}&view={quote(view_key, safe='')}"
+    href = f"/lots/{quote(lot_id, safe='')}?view={quote(view_key, safe='')}"
     return f"{href}#{anchor}" if anchor else href
+
+
+def lot_sources_href(lot_id: str, anchor: str | None = None) -> str:
+    href = f"/?lot_id={quote(lot_id, safe='')}"
+    return f"{href}#{anchor}" if anchor else href
+
+
+def step_href(lot_id: str, view_key: str) -> str:
+    if view_key == "upload_excel":
+        return lot_sources_href(lot_id, "excel-file")
+    if view_key == "upload_images":
+        return lot_sources_href(lot_id, "image-zip-file")
+    return lot_view_href(lot_id, view_key, "lot-workspace-title")
 
 
 def view_key_for_step(step_key: str) -> str:
@@ -1096,7 +1157,7 @@ def lot_sources_summary(repositories: Any, lot: dict[str, Any]) -> dict[str, Any
         processing_step=steps_by_key.get("diagnostic_excel"),
         missing_action=action_link(
             "Aller au formulaire Excel",
-            lot_view_href(lot["id"], "upload_excel", "excel-file"),
+            lot_sources_href(lot["id"], "excel-file"),
             "fr-icon-arrow-down-line",
             "Le diagnostic Excel démarre après le dépôt.",
         ),
@@ -1114,7 +1175,7 @@ def lot_sources_summary(repositories: Any, lot: dict[str, Any]) -> dict[str, Any
         ),
         blocked_action=action_link(
             "Redéposer un Excel corrigé",
-            lot_view_href(lot["id"], "upload_excel", "excel-file"),
+            lot_sources_href(lot["id"], "excel-file"),
             "fr-icon-upload-line",
             "Corriger le fichier puis déposer une nouvelle version.",
         ),
@@ -1130,7 +1191,7 @@ def lot_sources_summary(repositories: Any, lot: dict[str, Any]) -> dict[str, Any
         processing_step=steps_by_key.get("inspection_images"),
         missing_action=action_link(
             "Aller au formulaire zip images",
-            lot_view_href(lot["id"], "upload_images", "image-zip-file"),
+            lot_sources_href(lot["id"], "image-zip-file"),
             "fr-icon-arrow-down-line",
             "L'inspection démarre après le dépôt du zip.",
         ),
@@ -1148,7 +1209,7 @@ def lot_sources_summary(repositories: Any, lot: dict[str, Any]) -> dict[str, Any
         ),
         blocked_action=action_link(
             "Redéposer un zip images corrigé",
-            lot_view_href(lot["id"], "upload_images", "image-zip-file"),
+            lot_sources_href(lot["id"], "image-zip-file"),
             "fr-icon-upload-line",
             "Corriger le zip puis déposer une nouvelle version.",
         ),

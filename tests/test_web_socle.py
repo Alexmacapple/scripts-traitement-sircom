@@ -314,25 +314,53 @@ class WebSocleTest(unittest.TestCase):
         self.assertIn('class="fr-header__logo"', html)
         self.assertIn('class="fr-logo"', html)
         self.assertIn("République<br>Française", html)
-        self.assertNotIn('id="header-menu-button"', html)
-        self.assertNotIn('id="header-menu"', html)
-        self.assertNotIn('<nav class="fr-nav"', html)
+        self.assertIn('title="Accueil - Sircom - Made in France - traitements excel"', html)
+        self.assertIn(
+            '<p class="fr-header__service-title">SIRCOM - Made in France - traitements excel</p>',
+            html,
+        )
+        self.assertIn(
+            '<p class="fr-header__service-tagline">Interface de préparation au publipostage</p>',
+            html,
+        )
+        self.assertIn('aria-controls="header-menu"', html)
+        self.assertIn('id="header-menu"', html)
+        self.assertIn('<nav class="fr-nav" id="header-navigation"', html)
+        self.assertIn('href="/#lots-title">Lots</a>', html)
+        self.assertNotIn("Workflow d'orchestration", html)
         self.assertNotIn('href="#navigation"', html)
         self.assertIn('href="#footer"', html)
         self.assertIn('<main id="contenu"', html)
         self.assertIn('<footer class="fr-footer" id="footer" role="contentinfo">', html)
         self.assertIn('class="fr-footer__brand fr-enlarge-link"', html)
+        self.assertIn(
+            'title="Retour à l\'accueil - Sircom 2026 - République Française"',
+            html,
+        )
+        self.assertIn("<p>Miweb SNUM 2026, pour le SIRCOM</p>", html)
         header_html = html.split("<main", 1)[0]
         footer_html = html.split('<footer class="fr-footer" id="footer"', 1)[1]
         self.assertNotIn('href="/docs">API</a>', header_html)
         self.assertNotIn('href="/health">Santé</a>', header_html)
+        self.assertNotIn("https://github.com/Alexmacapple/scripts-traitement-sircom", header_html)
         self.assertIn('href="/docs">API</a>', footer_html)
         self.assertIn('href="/health">Santé</a>', footer_html)
-        self.assertIn('class="fr-footer__bottom"', html)
-        self.assertIn("Accessibilité : non auditée", html)
+        self.assertIn(
+            'href="https://github.com/Alexmacapple/scripts-traitement-sircom">Dépôt Git</a>',
+            footer_html,
+        )
+        self.assertNotIn('class="fr-footer__bottom"', html)
+        self.assertNotIn("Plan du site", html)
+        self.assertNotIn("Accessibilité : non auditée", html)
+        self.assertNotIn("Mentions légales", html)
+        self.assertNotIn("Données personnelles", html)
+        self.assertNotIn("Gestion des cookies", html)
+        self.assertNotIn("Application locale. Contenus et mentions à finaliser avant publication.", html)
         self.assertIn("/static/dsfr/1.14.4/dsfr.min.css", html)
         self.assertIn("/static/dsfr/1.14.4/utility/icons/icons.min.css", html)
         self.assertIn("/static/dsfr/1.14.4/dsfr.module.min.js", html)
+        self.assertRegex(html, r'/static/sircom\.css\?v=\d+')
+        self.assertRegex(html, r'/static/app\.js\?v=\d+')
         self.assertIn('class="fr-callout fr-icon-info-line"', html)
         self.assertNotIn("fr-icon-information-line", html)
         self.assertNotIn("cdn.jsdelivr.net", html)

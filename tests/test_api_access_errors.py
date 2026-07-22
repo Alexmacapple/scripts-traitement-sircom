@@ -107,6 +107,22 @@ class ApiAccessErrorsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["lot"]["title"], "Lot local")
 
+    def test_mutating_request_with_malformed_origin_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(
+                create_app(make_settings(Path(tmp))),
+                raise_server_exceptions=False,
+            )
+
+            response = client.post(
+                "/api/lots",
+                headers={"Origin": "http://testserver:notaport"},
+                json={"title": "Lot pirate"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error"]["code"], "SIRCOM_ACCESS_DENIED")
+
     def test_mutating_request_from_foreign_referer_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))

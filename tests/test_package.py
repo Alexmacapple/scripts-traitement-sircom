@@ -39,7 +39,7 @@ class PackageApiTest(unittest.TestCase):
                 json={"accept_warnings": False},
                 headers={"X-Idempotency-Key": "package-no-warnings"},
             )
-            html_before = client.get(f"/?lot_id={lot_id}")
+            html_before = client.get(f"/lots/{lot_id}?view=package_final")
             enqueue = client.post(
                 f"/api/lots/{lot_id}/package",
                 json={"accept_warnings": True},
@@ -48,7 +48,7 @@ class PackageApiTest(unittest.TestCase):
             package_job = run_until_step(settings, "package_final")
             package_response = client.get(f"/api/lots/{lot_id}/package")
             download = client.get(package_response.json()["artifact"]["download_url"])
-            html_after = client.get(f"/?lot_id={lot_id}")
+            html_after = client.get(f"/lots/{lot_id}?view=package_final")
             database = Database(settings.sqlite_path)
             with database.session() as repositories:
                 lot = repositories.lots.get_required(lot_id)
@@ -180,6 +180,53 @@ class PackageApiTest(unittest.TestCase):
         self.assertEqual(response.json()["error"]["code"], "SIRCOM_PACKAGE_BLOCKERS_OPEN")
         self.assertIsNone(active_job)
 
+    def test_package_generates_without_image_zip_when_reports_are_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "package-sans-images.xlsx"
+            create_reports_workbook(workbook_path)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = _prepare_lot_until_reports_without_images(client, settings, workbook_path)
+
+            enqueue = client.post(
+                f"/api/lots/{lot_id}/package",
+                json={"accept_warnings": True},
+                headers={"X-Idempotency-Key": "package-no-images"},
+            )
+            if enqueue.status_code != 202:
+                raise AssertionError(enqueue.text)
+            package_job = run_until_step(settings, "package_final")
+            package_response = client.get(f"/api/lots/{lot_id}/package")
+            download = client.get(package_response.json()["artifact"]["download_url"])
+
+        self.assertEqual(enqueue.status_code, 202, enqueue.text)
+        self.assertTrue(enqueue.json()["job"]["created"])
+        self.assertEqual(package_job.outcome, "succeeded")
+        self.assertEqual(package_response.status_code, 200, package_response.text)
+        self.assertEqual(download.status_code, 200, download.text)
+
+        archive = zipfile.ZipFile(BytesIO(download.content))
+        with archive:
+            names = set(archive.namelist())
+            image_entries = sorted(
+                name
+                for name in names
+                if name.startswith("export-jpg-resize/") and name != "export-jpg-resize/"
+            )
+            manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
+
+        self.assertIn("export-jpg-resize/", names)
+        self.assertEqual(image_entries, [])
+        self.assertNotIn(
+            "matching",
+            {source["key"] for source in manifest["source_artifacts"]},
+        )
+        self.assertNotIn(
+            "processed_images",
+            {source["key"] for source in manifest["source_artifacts"]},
+        )
+
 
 def _prepare_lot_until_reports(
     client: TestClient,
@@ -245,6 +292,54 @@ def _prepare_lot_until_reports(
         downstream["matching_images"],
         reports,
     ):
+        if result.outcome != "succeeded":
+            raise AssertionError(result)
+    return lot_id
+
+
+def _prepare_lot_until_reports_without_images(
+    client: TestClient,
+    settings,
+    workbook_path: Path,
+) -> str:
+    lot_id = client.post("/api/lots", json={"title": "Lot package sans images"}).json()["lot"][
+        "id"
+    ]
+    upload_excel = client.post(
+        f"/api/lots/{lot_id}/excel",
+        files=excel_file(workbook_path),
+        headers={"X-Idempotency-Key": "package-no-images-excel"},
+    )
+    diagnostic = run_until_step(settings, "diagnostic_excel")
+    mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
+    validate_mapping = client.post(
+        f"/api/lots/{lot_id}/mapping/validate",
+        json=mapping_submission(mapping),
+        headers={"X-Idempotency-Key": "package-no-images-mapping"},
+    )
+    fusion = run_until_step(settings, "fusion_multi_onglets")
+    normalization = run_until_step(settings, "normalisation_contenu")
+    csv_contract = run_until_step(settings, "verification_csv_indesign")
+    validate_sort = client.post(
+        f"/api/lots/{lot_id}/tri/validate",
+        json={"decision": "tri_region_departement"},
+        headers={"X-Idempotency-Key": "package-no-images-sort"},
+    )
+    validate_preview = client.post(
+        f"/api/lots/{lot_id}/csv/preview/validate",
+        headers={"X-Idempotency-Key": "package-no-images-preview"},
+    )
+    reports = run_until_step(settings, "rapports")
+
+    if upload_excel.status_code != 202:
+        raise AssertionError(upload_excel.text)
+    if validate_mapping.status_code != 200:
+        raise AssertionError(validate_mapping.text)
+    if validate_sort.status_code != 200:
+        raise AssertionError(validate_sort.text)
+    if validate_preview.status_code != 200:
+        raise AssertionError(validate_preview.text)
+    for result in (diagnostic, fusion, normalization, csv_contract, reports):
         if result.outcome != "succeeded":
             raise AssertionError(result)
     return lot_id

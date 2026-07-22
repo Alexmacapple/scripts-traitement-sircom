@@ -510,11 +510,16 @@ def _csv_content_from_preview(preview: dict[str, Any]) -> tuple[list[str], list[
 
 
 def _public_preview(preview: dict[str, Any]) -> dict[str, Any]:
-    return {
+    public_preview = {
         key: value
         for key, value in preview.items()
         if not key.startswith("_")
     }
+    rows_limit = int(public_preview.get("preview_rows_limit") or CSV_PREVIEW_ROWS_LIMIT)
+    rows = public_preview.get("rows")
+    if isinstance(rows, list):
+        public_preview["rows"] = rows[:rows_limit]
+    return public_preview
 
 
 def _image_bindings_by_id(matching_payload: dict[str, Any] | None) -> dict[str, dict[str, str]]:
@@ -660,7 +665,7 @@ def _existing_preview_validation(
         artifact=preview_artifact,
     )
     return {
-        "preview": preview,
+        "preview": _public_preview(preview),
         "preview_artifact": preview_artifact,
         "csv_artifact": csv_artifact,
     }
@@ -764,7 +769,7 @@ def _current_preview_artifacts(
     )
     return {
         "input_fingerprint": step["input_fingerprint"],
-        "preview": preview,
+        "preview": _public_preview(preview),
         "preview_artifact": preview_artifact,
         "csv_artifact": csv_artifact,
     }

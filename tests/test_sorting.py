@@ -302,5 +302,37 @@ class SortDecisionApiTest(unittest.TestCase):
         )
 
 
+class SortDecisionUiTest(unittest.TestCase):
+    def test_missing_sort_columns_show_source_order_as_the_only_available_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "sans-tri.xlsx"
+            create_no_sort_workbook(workbook_path)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id, _mapping = prepare_normalized_lot(
+                client,
+                settings,
+                workbook_path,
+                title="Lot sans tri UI",
+                key="sans-tri-ui",
+            )
+
+            response = client.get(f"/?lot_id={lot_id}&view=tri_region_departement")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+        sort_html = html.split('id="sort-title"', 1)[1].split("</section>", 1)[0]
+        self.assertIn("Aucun tri région/département proposé", sort_html)
+        self.assertIn("Choix disponible : conserver l'ordre source", sort_html)
+        self.assertIn("Corriger le mapping", sort_html)
+        self.assertIn("Aperçu de l'ordre source", sort_html)
+        self.assertNotIn("Confirmer le tri proposé ou conserver l'ordre source.", sort_html)
+        self.assertNotIn("<th scope=\"col\">Région</th>", sort_html)
+        self.assertNotIn("<th scope=\"col\">Département</th>", sort_html)
+        self.assertNotIn('id="sort-confirm"', sort_html)
+        self.assertIn('id="sort-order-source"', sort_html)
+
+
 if __name__ == "__main__":
     unittest.main()
