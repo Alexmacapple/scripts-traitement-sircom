@@ -654,7 +654,7 @@ def load_index_context(
     if settings_error is not None:
         context["ui_error"] = ui_error(
             "Configuration invalide",
-            "La configuration locale ne peut pas etre chargee.",
+            "La configuration locale ne peut pas être chargée.",
             "Corriger les variables SIRCOM_* puis relancer l'application.",
         )
         return context
@@ -788,14 +788,14 @@ def load_index_context(
                 except KeyError:
                     context["ui_error"] = ui_error(
                         "Lot introuvable",
-                        "Le lot demande n'existe pas ou a ete retire.",
-                        "Selectionner un lot actif dans la liste.",
+                        "Le lot demandé n'existe pas ou a été retiré.",
+                        "Sélectionner un lot actif dans la liste.",
                     )
     except (OSError, SchemaVersionError, sqlite3.Error):
         context["ui_error"] = ui_error(
             "Base locale indisponible",
-            "SQLite ne peut pas etre ouvert ou migre.",
-            "Verifier le dossier de donnees puis relancer l'application.",
+            "SQLite ne peut pas être ouvert ou migré.",
+            "Vérifier le dossier de données puis relancer l'application.",
         )
     return context
 
