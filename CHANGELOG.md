@@ -27,6 +27,8 @@
 - Ajout d'une CI GitHub Actions, d'un `uv.lock` et du verrouillage exact des
   dépendances directes, avec exécution de `pytest` et de la recette navigateur
   Playwright.
+- Ajout d'une note d'audit Loriq classant les inconnues restantes après
+  réconciliation des reçus de lanes.
 
 ## 2026-07-21
 
