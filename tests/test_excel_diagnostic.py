@@ -41,6 +41,10 @@ class ExcelDiagnosticTest(unittest.TestCase):
             any("sans id_dossier" in warning for warning in diagnostic.warnings),
             diagnostic.warnings,
         )
+        self.assertTrue(
+            any("Onglet vide ignoré." in warning for warning in diagnostic.warnings),
+            diagnostic.warnings,
+        )
 
     def test_2025_header_cleaning_rule_keeps_excel_letter_prefix(self) -> None:
         self.assertEqual(clean_indesign_header("B_ID"), "b_id")

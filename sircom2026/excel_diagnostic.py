@@ -189,7 +189,7 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
         diagnostic.ignored = True
         diagnostic.ignore_reason = "empty sheet"
         diagnostic.importable = True
-        diagnostic.warnings.append("Onglet vide ignore.")
+        diagnostic.warnings.append("Onglet vide ignoré.")
         return diagnostic
 
     diagnostic.hidden_columns = hidden_column_ranges(ws)

@@ -261,7 +261,7 @@ def upload_prepared_image_zip_for_lot(
         raise ImageZipUploadError(
             409,
             "SIRCOM_IMAGE_ZIP_UPLOAD_RUN_NOT_CURRENT",
-            "Upload du zip images interrompu par une execution plus recente.",
+            "Upload du zip images interrompu par une exécution plus récente.",
         )
     complete_step(
         repositories,
@@ -739,7 +739,7 @@ def _existing_upload_result(
         raise ImageZipUploadError(
             409,
             "SIRCOM_IMAGE_ZIP_UPLOAD_ALREADY_SUBMITTED",
-            "Upload du zip images deja soumis.",
+            "Upload du zip images déjà soumis.",
         )
 
     artifact = repositories.artifacts.get_for_step_run_role(
@@ -752,7 +752,7 @@ def _existing_upload_result(
         raise ImageZipUploadError(
             409,
             "SIRCOM_IMAGE_ZIP_UPLOAD_ALREADY_SUBMITTED",
-            "Upload du zip images deja soumis.",
+            "Upload du zip images déjà soumis.",
         )
     inspection_job = repositories.jobs.get_by_idempotency_key(
         lot_id=lot_id,
@@ -763,7 +763,7 @@ def _existing_upload_result(
         raise ImageZipUploadError(
             409,
             "SIRCOM_IMAGE_ZIP_UPLOAD_ALREADY_SUBMITTED",
-            "Upload du zip images deja soumis.",
+            "Upload du zip images déjà soumis.",
         )
 
     return ImageZipUploadResult(

@@ -1633,7 +1633,7 @@ class ProblemsRepository:
         now = _now()
         row_id = problem_id or _new_id("problem")
         cause_text = cause if cause is not None else message
-        action_text = action if action is not None else "Corriger la cause puis relancer l'etape concernee."
+        action_text = action if action is not None else "Corriger la cause puis relancer l'étape concernée."
         self.connection.execute(
             """
             INSERT INTO problemes (
@@ -1944,7 +1944,7 @@ def _apply_schema_v3(connection: sqlite3.Connection) -> None:
     if "action" not in problem_columns:
         connection.execute(
             "ALTER TABLE problemes ADD COLUMN action TEXT NOT NULL DEFAULT "
-            "'Corriger la cause puis relancer l''etape concernee.'"
+            "'Corriger la cause puis relancer l''étape concernée.'"
         )
     connection.execute(
         "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
@@ -2283,7 +2283,7 @@ _SCHEMA_V1 = [
         title TEXT NOT NULL,
         cause TEXT NOT NULL DEFAULT '',
         message TEXT NOT NULL,
-        action TEXT NOT NULL DEFAULT '',
+        action TEXT NOT NULL DEFAULT 'Corriger la cause puis relancer l''étape concernée.',
         location_json TEXT NOT NULL DEFAULT '{{}}',
         technical_json TEXT NOT NULL DEFAULT '{{}}',
         status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ({_check_in(PROBLEM_STATUSES)})),

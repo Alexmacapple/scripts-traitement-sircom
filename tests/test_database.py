@@ -183,6 +183,13 @@ class DatabaseMigrationTest(unittest.TestCase):
                         "technical_json",
                     }.issubset(table_columns(connection, "problemes"))
                 )
+                action_default = connection.execute(
+                    "SELECT dflt_value FROM pragma_table_info('problemes') WHERE name = 'action'"
+                ).fetchone()["dflt_value"]
+                self.assertEqual(
+                    action_default,
+                    "'Corriger la cause puis relancer l''étape concernée.'",
+                )
                 self.assertTrue(
                     {
                         "lot_id_hash",
@@ -452,6 +459,15 @@ class DatabaseMigrationTest(unittest.TestCase):
                     cause="Cause test",
                     action="Action test",
                 )
+                default_action_problem = repos.problems.create(
+                    lot_id=lot["id"],
+                    step_key="upload_excel",
+                    run_id="run_upload_1",
+                    severity="alerte",
+                    code="SIRCOM_TEST_DEFAULT_ACTION",
+                    title="Alerte sans action",
+                    message="Message sans action",
+                )
 
                 lot = repos.lots.update_status(lot["id"], "en_cours")
                 step = repos.steps.update_status(
@@ -494,6 +510,10 @@ class DatabaseMigrationTest(unittest.TestCase):
                 self.assertIsNotNone(repos.problems.get_required(problem["id"])["resolved_at"])
                 self.assertEqual(repos.problems.get_required(problem["id"])["cause"], "Cause test")
                 self.assertEqual(repos.problems.get_required(problem["id"])["action"], "Action test")
+                self.assertEqual(
+                    repos.problems.get_required(default_action_problem["id"])["action"],
+                    "Corriger la cause puis relancer l'étape concernée.",
+                )
 
             with self.assertRaises(RuntimeError):
                 with database.transaction() as repos:

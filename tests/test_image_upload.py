@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
+from sircom2026.database import Database
 from sircom2026.worker_runner import run_worker_once
 
 
@@ -200,6 +201,39 @@ class ImageZipUploadApiTest(unittest.TestCase):
         self.assertFalse(second_response.json()["job"]["created"])
         self.assertEqual(len(artifact_files), 1)
         self.assertEqual(temp_files, [])
+
+    def test_duplicate_in_progress_zip_upload_returns_accented_message(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp))
+            client = TestClient(create_app(settings))
+            lot_id = client.post("/api/lots", json={"title": "Lot idempotent"}).json()["lot"][
+                "id"
+            ]
+            headers = {"X-Idempotency-Key": "upload-images-in-progress"}
+            database = Database(
+                settings.sqlite_path,
+                busy_timeout_ms=settings.sqlite_busy_timeout_ms,
+            )
+            with database.transaction() as repositories:
+                repositories.jobs.create(
+                    lot_id=lot_id,
+                    step_key="upload_images",
+                    run_id="run_existing",
+                    idempotency_key=headers["X-Idempotency-Key"],
+                    status="queued",
+                )
+
+            response = client.post(
+                f"/api/lots/{lot_id}/images",
+                files=image_zip_file("images.zip", zip_bytes([("a.jpg", b"a")])),
+                headers=headers,
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json()["error"]["message"],
+            "Upload du zip images déjà soumis.",
+        )
 
     def test_invalid_zip_extension_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
