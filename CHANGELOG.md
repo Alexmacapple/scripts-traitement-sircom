@@ -24,6 +24,9 @@
   workflow après la séparation des écrans métier.
 - Ajout d'une recette E2E synthétique qui vérifie le workflow Excel, CSV,
   images, rapports et package final, avec inspection du zip produit.
+- Ajout d'une CI GitHub Actions, d'un `uv.lock` et du verrouillage exact des
+  dépendances directes, avec exécution de `pytest` et de la recette navigateur
+  Playwright.
 
 ## 2026-07-21
 

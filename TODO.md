@@ -64,6 +64,8 @@
 - [x] Créer le squelette FastAPI minimal sans routes stub de succès.
 - [x] Ajouter `pyproject.toml` pour FastAPI, tests et runtime local.
 - [x] Ajouter `.sircom2026-data/` au `.gitignore`.
+- [x] Ajouter une CI GitHub Actions avec dépendances directes verrouillées,
+  `uv.lock`, tests Python et recette navigateur Playwright.
 - [x] Implémenter la configuration `sircom2026.config` :
   - [x] `SIRCOM_DATA_DIR` ;
   - [x] `SIRCOM_SQLITE_PATH` ;
