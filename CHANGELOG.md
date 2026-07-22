@@ -22,6 +22,8 @@
   discrets entre points et espacements DSFR.
 - Correction du bouton de génération du package final et des URLs locales de
   workflow après la séparation des écrans métier.
+- Ajout d'une recette E2E synthétique qui vérifie le workflow Excel, CSV,
+  images, rapports et package final, avec inspection du zip produit.
 
 ## 2026-07-21
 

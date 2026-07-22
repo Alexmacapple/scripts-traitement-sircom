@@ -233,7 +233,7 @@
 - [x] Documenter le démarrage local de l'application web quand le squelette
   FastAPI existe.
 - [ ] Ajouter un guide court de correction des Excels refusés.
-- [ ] Ajouter une recette de bout en bout avec fixtures synthétiques.
+- [x] Ajouter une recette de bout en bout avec fixtures synthétiques.
 - [ ] Documenter les variables d'environnement V1.
 - [ ] Maintenir `README.md`, `CHANGELOG.md` et `TODO.md` après chaque incrément
   significatif.
