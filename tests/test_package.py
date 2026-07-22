@@ -39,7 +39,7 @@ class PackageApiTest(unittest.TestCase):
                 json={"accept_warnings": False},
                 headers={"X-Idempotency-Key": "package-no-warnings"},
             )
-            html_before = client.get(f"/lots/{lot_id}?view=package_final")
+            html_before = client.get(f"/lots/{lot_id}/export?view=package_final")
             enqueue = client.post(
                 f"/api/lots/{lot_id}/package",
                 json={"accept_warnings": True},
@@ -48,7 +48,7 @@ class PackageApiTest(unittest.TestCase):
             package_job = run_until_step(settings, "package_final")
             package_response = client.get(f"/api/lots/{lot_id}/package")
             download = client.get(package_response.json()["artifact"]["download_url"])
-            html_after = client.get(f"/lots/{lot_id}?view=package_final")
+            html_after = client.get(f"/lots/{lot_id}/export?view=package_final")
             database = Database(settings.sqlite_path)
             with database.session() as repositories:
                 lot = repositories.lots.get_required(lot_id)

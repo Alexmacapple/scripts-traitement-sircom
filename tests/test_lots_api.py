@@ -243,15 +243,15 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("À faire maintenant", html)
         self.assertIn("Déposer les sources", html)
         self.assertIn("Ajouter l'Excel source", html)
-        self.assertIn("Ouvrir le workflow", html)
+        self.assertIn("Ouvrir le parcours", html)
         self.assertIn("Déposer l&#39;Excel", html)
         self.assertIn("Fichier Excel source", html)
         self.assertIn("Zip images produit", html)
-        self.assertIn("Aucun Excel source uploadé", html)
-        self.assertIn("Aucun zip images produit uploadé", html)
-        self.assertIn("Uploader l'Excel source", html)
-        self.assertIn("Uploader le zip images produit", html)
-        self.assertIn(f'href="/lots/{lot_id}#lot-workspace-title"', html)
+        self.assertIn("Aucun Excel source déposé", html)
+        self.assertIn("Aucun zip images produit déposé", html)
+        self.assertIn("Déposer l'Excel source", html)
+        self.assertIn("Déposer le zip images produit", html)
+        self.assertIn(f'href="/lots/{lot_id}/excel#lot-workspace-title"', html)
         self.assertNotIn('<section class="fr-mt-8v" id="lot-detail"', html)
         self.assertIn('id="delete-lot-button"', html)
         self.assertIn("Supprimer le lot", html)
@@ -270,24 +270,37 @@ class LotsUiTest(unittest.TestCase):
             lot_id = client.post("/api/lots", json={"title": "Lot UI"}).json()["lot"]["id"]
 
             response = client.get(f"/lots/{lot_id}")
+            images_response = client.get(f"/lots/{lot_id}/images")
+            export_response = client.get(f"/lots/{lot_id}/export")
 
         html = response.text
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Workflow du lot Lot UI", html)
+        self.assertIn("Traitement Excel du lot Lot UI", html)
         self.assertIn('<section class="fr-mt-8v" id="lot-detail"', html)
         self.assertIn('<section class="fr-col-12 fr-col-lg-8" id="lot-workspace"', html)
+        self.assertIn("Traitement Excel", html)
+        self.assertIn("Traitement images", html)
+        self.assertIn("Export final", html)
+        self.assertIn("Parcours métier", html)
         self.assertIn("Ce qui se passe sur cette étape", html)
         self.assertIn("Action utilisateur", html)
         self.assertIn("Traitement local", html)
         self.assertIn("Résultat attendu", html)
         self.assertIn("Historique technique des étapes", html)
-        self.assertIn("Workflow d'orchestration", html)
         self.assertNotIn('id="excel-upload-form"', html)
         self.assertNotIn('id="image-upload-form"', html)
         self.assertIn('href="#steps-menu-title"', html)
         self.assertIn('href="#lot-workspace-title"', html)
         self.assertIn('href="#lot-details"', html)
         self.assertNotIn('id="overview-title"', html)
+        self.assertEqual(images_response.status_code, 200)
+        self.assertIn("Traitement images du lot Lot UI", images_response.text)
+        self.assertIn("Déposer le zip images", images_response.text)
+        self.assertNotIn("Valider le mapping -", images_response.text)
+        self.assertEqual(export_response.status_code, 200)
+        self.assertIn("Export final du lot Lot UI", export_response.text)
+        self.assertIn("Générer les rapports", export_response.text)
+        self.assertNotIn("Valider le mapping -", export_response.text)
 
     def test_legacy_workflow_query_redirects_to_lot_workflow_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -296,10 +309,13 @@ class LotsUiTest(unittest.TestCase):
                 "id"
             ]
 
-            response = client.get(f"/?lot_id={lot_id}&view=mapping", follow_redirects=False)
+            root_response = client.get(f"/?lot_id={lot_id}&view=mapping", follow_redirects=False)
+            lot_response = client.get(f"/lots/{lot_id}?view=mapping", follow_redirects=False)
 
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.headers["location"], f"/lots/{lot_id}?view=mapping")
+        self.assertEqual(root_response.status_code, 303)
+        self.assertEqual(root_response.headers["location"], f"/lots/{lot_id}/excel?view=mapping")
+        self.assertEqual(lot_response.status_code, 303)
+        self.assertEqual(lot_response.headers["location"], f"/lots/{lot_id}/excel?view=mapping")
 
     def test_delete_lot_button_requires_browser_confirmation(self) -> None:
         app_js_path = Path(__file__).resolve().parents[1] / "sircom2026" / "static" / "app.js"
@@ -385,22 +401,27 @@ class LotsUiTest(unittest.TestCase):
                     run_id="run_mapping_1",
                 )
 
-            response = client.get(f"/lots/{lot_id}?view=diagnostic_excel")
+            response = client.get(f"/lots/{lot_id}/excel?view=diagnostic_excel")
 
         html = response.text
         self.assertEqual(response.status_code, 200)
         self.assertIn("Problèmes", html)
         self.assertIn("Alerte", html)
         self.assertIn("Colonnes masquées détectées", html)
-        self.assertIn("Cause :", html)
+        self.assertIn("<dt>Cause</dt>", html)
         self.assertIn("Le classeur contient une colonne masquée.", html)
-        self.assertIn("Emplacement :", html)
+        self.assertIn("<dt>Emplacement</dt>", html)
         self.assertIn("Onglet Produits, Colonne C", html)
-        self.assertIn("Action attendue :", html)
+        self.assertIn("<dt>Action attendue</dt>", html)
         self.assertIn("Afficher la colonne, puis relancer le diagnostic.", html)
         self.assertIn("Détails techniques", html)
         self.assertIn("diagnostic-tech-", html)
-        self.assertIn("hidden_columns", html)
+        self.assertIn("Alerte : 1 point", html)
+        self.assertIn('class="fr-raw-list sircom-problem-list fr-mt-2v"', html)
+        self.assertIn("sircom-problem-group", html)
+        self.assertIn('class="sircom-problem-item fr-py-3v"', html)
+        self.assertIn("Colonnes masquées", html)
+        self.assertNotIn("hidden_columns", html)
         self.assertNotIn("relative_path", html)
         self.assertNotIn("12345678900000", html)
         self.assertNotIn("/private/tmp/source.xlsx", html)
@@ -432,7 +453,10 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("Diagnostic Excel en attente", html)
         self.assertIn("Le fichier Excel est déposé et le diagnostic est prêt à être lancé.", html)
         self.assertIn("Attendre la fin du traitement, puis actualiser la page.", html)
-        self.assertIn("Diagnostic non disponible tant que le worker n&#39;a pas terminé.", html)
+        self.assertIn(
+            "Diagnostic non disponible tant que le traitement local n&#39;a pas terminé.",
+            html,
+        )
         self.assertNotIn(str(tmpdir), html)
 
     def test_home_ui_renders_refused_excel_diagnostic_without_hiding_other_errors(self) -> None:
@@ -465,9 +489,9 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("Colonne id_dossier absente", html)
         self.assertIn("Colonnes masquées détectées", html)
         self.assertIn("Formules détectées", html)
-        self.assertIn("Cause :", html)
-        self.assertIn("Emplacement :", html)
-        self.assertIn("Action attendue :", html)
+        self.assertIn("<dt>Cause</dt>", html)
+        self.assertIn("<dt>Emplacement</dt>", html)
+        self.assertIn("<dt>Action attendue</dt>", html)
         self.assertIn("Détails techniques", html)
         self.assertIn("fr-accordions-group", html)
         self.assertNotIn("Produit formule", html)

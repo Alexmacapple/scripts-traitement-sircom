@@ -86,15 +86,15 @@
           <div class="fr-col-12">
             <p class="fr-badge fr-badge--sm fr-mb-2v">Application locale</p>
             <h1 class="fr-mb-2v">
-              {% if page_mode == "workflow" and selected_lot %}
-                Workflow du lot {{ selected_lot.title or selected_lot.id }}
+              {% if page_mode == "workflow" and selected_lot and selected_lot.ui.active_screen %}
+                {{ selected_lot.ui.active_screen.label }} du lot {{ selected_lot.title or selected_lot.id }}
               {% else %}
                 Préparation du livrable excel pour le publipostage
               {% endif %}
             </h1>
             <p class="fr-text--lead fr-mb-0">
-              {% if page_mode == "workflow" and selected_lot %}
-                Piloter le mapping, les contrôles CSV, les images, les rapports et le package final.
+              {% if page_mode == "workflow" and selected_lot and selected_lot.ui.active_screen %}
+                {{ selected_lot.ui.active_screen.lead }}
               {% else %}
                 Créer un lot, déposer les fichiers sources et reprendre un traitement existant.
               {% endif %}
@@ -389,6 +389,27 @@
         {% endif %}
 
         {% if selected_lot and page_mode == "workflow" %}
+          {% if lot_ui.workflow_screens %}
+            <nav class="fr-mt-6v sircom-workflow-screens" aria-labelledby="workflow-screens-title">
+              <h2 id="workflow-screens-title" class="fr-sr-only">Parcours métier du lot</h2>
+              <ul class="fr-raw-list fr-grid-row fr-grid-row--gutters">
+                {% for screen in lot_ui.workflow_screens %}
+                  <li class="fr-col-12 fr-col-md-4">
+                    <a
+                      class="sircom-workflow-screen-link{% if screen.is_active %} sircom-workflow-screen-link--active{% endif %}"
+                      href="{{ screen.href }}"
+                      {% if screen.is_active %}aria-current="page"{% endif %}
+                    >
+                      <span class="sircom-workflow-screen-label">{{ screen.label }}</span>
+                      <span class="fr-badge fr-badge--{{ screen.badge_class }} fr-badge--sm">
+                        {{ screen.status_label }}
+                      </span>
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </nav>
+          {% endif %}
           <section class="fr-mt-8v" id="lot-detail" aria-labelledby="lot-workspace-title">
               <div class="fr-grid-row fr-grid-row--gutters fr-mt-5v">
                 <aside class="fr-col-12 fr-col-lg-4">
@@ -404,17 +425,17 @@
                       </button>
                       <div class="fr-collapse" id="steps-menu-list">
                         <div class="fr-sidemenu__title" id="steps-menu-title">
-                          Workflow d'orchestration
+                          {{ lot_ui.active_screen.label if lot_ui.active_screen else "Parcours métier" }}
                         </div>
                         <ul class="fr-sidemenu__list">
-                          {% for step in lot_ui.step_navigation %}
+                          {% for step in lot_ui.screen_step_navigation %}
                             <li class="fr-sidemenu__item">
                               <a
                                 class="fr-sidemenu__link"
                                 href="{{ step.href }}"
                                 {% if step.is_active_view %}aria-current="page"{% endif %}
                               >
-                                {{ step.number }}. {{ step.label }} - {{ step.ui_status_label }}
+                                {{ step.screen_number }}. {{ step.label }} - {{ step.ui_status_label }}
                               </a>
                             </li>
                           {% endfor %}
@@ -426,7 +447,7 @@
 
                 <section class="fr-col-12 fr-col-lg-8" id="lot-workspace" aria-labelledby="lot-workspace-title">
                   <p class="fr-badge fr-badge--{{ active_step.ui_badge_class if active_step else 'info' }} fr-badge--sm fr-mb-2v">
-                    Étape {{ active_step.number if active_step else lot_ui.current_step_number }} sur {{ lot_ui.steps_total }} - {{ active_step.ui_status_label if active_step else selected_lot.status_label }}
+                    Étape {{ active_step.screen_number if active_step and active_step.screen_number is defined else active_step.number if active_step else lot_ui.current_step_number }} sur {{ lot_ui.screen_steps_total or lot_ui.steps_total }} - {{ active_step.ui_status_label if active_step else selected_lot.status_label }}
                   </p>
                   <h3 id="lot-workspace-title">{{ active_step.label if active_step else "Où en est le lot ?" }}</h3>
                   <p class="fr-text--lead">
@@ -541,9 +562,9 @@
                 {% if selected_lot.status not in ["supprime", "purge", "annule"] %}
                   <p class="fr-text--sm">
                     {% if active_view == "upload_excel" %}
-                      Sélectionner le fichier Excel, vérifier le nom affiché, puis lancer explicitement l'upload.
+                      Sélectionner le fichier Excel, vérifier le nom affiché, puis lancer explicitement le dépôt.
                     {% else %}
-                      Sélectionner le zip images, vérifier le nom affiché, puis lancer explicitement l'upload.
+                      Sélectionner le zip images, vérifier le nom affiché, puis lancer explicitement le dépôt.
                     {% endif %}
                   </p>
                   <div class="fr-grid-row fr-grid-row--gutters">
@@ -559,7 +580,7 @@
                           tabindex="-1"
                         >
                           <p class="fr-alert__title">
-                            {{ "Votre document a bien été uploadé" if uploaded_kind == "excel" else "Excel source uploadé" }}
+                            {{ "Votre document a bien été déposé" if uploaded_kind == "excel" else "Excel source déposé" }}
                           </p>
                           <p class="fr-mb-0">
                             Le fichier est reçu. Suivre le diagnostic Excel avant de valider le mapping.
@@ -567,7 +588,7 @@
                         </div>
                       {% else %}
                         <p class="fr-hint-text fr-mb-3v" id="excel-upload-feedback" tabindex="-1">
-                          Aucun Excel source uploadé pour ce lot.
+                          Aucun Excel source déposé pour ce lot.
                         </p>
                       {% endif %}
                       <form
@@ -608,7 +629,7 @@
                               type="submit"
                               data-upload-submit="excel"
                             >
-                              Uploader l'Excel source
+                              Déposer l'Excel source
                             </button>
                           </li>
                         </ul>
@@ -627,7 +648,7 @@
                           tabindex="-1"
                         >
                           <p class="fr-alert__title">
-                            {{ "Votre document a bien été uploadé" if uploaded_kind == "images" else "Zip images uploadé" }}
+                            {{ "Votre document a bien été déposé" if uploaded_kind == "images" else "Zip images déposé" }}
                           </p>
                           <p class="fr-mb-0">
                             Le zip est reçu. Suivre l'inspection images avant de récupérer les livrables.
@@ -635,7 +656,7 @@
                         </div>
                       {% else %}
                         <p class="fr-hint-text fr-mb-3v" id="image-upload-feedback" tabindex="-1">
-                          Aucun zip images produit uploadé pour ce lot.
+                          Aucun zip images produit déposé pour ce lot.
                         </p>
                       {% endif %}
                       <form
@@ -678,7 +699,7 @@
                               type="submit"
                               data-upload-submit="images"
                             >
-                              Uploader le zip images produit
+                              Déposer le zip images produit
                             </button>
                           </li>
                         </ul>
@@ -701,7 +722,7 @@
                       <div class="fr-alert fr-alert--info" role="status">
                         <h3 class="fr-alert__title" id="workflow-source-upload-title">Dépôt des sources sur l'accueil</h3>
                         <p class="fr-mb-1v">
-                          Les formulaires d'upload Excel et images sont regroupés sur la page de reprise du lot.
+                          Les formulaires de dépôt Excel et images sont regroupés sur la page de reprise du lot.
                         </p>
                         <p class="fr-mb-0">
                           <a
@@ -720,7 +741,7 @@
                   <h3 id="image-workflow-title">{{ active_step.label if active_step else "Traiter les images" }}</h3>
                   {% if lot_ui.image_workflow_started %}
                     <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
-                      <h4 class="fr-alert__title">Étape orchestrée par le worker</h4>
+                      <h4 class="fr-alert__title">Étape pilotée par le traitement local</h4>
                       <p class="fr-mb-1v">
                         <strong>État :</strong>
                         {{ active_step.ui_status_label if active_step else selected_lot.status_label }}.
@@ -850,7 +871,7 @@
                       <dd>{{ image_matching.unreferenced_count }}</dd>
                     </div>
                     <div class="fr-col-6 fr-col-md-2">
-                      <dt>Fallback</dt>
+                      <dt>Secours</dt>
                       <dd>{{ image_matching.fallback_count }}</dd>
                     </div>
                     <div class="fr-col-6 fr-col-md-2">
@@ -894,8 +915,8 @@
                                   {% if loop.index <= 50 %}
                                     <tr>
                                       <td>{{ binding.id_dossier }}</td>
-                                      <td>{{ binding.status }}</td>
-                                      <td>{{ binding.match_level }}</td>
+                                      <td>{{ binding.status_label }}</td>
+                                      <td>{{ binding.match_level_label }}</td>
                                       <td>{{ binding.source_name or "" }}</td>
                                       <td>{{ binding.final_name }}</td>
                                       <td>
@@ -921,7 +942,7 @@
                                             </button>
                                           </form>
                                         {% else %}
-                                          {{ binding.match_level }}
+                                          {{ binding.match_level_label }}
                                         {% endif %}
                                       </td>
                                     </tr>
@@ -980,30 +1001,27 @@
                     {% for _severity, group in excel_diagnostic.problem_groups.items() %}
                       {% if group['items'] %}
                         <section class="fr-mt-4v" aria-labelledby="excel-diagnostic-{{ group['severity'] }}-title">
+                          {% set problem_count = group['items'] | length %}
                           <h4 id="excel-diagnostic-{{ group['severity'] }}-title">
-                            {{ group['label'] }}
+                            {{ group['label'] }} : {{ problem_count }} {{ "points" if problem_count > 1 else "point" }}
                           </h4>
-                          <ul class="fr-raw-list">
+                          <ul class="fr-raw-list sircom-problem-list fr-mt-2v">
                             {% for problem in group['items'] %}
-                              <li class="fr-py-3v">
-                                <p class="fr-mb-1v">
+                              <li class="sircom-problem-item fr-py-3v">
+                                <div class="sircom-problem-heading fr-mb-2v">
                                   <span class="fr-badge fr-badge--{{ problem.alert_class }} fr-badge--sm">
                                     {{ problem.severity_label }}
                                   </span>
-                                  <strong>{{ problem.title }}</strong>
-                                </p>
-                                <p class="fr-mb-1v">
-                                  <strong>Cause :</strong>
-                                  {{ problem.cause }}
-                                </p>
-                                <p class="fr-mb-1v">
-                                  <strong>Emplacement :</strong>
-                                  {{ problem.location_label }}
-                                </p>
-                                <p class="fr-mb-1v">
-                                  <strong>Action attendue :</strong>
-                                  {{ problem.action }}
-                                </p>
+                                  <p class="sircom-problem-title fr-mb-0">{{ problem.title }}</p>
+                                </div>
+                                <dl class="sircom-problem-details fr-mt-2v fr-mb-0">
+                                  <dt>Cause</dt>
+                                  <dd>{{ problem.cause }}</dd>
+                                  <dt>Emplacement</dt>
+                                  <dd>{{ problem.location_label }}</dd>
+                                  <dt>Action attendue</dt>
+                                  <dd>{{ problem.action }}</dd>
+                                </dl>
                                 {% if problem.technical_items %}
                                   <div class="fr-accordions-group fr-mt-2v">
                                     <section class="fr-accordion">
@@ -1028,7 +1046,7 @@
                                     </section>
                                   </div>
                                 {% endif %}
-                                <p class="fr-text--xs fr-mt-1v fr-mb-0">
+                                <p class="sircom-problem-code fr-text--xs fr-mt-2v fr-mb-0">
                                   Code {{ problem.code }}.
                                 </p>
                               </li>
@@ -1309,7 +1327,7 @@
                 <section class="fr-mt-5v" aria-labelledby="csv-workflow-title">
                   <h3 id="csv-workflow-title">{{ active_step.label }}</h3>
                   <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
-                    <h4 class="fr-alert__title">Étape orchestrée par le worker</h4>
+                    <h4 class="fr-alert__title">Étape pilotée par le traitement local</h4>
                     <p class="fr-mb-1v">
                       <strong>État :</strong>
                       {{ active_step.ui_status_label }}.
@@ -1333,7 +1351,7 @@
                     </div>
                     <div class="fr-col-auto">
                       <p class="fr-badge fr-badge--sm">
-                        {{ sort_proposal.detection_status }}
+                        {{ sort_proposal.detection_status_label }}
                       </p>
                     </div>
                   </div>
@@ -1341,7 +1359,7 @@
                   {% if sort_decision %}
                     <div class="fr-alert fr-alert--success fr-mt-2v" role="status">
                       <h4 class="fr-alert__title">Décision enregistrée</h4>
-                      <p class="fr-mb-0">{{ sort_decision.decision }}</p>
+                      <p class="fr-mb-0">{{ sort_decision.decision_label }}</p>
                     </div>
                   {% elif sort_proposal.can_sort %}
                     <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
@@ -1441,7 +1459,7 @@
                         <li>
                           <a
                             class="fr-btn fr-btn--secondary fr-icon-edit-line fr-btn--icon-left"
-                            href="/lots/{{ selected_lot.id }}?view=mapping#mapping-step-title"
+                            href="/lots/{{ selected_lot.id }}/excel?view=mapping#mapping-step-title"
                           >
                             Corriger le mapping
                           </a>
@@ -1730,7 +1748,7 @@
                   <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
                     <h4 class="fr-alert__title">Validation finale attendue</h4>
                     <p class="fr-mb-1v">
-                      Les rapports sont prêts. Le package final sera assemblé par le worker.
+                      Les rapports sont prêts. Le package final sera assemblé par le traitement local.
                     </p>
                     <p class="fr-text--sm fr-mb-0">
                       Les alertes images ouvertes sont acceptées pour cette génération.
@@ -1823,27 +1841,26 @@
                     {% if selected_lot.problems %}
                       {% for _severity, group in selected_lot.problem_groups.items() %}
                         {% if group['items'] %}
-                          <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-3v" role="alert">
-                            <h4 class="fr-alert__title">{{ group['label'] }}</h4>
-                            <ul class="fr-raw-list">
+                          {% set problem_count = group['items'] | length %}
+                          <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-4v sircom-problem-group" role="alert">
+                            <h4 class="fr-alert__title">
+                              {{ group['label'] }} : {{ problem_count }} {{ "points" if problem_count > 1 else "point" }}
+                            </h4>
+                            <ul class="fr-raw-list sircom-problem-list fr-mt-3v">
                               {% for problem in group['items'] %}
-                                <li class="fr-mt-2v">
-                                  <p class="fr-mb-1v">
+                                <li class="sircom-problem-item fr-py-3v">
+                                  <div class="sircom-problem-heading fr-mb-2v">
                                     <span class="fr-badge fr-badge--sm">{{ problem.step_label }}</span>
-                                    <strong>{{ problem.title }}</strong>
-                                  </p>
-                                  <p class="fr-mb-1v">
-                                    <strong>Cause :</strong>
-                                    {{ problem.cause }}
-                                  </p>
-                                  <p class="fr-mb-1v">
-                                    <strong>Emplacement :</strong>
-                                    {{ problem.location_label }}
-                                  </p>
-                                  <p class="fr-mb-1v">
-                                    <strong>Action attendue :</strong>
-                                    {{ problem.action }}
-                                  </p>
+                                    <p class="sircom-problem-title fr-mb-0">{{ problem.title }}</p>
+                                  </div>
+                                  <dl class="sircom-problem-details fr-mt-2v fr-mb-0">
+                                    <dt>Cause</dt>
+                                    <dd>{{ problem.cause }}</dd>
+                                    <dt>Emplacement</dt>
+                                    <dd>{{ problem.location_label }}</dd>
+                                    <dt>Action attendue</dt>
+                                    <dd>{{ problem.action }}</dd>
+                                  </dl>
                                   {% if problem.technical_items %}
                                     <div class="fr-accordions-group fr-mt-2v">
                                       <section class="fr-accordion">
@@ -1868,7 +1885,7 @@
                                       </section>
                                     </div>
                                   {% endif %}
-                                  <p class="fr-text--xs fr-mt-1v fr-mb-0">
+                                  <p class="sircom-problem-code fr-text--xs fr-mt-2v fr-mb-0">
                                     Code {{ problem.code }}.
                                   </p>
                                 </li>

@@ -118,6 +118,22 @@ function currentViewKey() {
   return params.get("view") || "";
 }
 
+function workflowScreenForView(view) {
+  if (
+    [
+      "upload_images",
+      "inspection_images",
+      "matching_images",
+    ].includes(view)
+  ) {
+    return "images";
+  }
+  if (["rapports", "package_final"].includes(view)) {
+    return "export";
+  }
+  return "excel";
+}
+
 function lotSourceUrl(lotId, options = {}) {
   const params = new URLSearchParams();
   params.set("lot_id", lotId);
@@ -134,7 +150,8 @@ function lotWorkflowUrl(lotId, options = {}) {
     params.set("view", view);
   }
   const query = params.toString();
-  return `/lots/${encodeURIComponent(lotId)}${query ? `?${query}` : ""}`;
+  const screen = options.screen || workflowScreenForView(view);
+  return `/lots/${encodeURIComponent(lotId)}/${encodeURIComponent(screen)}${query ? `?${query}` : ""}`;
 }
 
 function restorePostSubmitFocus() {
@@ -189,7 +206,7 @@ function initializeUploadSelection(form, options) {
     selectedMessage.textContent = [
       `Fichier sélectionné : ${file.name}.`,
       size ? `Taille : ${size}.` : "",
-      `Cliquer sur « ${submitButton.textContent.trim()} » pour lancer l'upload.`,
+      `Cliquer sur « ${submitButton.textContent.trim()} » pour lancer le dépôt.`,
     ]
       .filter(Boolean)
       .join(" ");

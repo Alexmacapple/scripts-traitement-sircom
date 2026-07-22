@@ -123,6 +123,10 @@ Le package final 2026 doit contenir au minimum :
 - Images : une image principale par dossier en V1 ; absence d'image non bloquante ; images non référencées ignorées mais listées ; ambiguïtés de correspondance à résoudre manuellement.
 - Images finales : JPG, largeur max 350 px, qualité JPEG 100, DPI 300, fond blanc pour transparence, orientation EXIF appliquée.
 - Le dossier d'images final du package 2026 s'appelle `export-jpg-resize/`.
+- L'interface visible doit rester en français : ne pas afficher de statuts ou
+  valeurs techniques brutes comme `validated`, `matched`, `queued` ou
+  `running`; les traduire dans la couche UI tout en conservant les clés
+  techniques côté API, tests et persistance.
 
 ## Vérification minimale
 

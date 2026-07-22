@@ -97,14 +97,14 @@ EVENT_TYPE_LABELS = {
     "reports.generated": "Rapports générés",
     "lot.created": "Lot créé",
     "lot.deleted": "Suppression logique demandée",
-    "artifact.commit_rejected": "Commit d'artefact refusé",
-    "job.acquired": "Job pris par le worker",
-    "job.canceled": "Job annulé",
-    "job.finish_rejected": "Fin de job refusée",
-    "job.progress": "Progression du job",
-    "job.queued": "Job ajouté à la file",
-    "job.started": "Job démarré",
-    "job.succeeded": "Job terminé",
+    "artifact.commit_rejected": "Enregistrement d'artefact refusé",
+    "job.acquired": "Tâche prise par le traitement local",
+    "job.canceled": "Tâche annulée",
+    "job.finish_rejected": "Fin de tâche refusée",
+    "job.progress": "Progression de la tâche",
+    "job.queued": "Tâche ajoutée à la file",
+    "job.started": "Tâche démarrée",
+    "job.succeeded": "Tâche terminée",
     "lot.cancel_requested": "Annulation du lot demandée",
     "mapping.draft_saved": "Brouillon de mapping sauvegardé",
     "normalization.completed": "Normalisation du contenu terminée",
@@ -114,7 +114,7 @@ EVENT_TYPE_LABELS = {
     "problem.recorded": "Problème enregistré",
     "retry.requested": "Relance demandée",
     "sort.validated": "Décision de tri validée",
-    "step.input_changed": "Input modifié",
+    "step.input_changed": "Entrée modifiée",
     "step.invalidated": "Étape invalidée",
     "step.ready": "Étape prête",
     "step.status_changed": "Statut d'étape modifié",
@@ -124,6 +124,14 @@ EVENT_TYPE_LABELS = {
     "step.blocked": "Étape bloquée",
     "step.failed": "Étape échouée",
     "step.canceled": "Étape annulée",
+}
+JOB_STATUS_LABELS = {
+    "queued": "En file d'attente",
+    "leased": "Réservée",
+    "running": "En cours",
+    "succeeded": "Terminée",
+    "failed": "Échouée",
+    "canceled": "Annulée",
 }
 VISIBLE_TECHNICAL_DETAIL_KEYS = {
     "active_jobs",
@@ -157,6 +165,39 @@ VISIBLE_TECHNICAL_DETAIL_KEYS = {
     "tolerant_count",
     "unreferenced_count",
     "warning_code",
+}
+TECHNICAL_DETAIL_LABELS = {
+    "active_jobs": "Tâches actives",
+    "actual_sha256": "Empreinte réelle",
+    "ambiguous_count": "Nombre d'ambiguïtés",
+    "artifact_id": "Identifiant d'artefact",
+    "artifacts_count": "Nombre d'artefacts",
+    "checks_count": "Nombre de contrôles",
+    "code": "Code",
+    "columns_count": "Nombre de colonnes",
+    "conversion_failed_count": "Conversions échouées",
+    "duplicates_count": "Doublons",
+    "duration_ms": "Durée en millisecondes",
+    "error_code": "Code d'erreur",
+    "expected_sha256": "Empreinte attendue",
+    "free_mb": "Espace libre en Mo",
+    "has_image_warnings": "Alertes images",
+    "hidden_columns": "Colonnes masquées",
+    "date_issues_count": "Problèmes de dates",
+    "required_mb": "Espace requis en Mo",
+    "invalid_dates_count": "Dates invalides",
+    "missing_dates_count": "Dates manquantes",
+    "missing_count": "Éléments manquants",
+    "processed_images_count": "Images traitées",
+    "removed_empty_columns_count": "Colonnes vides supprimées",
+    "rows_count": "Nombre de lignes",
+    "rows_removed": "Lignes supprimées",
+    "size_bytes": "Taille en octets",
+    "status": "Statut",
+    "step_key": "Étape",
+    "tolerant_count": "Correspondances tolérantes",
+    "unreferenced_count": "Images non référencées",
+    "warning_code": "Code d'alerte",
 }
 
 
@@ -379,7 +420,7 @@ def excel_diagnostic_summary(
             "title": "Diagnostic Excel en cours",
             "cause": "Le fichier Excel est en cours d'analyse.",
             "action": "Attendre la fin du traitement, puis actualiser la page.",
-            "note": "Diagnostic non disponible tant que le worker n'a pas terminé.",
+            "note": "Diagnostic non disponible tant que le traitement local n'a pas terminé.",
             "can_continue": False,
         }
     if status == "termine_avec_alertes" or (status == "termine" and counts["alerte"]):
@@ -412,7 +453,7 @@ def excel_diagnostic_summary(
             "title": "Diagnostic Excel en attente",
             "cause": "Le fichier Excel est déposé et le diagnostic est prêt à être lancé.",
             "action": "Attendre la fin du traitement, puis actualiser la page.",
-            "note": "Diagnostic non disponible tant que le worker n'a pas terminé.",
+            "note": "Diagnostic non disponible tant que le traitement local n'a pas terminé.",
             "can_continue": False,
         }
     if status == "echoue":
@@ -465,7 +506,7 @@ def serialize_problem(problem: dict[str, Any]) -> dict[str, Any]:
         "location": location,
         "location_label": format_location(location),
         "technical": technical,
-        "technical_items": sorted(technical.items()),
+        "technical_items": format_technical_items(technical),
         "status": problem["status"],
         "created_at": problem["created_at"],
     }
@@ -552,6 +593,31 @@ def scrub_technical_details(payload: dict[str, Any]) -> dict[str, Any]:
     return scrubbed
 
 
+def format_technical_items(payload: dict[str, Any]) -> list[tuple[str, str]]:
+    items: list[tuple[str, str]] = []
+    for key in sorted(payload):
+        label = TECHNICAL_DETAIL_LABELS.get(key, key)
+        items.append((label, format_technical_value(key, payload[key])))
+    return items
+
+
+def format_technical_value(key: str, value: Any) -> str:
+    if key == "step_key" and isinstance(value, str):
+        return step_label(value)
+    if key == "status" and isinstance(value, str):
+        return (
+            STEP_STATUS_LABELS.get(value)
+            or LOT_STATUS_LABELS.get(value)
+            or JOB_STATUS_LABELS.get(value)
+            or "Statut non traduit"
+        )
+    if isinstance(value, bool):
+        return "Oui" if value else "Non"
+    if value is None:
+        return "Non précisé"
+    return str(value)
+
+
 def format_location(location: dict[str, Any]) -> str:
     parts: list[str] = []
     sheet = location.get("onglet") or location.get("sheet")
@@ -580,7 +646,12 @@ def format_event_payload(payload: dict[str, Any]) -> str | None:
     if isinstance(step_key, str):
         parts.append(step_label(step_key))
     if isinstance(status, str):
-        parts.append(STEP_STATUS_LABELS.get(status) or LOT_STATUS_LABELS.get(status) or status)
+        parts.append(
+            STEP_STATUS_LABELS.get(status)
+            or LOT_STATUS_LABELS.get(status)
+            or JOB_STATUS_LABELS.get(status)
+            or "Statut non traduit"
+        )
     if isinstance(code, str):
         parts.append(code)
     return " - ".join(parts) if parts else None

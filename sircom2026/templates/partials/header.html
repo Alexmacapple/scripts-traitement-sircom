@@ -53,7 +53,7 @@
               </a>
             </li>
           {% endif %}
-          {% if header_lot_ui and header_lot_ui.step_navigation %}
+          {% if header_lot_ui and header_lot_ui.workflow_screens %}
             <li class="fr-nav__item">
               <button
                 class="fr-nav__btn"
@@ -61,18 +61,18 @@
                 aria-expanded="false"
                 aria-controls="header-workflow-menu"
               >
-                Workflow d'orchestration
+                Parcours métier
               </button>
               <div class="fr-collapse fr-menu" id="header-workflow-menu">
                 <ul class="fr-menu__list">
-                  {% for step in header_lot_ui.step_navigation %}
+                  {% for screen in header_lot_ui.workflow_screens %}
                     <li>
                       <a
                         class="fr-nav__link"
-                        href="{{ step.href }}"
-                        {% if step.is_active_view %}aria-current="page"{% endif %}
+                        href="{{ screen.href }}"
+                        {% if screen.is_active %}aria-current="page"{% endif %}
                       >
-                        {{ step.number }}. {{ step.label }} - {{ step.ui_status_label }}
+                        {{ screen.label }} - {{ screen.status_label }}
                       </a>
                     </li>
                   {% endfor %}

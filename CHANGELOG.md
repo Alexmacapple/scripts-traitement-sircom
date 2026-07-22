@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-07-22
+
+- Refonte UX du parcours Sircom 2026 en trois écrans métier : traitement Excel,
+  traitement images et export final, avec redirection des anciennes URLs de lot
+  vers l'écran canonique.
+- Séparation de la page de dépôt des sources et du parcours de traitement :
+  les formulaires Excel et zip images restent sur l'accueil du lot, le
+  traitement se pilote dans les écrans métier.
+- Mise en français des libellés visibles : boutons de dépôt, confirmations,
+  statuts de tri, niveaux de matching images, événements techniques et détails
+  affichés dans les problèmes.
+- Amélioration DSFR/RGAA de l'interface : libellés de boutons visibles,
+  pictogrammes DSFR stables, liens d'évitement, header/footer, navigation de
+  parcours et suppression de textes ou blocs non utiles.
+- Amélioration des tableaux : mapping sur 12 colonnes, absence de débordement
+  dans les cellules, prévisualisation CSV limitée aux lignes utiles et contrôles
+  pour tout sélectionner ou tout désélectionner dans l'export mapping.
+- Amélioration de la section des problèmes ouverts : groupes d'alertes avec
+  compteur, détails structurés en cause/emplacement/action, séparateurs
+  discrets entre points et espacements DSFR.
+- Correction du bouton de génération du package final et des URLs locales de
+  workflow après la séparation des écrans métier.
+
 ## 2026-07-21
 
 - Implémentation du ticket 01 Sircom 2026 : socle FastAPI local, configuration

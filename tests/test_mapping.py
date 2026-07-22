@@ -424,7 +424,7 @@ class MappingUiTest(unittest.TestCase):
                 key="mapping-ui",
             )
 
-            response = client.get(f"/lots/{lot_id}?view=mapping")
+            response = client.get(f"/lots/{lot_id}/excel?view=mapping")
 
         html = response.text
         self.assertEqual(response.status_code, 200)
@@ -433,10 +433,13 @@ class MappingUiTest(unittest.TestCase):
         self.assertEqual(html.count('id="breadcrumb-lot"'), 1)
         self.assertLess(
             html.index('id="breadcrumb-lot"'),
-            html.index("Workflow du lot Lot UI mapping"),
+            html.index("Traitement Excel du lot Lot UI mapping"),
         )
         self.assertIn('id="header-workflow-menu"', html)
-        self.assertIn("Workflow d'orchestration", html)
+        self.assertIn("Parcours métier", html)
+        self.assertIn("Traitement Excel", html)
+        self.assertIn("Traitement images", html)
+        self.assertIn("Export final", html)
         footer_html = html.split('<footer class="fr-footer" id="footer"', 1)[1]
         self.assertNotIn("Workflow d'orchestration", footer_html)
         self.assertNotIn("sircom-footer-workflow", footer_html)

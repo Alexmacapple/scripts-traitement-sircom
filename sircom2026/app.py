@@ -69,6 +69,44 @@ IMAGE_WORKFLOW_STEP_KEYS = {
     "matching_images",
 }
 
+WORKFLOW_SCREEN_DEFINITIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "excel",
+        "label": "Traitement Excel",
+        "lead": "Contrôler l'Excel, choisir les colonnes, préparer et valider le CSV.",
+        "step_keys": (
+            "upload_excel",
+            "diagnostic_excel",
+            "mapping",
+            "fusion_multi_onglets",
+            "normalisation_contenu",
+            "tri_region_departement",
+            "verification_csv_indesign",
+            "previsualisation_csv",
+        ),
+    },
+    {
+        "key": "images",
+        "label": "Traitement images",
+        "lead": "Déposer le zip images, inspecter son contenu et valider les associations.",
+        "step_keys": ("upload_images", "inspection_images", "matching_images"),
+    },
+    {
+        "key": "export",
+        "label": "Export final",
+        "lead": "Contrôler les rapports, valider la génération et récupérer le package InDesign.",
+        "step_keys": ("rapports", "package_final"),
+    },
+)
+WORKFLOW_SCREEN_BY_KEY = {
+    str(screen["key"]): screen for screen in WORKFLOW_SCREEN_DEFINITIONS
+}
+WORKFLOW_SCREEN_BY_STEP_KEY = {
+    str(step_key): str(screen["key"])
+    for screen in WORKFLOW_SCREEN_DEFINITIONS
+    for step_key in screen["step_keys"]
+}
+
 
 def static_asset_version() -> str:
     asset_paths = (STATIC_DIR / "sircom.css", STATIC_DIR / "app.js")
@@ -157,6 +195,35 @@ UI_STEP_STATUS_PRESENTATION = {
     "annule": {"ui_status_label": "Annulé", "ui_badge_class": "warning"},
     "invalide": {"ui_status_label": "À refaire", "ui_badge_class": "warning"},
 }
+SORT_DETECTION_STATUS_LABELS = {
+    "detected": "Colonnes détectées",
+    "ambiguous": "Colonnes ambiguës",
+    "missing": "Colonnes manquantes",
+}
+SORT_DECISION_LABELS = {
+    "tri_region_departement": "Tri région puis département confirmé",
+    "ordre_source": "Ordre source conservé",
+}
+IMAGE_BINDING_STATUS_LABELS = {
+    "matched": "Associée",
+    "missing": "Manquante",
+    "ambiguous": "À résoudre",
+    "conversion_failed": "Conversion échouée",
+}
+IMAGE_MATCH_LEVEL_LABELS = {
+    "none": "Aucune correspondance",
+    "final_name_collision": "Collision de nom final",
+    "manual_invalid": "Choix manuel invalide",
+    "manual": "Choix manuel",
+    "original_exact": "Nom source exact",
+    "original_exact_stem": "Nom source exact sans extension",
+    "original_tolerant": "Nom source proche",
+    "id_fallback_exact": "ID dossier exact de secours",
+    "id_fallback_exact_final_name": "ID dossier exact de secours par nom final",
+    "id_fallback_tolerant": "ID dossier proche de secours",
+    "id_fallback_tolerant_final_name": "ID dossier proche de secours par nom final",
+    "partial_suggestion": "Suggestion partielle",
+}
 STEP_VIEW_DESCRIPTIONS = {
     "upload_excel": "Déposer uniquement le fichier Excel source du lot.",
     "diagnostic_excel": "Lire le résultat de contrôle de l'Excel avant le mapping.",
@@ -174,13 +241,13 @@ STEP_VIEW_DESCRIPTIONS = {
 }
 STEP_VIEW_GUIDANCE = {
     "upload_excel": {
-        "user_action": "Sélectionner l'Excel, vérifier son nom, puis cliquer sur le bouton d'upload.",
+        "user_action": "Sélectionner l'Excel, vérifier son nom, puis cliquer sur le bouton de dépôt.",
         "system_action": "Le dépôt crée une tâche de diagnostic en arrière-plan.",
         "result": "Un message confirme la réception du fichier et l'étape diagnostic devient disponible.",
     },
     "diagnostic_excel": {
         "user_action": "Lire les blocages, alertes et informations avant de continuer.",
-        "system_action": "Le worker contrôle les onglets, en-têtes, colonnes masquées, formules et id_dossier.",
+        "system_action": "Le traitement local contrôle les onglets, en-têtes, colonnes masquées, formules et id_dossier.",
         "result": "L'Excel est soit refusé avec corrections attendues, soit importable pour le mapping.",
     },
     "mapping": {
@@ -190,12 +257,12 @@ STEP_VIEW_GUIDANCE = {
     },
     "fusion_multi_onglets": {
         "user_action": "Surveiller l'état ; aucune saisie n'est attendue.",
-        "system_action": "Le worker fusionne les onglets à plat par id_dossier.",
+        "system_action": "Le traitement local fusionne les onglets à plat par id_dossier.",
         "result": "Une table consolidée est prête pour normalisation.",
     },
     "normalisation_contenu": {
         "user_action": "Surveiller l'état ; aucune saisie n'est attendue.",
-        "system_action": "Le worker nettoie les textes, dates, retours ligne et cellules vides.",
+        "system_action": "Le traitement local nettoie les textes, dates, retours ligne et cellules vides.",
         "result": "Les contenus sont prêts pour le contrat CSV InDesign.",
     },
     "tri_region_departement": {
@@ -205,7 +272,7 @@ STEP_VIEW_GUIDANCE = {
     },
     "verification_csv_indesign": {
         "user_action": "Surveiller l'état ; aucune saisie n'est attendue.",
-        "system_action": "Le worker vérifie le format UTF-16, les colonnes image et le contrat d'export.",
+        "system_action": "Le traitement local vérifie le format UTF-16, les colonnes image et le contrat d'export.",
         "result": "Le CSV est prêt à être prévisualisé.",
     },
     "previsualisation_csv": {
@@ -214,18 +281,18 @@ STEP_VIEW_GUIDANCE = {
         "result": "La validation autorise la suite images et livrables.",
     },
     "upload_images": {
-        "user_action": "Sélectionner le zip images, vérifier son nom, puis cliquer sur le bouton d'upload.",
+        "user_action": "Sélectionner le zip images, vérifier son nom, puis cliquer sur le bouton de dépôt.",
         "system_action": "Le dépôt crée une tâche d'inspection du zip en arrière-plan.",
         "result": "Un message confirme la réception du zip et l'inspection devient disponible.",
     },
     "inspection_images": {
         "user_action": "Lire le contrôle du zip et vérifier les images détectées.",
-        "system_action": "Le worker inspecte la racine du zip, les formats, tailles et entrées ignorées.",
+        "system_action": "Le traitement local inspecte la racine du zip, les formats, tailles et entrées ignorées.",
         "result": "Les images inspectées sont prêtes pour l'association aux dossiers.",
     },
     "matching_images": {
         "user_action": "Résoudre les ambiguïtés puis valider chaque association demandée.",
-        "system_action": "Le worker renomme, convertit et prépare les JPG finaux.",
+        "system_action": "Le traitement local renomme, convertit et prépare les JPG finaux.",
         "result": "Les images finales sont disponibles pour le package.",
     },
     "rapports": {
@@ -235,7 +302,7 @@ STEP_VIEW_GUIDANCE = {
     },
     "package_final": {
         "user_action": "Générer le package final ou télécharger le package existant.",
-        "system_action": "Le worker assemble CSV, images, rapports et manifeste.",
+        "system_action": "Le traitement local assemble CSV, images, rapports et manifeste.",
         "result": "Un zip final compatible avec la chaîne InDesign est disponible.",
     },
 }
@@ -365,6 +432,7 @@ def create_app(
         page_mode: str,
         lot_id: str | None,
         active_view_key: str | None = None,
+        active_screen_key: str | None = None,
         uploaded: str | None = None,
     ):
         return templates.TemplateResponse(
@@ -384,6 +452,7 @@ def create_app(
                     app.state.settings_error,
                     lot_id,
                     active_view_key=active_view_key,
+                    active_screen_key=active_screen_key,
                 ),
             },
         )
@@ -419,11 +488,33 @@ def create_app(
         if active_view_key in {"upload_excel", "upload_images"}:
             anchor = "excel-file" if active_view_key == "upload_excel" else "image-zip-file"
             return RedirectResponse(lot_sources_href(lot_id, anchor), status_code=303)
+        if active_view_key:
+            return RedirectResponse(lot_view_href(lot_id, active_view_key), status_code=303)
         return render_app_page(
             request,
             page_mode="workflow",
             lot_id=lot_id,
             active_view_key=active_view_key,
+        )
+
+    @app.get("/lots/{lot_id}/{workflow_screen}", include_in_schema=False)
+    async def lot_workflow_screen(
+        request: Request,
+        lot_id: str,
+        workflow_screen: str,
+        _actor: ActorContext = Depends(require_action(AccessAction.LOT_READ)),
+    ):
+        if workflow_screen not in WORKFLOW_SCREEN_BY_KEY:
+            raise HTTPException(status_code=404, detail="Not Found")
+        active_view_key = request.query_params.get("view")
+        if active_view_key and screen_key_for_step(active_view_key) != workflow_screen:
+            return RedirectResponse(lot_view_href(lot_id, active_view_key), status_code=303)
+        return render_app_page(
+            request,
+            page_mode="workflow",
+            lot_id=lot_id,
+            active_view_key=active_view_key,
+            active_screen_key=workflow_screen,
         )
 
     @app.get("/health", tags=["health"])
@@ -551,6 +642,7 @@ def load_index_context(
     lot_id: str | None,
     *,
     active_view_key: str | None = None,
+    active_screen_key: str | None = None,
 ) -> dict[str, Any]:
     context: dict[str, Any] = {
         "lots": [],
@@ -599,6 +691,7 @@ def load_index_context(
                             settings=settings,
                             lot_id=lot_id,
                         )
+                        selected_lot["sort"] = sort_ui_payload(selected_lot["sort"])
                     except SortDecisionError:
                         selected_lot["sort"] = None
                     try:
@@ -624,7 +717,7 @@ def load_index_context(
                             lot_id=lot_id,
                         )
                         selected_lot["image_matching"] = {
-                            "matching": image_matching.matching,
+                            "matching": image_matching_ui_payload(image_matching.matching),
                             "artifact": image_matching.artifact,
                             "processed_images_artifact": (
                                 {
@@ -688,6 +781,7 @@ def load_index_context(
                     selected_lot["ui"] = lot_ui_summary(
                         selected_lot,
                         active_view_key=active_view_key,
+                        active_screen_key=active_screen_key,
                     )
                     context["selected_lot"] = selected_lot
                 except KeyError:
@@ -709,6 +803,7 @@ def lot_ui_summary(
     lot: dict[str, Any],
     *,
     active_view_key: str | None = None,
+    active_screen_key: str | None = None,
 ) -> dict[str, Any]:
     steps = list(lot.get("steps") or [])
     total = len(steps)
@@ -721,6 +816,7 @@ def lot_ui_summary(
             "current_phase": None,
             "current_phase_number": 0,
             "active_phase": None,
+            "active_screen": None,
             "active_step": None,
             "active_view_key": None,
             "csv_workflow_steps": [],
@@ -731,8 +827,11 @@ def lot_ui_summary(
             "next_view_step": None,
             "phase_total": 0,
             "phase_navigation": [],
+            "screen_step_navigation": [],
+            "screen_steps_total": 0,
             "step_navigation": [],
             "steps_total": 0,
+            "workflow_screens": [],
         }
 
     completed = all(step["status"] in UI_DONE_STEP_STATUSES for step in steps)
@@ -775,21 +874,40 @@ def lot_ui_summary(
     active_step = selected_active_step(
         step_navigation,
         active_view_key=active_view_key,
+        active_screen_key=active_screen_key,
         current_step=step_navigation[current_index],
     )
     active_view_key = active_step["key"] if active_step else None
+    active_screen_key = screen_key_for_step(active_view_key) or active_screen_key or "excel"
     step_navigation = enrich_step_navigation(
         step_navigation,
         lot_id=lot["id"],
         active_view_key=active_view_key,
     )
+    screen_step_navigation = screen_steps_for_screen(
+        step_navigation,
+        active_screen_key=active_screen_key,
+    )
     active_step = next(
         (step for step in step_navigation if step["is_active_view"]),
         active_step,
     )
+    active_step = apply_screen_step_number(
+        active_step,
+        screen_step_navigation=screen_step_navigation,
+    )
     previous_view_step, next_view_step = adjacent_view_steps(
-        step_navigation,
+        screen_step_navigation,
         active_view_key=active_view_key,
+    )
+    active_screen = workflow_screen_summary(
+        active_screen_key,
+        screen_step_navigation=screen_step_navigation,
+    )
+    workflow_screens = workflow_screen_navigation(
+        step_navigation,
+        lot_id=lot["id"],
+        active_screen_key=active_screen_key,
     )
     next_phase = (
         None
@@ -817,6 +935,7 @@ def lot_ui_summary(
         "current_phase_number": current_phase_number,
         "active_step": active_step,
         "active_phase": current_phase,
+        "active_screen": active_screen,
         "active_view_key": active_view_key,
         "csv_workflow_started": workflow_started(csv_workflow_steps),
         "csv_workflow_steps": csv_workflow_steps,
@@ -838,8 +957,11 @@ def lot_ui_summary(
             current_phase=current_phase,
             completed=completed,
         ),
+        "screen_step_navigation": screen_step_navigation,
+        "screen_steps_total": len(screen_step_navigation),
         "step_navigation": step_navigation,
         "steps_total": total,
+        "workflow_screens": workflow_screens,
     }
 
 
@@ -847,6 +969,7 @@ def selected_active_step(
     step_navigation: list[dict[str, Any]],
     *,
     active_view_key: str | None,
+    active_screen_key: str | None,
     current_step: dict[str, Any] | None,
 ) -> dict[str, Any] | None:
     if active_view_key:
@@ -856,9 +979,126 @@ def selected_active_step(
         )
         if requested:
             return requested
+    if active_screen_key:
+        screen_steps = screen_steps_for_screen(
+            step_navigation,
+            active_screen_key=active_screen_key,
+        )
+        if current_step and current_step["key"] in screen_step_keys(active_screen_key):
+            return current_step
+        return first_open_step(screen_steps) or (screen_steps[-1] if screen_steps else None)
     if current_step:
         return current_step
     return step_navigation[0] if step_navigation else None
+
+
+def screen_key_for_step(step_key: str | None) -> str | None:
+    if step_key is None:
+        return None
+    return WORKFLOW_SCREEN_BY_STEP_KEY.get(step_key)
+
+
+def screen_step_keys(screen_key: str | None) -> tuple[str, ...]:
+    if screen_key is None:
+        return ()
+    screen = WORKFLOW_SCREEN_BY_KEY.get(screen_key)
+    if not screen:
+        return ()
+    return tuple(str(step_key) for step_key in screen["step_keys"])
+
+
+def screen_steps_for_screen(
+    step_navigation: list[dict[str, Any]],
+    *,
+    active_screen_key: str | None,
+) -> list[dict[str, Any]]:
+    step_keys = screen_step_keys(active_screen_key)
+    if not step_keys:
+        return []
+    screen_steps = [step for step in step_navigation if step["key"] in step_keys]
+    return [
+        {
+            **step,
+            "screen_number": index,
+        }
+        for index, step in enumerate(screen_steps, start=1)
+    ]
+
+
+def first_open_step(steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    return next(
+        (step for step in steps if step["status"] not in UI_DONE_STEP_STATUSES),
+        None,
+    )
+
+
+def apply_screen_step_number(
+    active_step: dict[str, Any] | None,
+    *,
+    screen_step_navigation: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if active_step is None:
+        return None
+    screen_step = next(
+        (step for step in screen_step_navigation if step["key"] == active_step["key"]),
+        None,
+    )
+    if screen_step is None:
+        return active_step
+    return {**active_step, "screen_number": screen_step["screen_number"]}
+
+
+def workflow_screen_summary(
+    active_screen_key: str | None,
+    *,
+    screen_step_navigation: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if active_screen_key is None:
+        return None
+    definition = WORKFLOW_SCREEN_BY_KEY.get(active_screen_key)
+    if not definition:
+        return None
+    status = phase_status(screen_step_navigation)
+    return {
+        "key": active_screen_key,
+        "label": definition["label"],
+        "lead": definition["lead"],
+        "steps_count": len(screen_step_navigation),
+        **status,
+    }
+
+
+def workflow_screen_navigation(
+    step_navigation: list[dict[str, Any]],
+    *,
+    lot_id: str,
+    active_screen_key: str | None,
+) -> list[dict[str, Any]]:
+    navigation: list[dict[str, Any]] = []
+    for definition in WORKFLOW_SCREEN_DEFINITIONS:
+        screen_key = str(definition["key"])
+        screen_steps = screen_steps_for_screen(
+            step_navigation,
+            active_screen_key=screen_key,
+        )
+        target_step = first_open_step(screen_steps) or (screen_steps[-1] if screen_steps else None)
+        status = phase_status(screen_steps)
+        navigation.append(
+            {
+                "key": screen_key,
+                "label": definition["label"],
+                "lead": definition["lead"],
+                "href": lot_screen_href(
+                    lot_id,
+                    screen_key,
+                    target_step["key"] if target_step else None,
+                    "lot-workspace-title",
+                ),
+                "is_active": screen_key == active_screen_key,
+                **status,
+            }
+        )
+    return navigation
 
 
 def enrich_step_navigation(
@@ -1104,7 +1344,23 @@ def lot_primary_action(
 
 
 def lot_view_href(lot_id: str, view_key: str, anchor: str | None = None) -> str:
-    href = f"/lots/{quote(lot_id, safe='')}?view={quote(view_key, safe='')}"
+    return lot_screen_href(
+        lot_id,
+        screen_key_for_step(view_key) or "excel",
+        view_key,
+        anchor,
+    )
+
+
+def lot_screen_href(
+    lot_id: str,
+    screen_key: str,
+    view_key: str | None = None,
+    anchor: str | None = None,
+) -> str:
+    href = f"/lots/{quote(lot_id, safe='')}/{quote(screen_key, safe='')}"
+    if view_key:
+        href = f"{href}?view={quote(view_key, safe='')}"
     return f"{href}#{anchor}" if anchor else href
 
 
@@ -1114,10 +1370,6 @@ def lot_sources_href(lot_id: str, anchor: str | None = None) -> str:
 
 
 def step_href(lot_id: str, view_key: str) -> str:
-    if view_key == "upload_excel":
-        return lot_sources_href(lot_id, "excel-file")
-    if view_key == "upload_images":
-        return lot_sources_href(lot_id, "image-zip-file")
     return lot_view_href(lot_id, view_key, "lot-workspace-title")
 
 
@@ -1165,7 +1417,7 @@ def lot_sources_summary(repositories: Any, lot: dict[str, Any]) -> dict[str, Any
             "Actualiser l'état du diagnostic Excel",
             lot_view_href(lot["id"], "diagnostic_excel", "excel-diagnostic-title"),
             "fr-icon-refresh-line",
-            "Le worker local traite le diagnostic en arrière-plan.",
+            "Le traitement local traite le diagnostic en arrière-plan.",
         ),
         ready_action=action_link(
             "Continuer vers le mapping",
@@ -1199,7 +1451,7 @@ def lot_sources_summary(repositories: Any, lot: dict[str, Any]) -> dict[str, Any
             "Actualiser l'état des images",
             lot_view_href(lot["id"], "inspection_images", "image-workflow-title"),
             "fr-icon-refresh-line",
-            "Le worker local inspecte le zip en arrière-plan.",
+            "Le traitement local inspecte le zip en arrière-plan.",
         ),
         ready_action=action_link(
             "Voir le traitement images",
@@ -1313,6 +1565,70 @@ def source_processing_label(processing_step: dict[str, Any] | None) -> str:
     return processing_step["status_label"]
 
 
+def sort_ui_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    proposal = dict(payload.get("proposal") or {})
+    detection_status = proposal.get("detection_status")
+    if isinstance(detection_status, str):
+        proposal["detection_status_label"] = SORT_DETECTION_STATUS_LABELS.get(
+            detection_status,
+            "Statut de détection non traduit",
+        )
+    default_decision = proposal.get("default_decision")
+    if isinstance(default_decision, str):
+        proposal["default_decision_label"] = SORT_DECISION_LABELS.get(
+            default_decision,
+            "Décision non traduite",
+        )
+
+    decision = payload.get("decision")
+    decision_payload = dict(decision) if isinstance(decision, dict) else decision
+    if isinstance(decision_payload, dict):
+        decision_value = decision_payload.get("decision")
+        if isinstance(decision_value, str):
+            decision_payload["decision_label"] = SORT_DECISION_LABELS.get(
+                decision_value,
+                "Décision non traduite",
+            )
+        decision_detection_status = decision_payload.get("detection_status")
+        if isinstance(decision_detection_status, str):
+            decision_payload["detection_status_label"] = SORT_DETECTION_STATUS_LABELS.get(
+                decision_detection_status,
+                "Statut de détection non traduit",
+            )
+
+    return {
+        **payload,
+        "proposal": proposal,
+        "decision": decision_payload,
+    }
+
+
+def image_matching_ui_payload(matching: dict[str, Any]) -> dict[str, Any]:
+    bindings: list[Any] = []
+    for binding in matching.get("bindings") or []:
+        if not isinstance(binding, dict):
+            bindings.append(binding)
+            continue
+        ui_binding = dict(binding)
+        status = ui_binding.get("status")
+        match_level = ui_binding.get("match_level")
+        ui_binding["status_label"] = (
+            IMAGE_BINDING_STATUS_LABELS.get(status, "Statut non traduit")
+            if isinstance(status, str)
+            else "Statut non traduit"
+        )
+        ui_binding["match_level_label"] = (
+            IMAGE_MATCH_LEVEL_LABELS.get(match_level, "Niveau non traduit")
+            if isinstance(match_level, str)
+            else "Niveau non traduit"
+        )
+        bindings.append(ui_binding)
+    return {
+        **matching,
+        "bindings": bindings,
+    }
+
+
 def current_source_artifact(
     repositories: Any,
     *,
@@ -1389,14 +1705,14 @@ def upload_confirmation(uploaded: str | None) -> dict[str, str] | None:
     if uploaded == "excel":
         return {
             "kind": "excel",
-            "title": "Votre document a bien été uploadé",
+            "title": "Votre document a bien été déposé",
             "cause": "Le fichier Excel source est reçu par le lot.",
             "action": "Attendre le diagnostic Excel, puis valider le mapping quand il apparaît.",
         }
     if uploaded == "images":
         return {
             "kind": "images",
-            "title": "Votre document a bien été uploadé",
+            "title": "Votre document a bien été déposé",
             "cause": "Le zip images produit est reçu par le lot.",
             "action": "Attendre l'inspection images, puis résoudre les associations si demandé.",
         }

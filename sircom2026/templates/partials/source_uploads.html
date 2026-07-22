@@ -11,15 +11,15 @@
     <div class="fr-col">
       <h3 id="lot-actions-title">Déposer les sources</h3>
       <p class="fr-text--sm fr-mb-0">
-        Ajouter l'Excel source et, si disponible, le zip images produit avant de piloter le workflow.
+        Ajouter l'Excel source et, si disponible, le zip images produit avant de piloter le parcours.
       </p>
     </div>
     <div class="fr-col-auto">
       <a
         class="fr-btn fr-icon-arrow-right-line fr-btn--icon-left"
-        href="/lots/{{ selected_lot.id }}#lot-workspace-title"
+        href="/lots/{{ selected_lot.id }}/excel#lot-workspace-title"
       >
-        Ouvrir le workflow
+        Ouvrir le parcours
       </a>
     </div>
   </div>
@@ -36,15 +36,15 @@
             tabindex="-1"
           >
             <p class="fr-alert__title">
-              {{ "Votre document a bien été uploadé" if uploaded_kind == "excel" else "Excel source uploadé" }}
+              {{ "Votre document a bien été déposé" if uploaded_kind == "excel" else "Excel source déposé" }}
             </p>
             <p class="fr-mb-0">
-              Le fichier est reçu. Ouvrir le workflow pour suivre le diagnostic Excel.
+              Le fichier est reçu. Ouvrir le parcours pour suivre le diagnostic Excel.
             </p>
           </div>
         {% else %}
           <p class="fr-hint-text fr-mb-3v" id="excel-upload-feedback" tabindex="-1">
-            Aucun Excel source uploadé pour ce lot.
+            Aucun Excel source déposé pour ce lot.
           </p>
         {% endif %}
         <form
@@ -85,7 +85,7 @@
                 type="submit"
                 data-upload-submit="excel"
               >
-                Uploader l'Excel source
+                Déposer l'Excel source
               </button>
             </li>
           </ul>
@@ -102,15 +102,15 @@
             tabindex="-1"
           >
             <p class="fr-alert__title">
-              {{ "Votre document a bien été uploadé" if uploaded_kind == "images" else "Zip images uploadé" }}
+              {{ "Votre document a bien été déposé" if uploaded_kind == "images" else "Zip images déposé" }}
             </p>
             <p class="fr-mb-0">
-              Le zip est reçu. Ouvrir le workflow pour suivre l'inspection images.
+              Le zip est reçu. Ouvrir le parcours pour suivre l'inspection images.
             </p>
           </div>
         {% else %}
           <p class="fr-hint-text fr-mb-3v" id="image-upload-feedback" tabindex="-1">
-            Aucun zip images produit uploadé pour ce lot.
+            Aucun zip images produit déposé pour ce lot.
           </p>
         {% endif %}
         <form
@@ -153,7 +153,7 @@
                 type="submit"
                 data-upload-submit="images"
               >
-                Uploader le zip images produit
+                Déposer le zip images produit
               </button>
             </li>
           </ul>

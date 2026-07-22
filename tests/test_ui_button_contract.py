@@ -12,8 +12,8 @@ STATIC_ROOT = Path(__file__).resolve().parents[1] / "sircom2026" / "static"
 PRIMARY_ACTION_LABELS = (
     "Créer le lot",
     "Étape suivante",
-    "Uploader l'Excel source",
-    "Uploader le zip images produit",
+    "Déposer l'Excel source",
+    "Déposer le zip images produit",
     "Télécharger les images traitées",
     "Valider cette image",
     "Valider le mapping",

@@ -552,7 +552,11 @@ class ImageMatchingApiTest(unittest.TestCase):
         self.assertEqual(step_status(lot, "matching_images"), "termine")
         self.assertEqual(html.status_code, 200)
         self.assertIn("Association images", html.text)
+        self.assertIn("Associée", html.text)
+        self.assertIn("Choix manuel", html.text)
         self.assertIn("Télécharger les images traitées", html.text)
+        self.assertNotIn(">matched<", html.text)
+        self.assertNotIn(">manual<", html.text)
 
 
 def step_status(lot: dict[str, object], step_key: str) -> str:

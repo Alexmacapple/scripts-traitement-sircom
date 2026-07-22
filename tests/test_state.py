@@ -318,7 +318,7 @@ class BusinessStateTest(unittest.TestCase):
             self.assertEqual(problem_rows[0]["code"], "SIRCOM_PREVIEW_READY")
             self.assertEqual(json.loads(event_rows[0]["payload_json"])["code"], "SIRCOM_PREVIEW_READY")
             self.assertIn(
-                "Commit d'artefact refusé",
+                "Enregistrement d'artefact refusé",
                 {event["label"] for event in detail["events"]},
             )
 
