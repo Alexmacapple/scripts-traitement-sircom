@@ -81,6 +81,7 @@ Chaque ticket vit dans son propre fichier pour tenir dans une session agent.
 | 21 | [Rapports métier et technique](2026-07-21-sircom-2026/21-rapports-metier-et-technique.md) | 17, 20. |
 | 22 | [Package final, manifeste et téléchargements](2026-07-21-sircom-2026/22-package-final-manifeste-et-telechargements.md) | 17, 20, 21. |
 | 23 | [Purge, rétention, indicateurs disque et trace anonymisée](2026-07-21-sircom-2026/23-purge-retention-indicateurs-disque-et-trace-anonymisee.md) | 22. |
+| 24 | [Refactorisation progressive des fichiers volumineux](2026-07-21-sircom-2026/24-refactorisation-progressive-des-fichiers-volumineux.md) | aucun, peut commencer immédiatement. |
 
 ## Passe avocat du diable
 
