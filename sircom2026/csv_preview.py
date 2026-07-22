@@ -18,6 +18,7 @@ from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
 from sircom2026.image_naming import image_id_for_dossier
 from sircom2026.invalidation import record_human_validation_snapshot, step_input_fingerprint
 from sircom2026.lots import get_lot_detail
+from sircom2026.pipeline import downstream_step_keys
 from sircom2026.state import complete_step, record_problem, require_human_validation, transition_step
 
 
@@ -126,7 +127,11 @@ def validate_csv_preview(
         lot_id=lot_id,
         step_keys=(CSV_PREVIEW_STEP_KEY,),
     )
-    if repositories.problems.count_open_by_severity(lot_id=lot_id, severity="bloquant"):
+    if _has_open_blocking_problem_outside_steps(
+        repositories,
+        lot_id=lot_id,
+        ignored_step_keys=set(downstream_step_keys(CSV_PREVIEW_STEP_KEY)),
+    ):
         raise CsvPreviewError(
             409,
             "SIRCOM_CSV_BLOCKERS_OPEN",
@@ -703,6 +708,35 @@ def _require_export_testable(repositories: Repositories, *, lot_id: str) -> None
             "L'export CSV n'a pas encore tous ses prérequis testables.",
             details={"missing_steps": missing},
         )
+
+
+def _has_open_blocking_problem_outside_steps(
+    repositories: Repositories,
+    *,
+    lot_id: str,
+    ignored_step_keys: set[str],
+) -> bool:
+    ignored = tuple(sorted(ignored_step_keys))
+    if not ignored:
+        return bool(
+            repositories.problems.count_open_by_severity(
+                lot_id=lot_id,
+                severity="bloquant",
+            )
+        )
+    placeholders = ",".join("?" for _ in ignored)
+    row = repositories.connection.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM problemes
+        WHERE lot_id = ?
+          AND severity = 'bloquant'
+          AND status = 'open'
+          AND step_key NOT IN ({placeholders})
+        """,
+        (lot_id, *ignored),
+    ).fetchone()
+    return bool(row and int(row[0]))
 
 
 def _enqueue_ready_auto_steps(
