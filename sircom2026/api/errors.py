@@ -117,7 +117,7 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
         request,
         status_code=422,
         code="SIRCOM_VALIDATION_ERROR",
-        message="Requete invalide.",
+        message="Requête invalide.",
         details=details,
     )
 
@@ -134,7 +134,7 @@ async def _http_error_handler(request: Request, exc: StarletteHTTPException) -> 
         details = None
     elif exc.status_code == 405:
         code = "SIRCOM_METHOD_NOT_ALLOWED"
-        message = "Methode HTTP non autorisee."
+        message = "Méthode HTTP non autorisée."
         details = None
     else:
         code = "SIRCOM_HTTP_ERROR"
