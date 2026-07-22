@@ -66,17 +66,17 @@ class ExcelDiagnosticTest(unittest.TestCase):
                 ],
             )
             expected_fragments = {
-                "missing_id": "Colonne id_dossier non detectee.",
-                "duplicate_id": "Valeurs id_dossier dupliquees",
+                "missing_id": "Colonne id_dossier non détectée.",
+                "duplicate_id": "Valeurs id_dossier dupliquées",
                 "ambiguous_id": "Plusieurs colonnes id_dossier candidates.",
-                "merged_cells": "cellule(s) fusionnee(s).",
-                "hidden_column": "colonne(s) masquee(s).",
-                "hidden_row": "ligne(s) masquee(s).",
-                "hidden_sheet": "Onglet masque.",
-                "formula": "Formules detectees.",
-                "multirow_header": "En-tete detecte hors premiere ligne.",
-                "data_without_header": "Colonne(s) avec donnees mais sans en-tete.",
-                "cleaned_header_collision": "Collision apres nettoyage des en-tetes InDesign.",
+                "merged_cells": "cellule(s) fusionnée(s).",
+                "hidden_column": "colonne(s) masquée(s).",
+                "hidden_row": "ligne(s) masquée(s).",
+                "hidden_sheet": "Onglet masqué.",
+                "formula": "Formules détectées.",
+                "multirow_header": "En-tête détecté hors première ligne.",
+                "data_without_header": "Colonne(s) avec données mais sans en-tête.",
+                "cleaned_header_collision": "Collision après nettoyage des en-têtes InDesign.",
             }
 
             for case_name, fragment in expected_fragments.items():
@@ -91,7 +91,7 @@ class ExcelDiagnosticTest(unittest.TestCase):
             diagnostic = diagnose_workbook(paths["duplicate_source_headers"])
 
         self.assertTrue(diagnostic.importable, diagnostic.blockers)
-        self.assertIn("En-tetes sources dupliques", " ".join(diagnostic.warnings))
+        self.assertIn("En-têtes sources dupliqués", " ".join(diagnostic.warnings))
 
     def test_refused_workbook_reports_multiple_detectable_reasons_in_one_pass(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -100,11 +100,11 @@ class ExcelDiagnosticTest(unittest.TestCase):
 
         blockers = " ".join(diagnostic.blockers)
         self.assertFalse(diagnostic.importable)
-        self.assertIn("colonne(s) masquee(s).", blockers)
-        self.assertIn("ligne(s) masquee(s).", blockers)
-        self.assertIn("cellule(s) fusionnee(s).", blockers)
-        self.assertIn("Formules detectees.", blockers)
-        self.assertIn("Colonne id_dossier non detectee.", blockers)
+        self.assertIn("colonne(s) masquée(s).", blockers)
+        self.assertIn("ligne(s) masquée(s).", blockers)
+        self.assertIn("cellule(s) fusionnée(s).", blockers)
+        self.assertIn("Formules détectées.", blockers)
+        self.assertIn("Colonne id_dossier non détectée.", blockers)
 
     def test_local_2024_2025_inputs_when_available(self) -> None:
         if not REAL_SIRCOM1.exists() or not REAL_SIRCOM2.exists():
@@ -114,8 +114,8 @@ class ExcelDiagnosticTest(unittest.TestCase):
         sircom2 = diagnose_workbook(REAL_SIRCOM2)
 
         self.assertFalse(sircom1.importable)
-        self.assertIn("colonne(s) masquee(s)", " ".join(sircom1.blockers))
-        self.assertIn("Formules detectees.", " ".join(sircom1.blockers))
+        self.assertIn("colonne(s) masquée(s)", " ".join(sircom1.blockers))
+        self.assertIn("Formules détectées.", " ".join(sircom1.blockers))
         self.assertTrue(sircom2.importable, sircom2.blockers)
 
 

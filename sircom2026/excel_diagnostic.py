@@ -198,25 +198,25 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     diagnostic.formula_cells_sample = formula_cell_sample(ws)
 
     if ws.sheet_state != "visible":
-        diagnostic.blockers.append("Onglet masque.")
+        diagnostic.blockers.append("Onglet masqué.")
     if diagnostic.hidden_columns:
-        diagnostic.blockers.append(f"{len(diagnostic.hidden_columns)} colonne(s) masquee(s).")
+        diagnostic.blockers.append(f"{len(diagnostic.hidden_columns)} colonne(s) masquée(s).")
     if diagnostic.hidden_rows:
-        diagnostic.blockers.append(f"{len(diagnostic.hidden_rows)} ligne(s) masquee(s).")
+        diagnostic.blockers.append(f"{len(diagnostic.hidden_rows)} ligne(s) masquée(s).")
     if diagnostic.merged_ranges:
-        diagnostic.blockers.append(f"{len(diagnostic.merged_ranges)} cellule(s) fusionnee(s).")
+        diagnostic.blockers.append(f"{len(diagnostic.merged_ranges)} cellule(s) fusionnée(s).")
     if diagnostic.formula_cells_sample:
-        diagnostic.blockers.append("Formules detectees.")
+        diagnostic.blockers.append("Formules détectées.")
 
     header_row = detect_header_row(ws)
     diagnostic.header_row = header_row
     if header_row is None:
-        diagnostic.blockers.append("En-tete non detecte.")
-        diagnostic.blockers.append("Colonne id_dossier non detectee.")
+        diagnostic.blockers.append("En-tête non détecté.")
+        diagnostic.blockers.append("Colonne id_dossier non détectée.")
         diagnostic.importable = False
         return diagnostic
     if header_row != 1:
-        diagnostic.blockers.append("En-tete detecte hors premiere ligne.")
+        diagnostic.blockers.append("En-tête détecté hors première ligne.")
 
     headers = [normalize_header(ws.cell(row=header_row, column=column).value) for column in range(1, ws.max_column + 1)]
     non_empty_headers = [(index, header) for index, header in enumerate(headers, start=1) if header]
@@ -234,7 +234,7 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
         if has_values:
             diagnostic.empty_header_columns_with_data.append(get_column_letter(index))
     if diagnostic.empty_header_columns_with_data:
-        diagnostic.blockers.append("Colonne(s) avec donnees mais sans en-tete.")
+        diagnostic.blockers.append("Colonne(s) avec données mais sans en-tête.")
 
     seen_headers: dict[str, int] = {}
     for _, header in non_empty_headers:
@@ -242,7 +242,7 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     diagnostic.duplicate_headers = sorted(header for header, count in seen_headers.items() if count > 1)
     if diagnostic.duplicate_headers:
         diagnostic.warnings.append(
-            "En-tetes sources dupliques ; la provenance par lettre de colonne permet de les distinguer."
+            "En-têtes sources dupliqués ; la provenance par lettre de colonne permet de les distinguer."
         )
 
     cleaned_headers: dict[str, int] = {}
@@ -251,7 +251,7 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
         cleaned_headers[cleaned] = cleaned_headers.get(cleaned, 0) + 1
     diagnostic.cleaned_header_collisions = sorted(name for name, count in cleaned_headers.items() if count > 1)
     if diagnostic.cleaned_header_collisions:
-        diagnostic.blockers.append("Collision apres nettoyage des en-tetes InDesign.")
+        diagnostic.blockers.append("Collision après nettoyage des en-têtes InDesign.")
 
     for index, header in non_empty_headers:
         key = ascii_key(header)
@@ -269,15 +269,15 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
             diagnostic.sensitive_candidates.append(make_simple_candidate(index, header))
 
     if not diagnostic.id_candidates:
-        diagnostic.blockers.append("Colonne id_dossier non detectee.")
+        diagnostic.blockers.append("Colonne id_dossier non détectée.")
     elif len(diagnostic.id_candidates) > 1:
         diagnostic.blockers.append("Plusieurs colonnes id_dossier candidates.")
     else:
         candidate = diagnostic.id_candidates[0]
         if candidate.duplicate_values:
-            diagnostic.blockers.append("Valeurs id_dossier dupliquees dans l'onglet.")
+            diagnostic.blockers.append("Valeurs id_dossier dupliquées dans l'onglet.")
         if candidate.blank_values:
-            diagnostic.warnings.append("Ligne(s) sans id_dossier a signaler et supprimer a l'export.")
+            diagnostic.warnings.append("Ligne(s) sans id_dossier à signaler et supprimer à l'export.")
 
     diagnostic.importable = not diagnostic.blockers
     return diagnostic
@@ -299,7 +299,7 @@ def diagnose_workbook(path: Path) -> WorkbookDiagnostic:
             warnings.append(f"{sheet.name}: {warning}")
     cleaned_header_collisions = workbook_cleaned_header_collisions(sheets)
     if cleaned_header_collisions:
-        blockers.append("CSV: Collision apres nettoyage des en-tetes InDesign.")
+        blockers.append("CSV: Collision après nettoyage des en-têtes InDesign.")
 
     return WorkbookDiagnostic(
         path=str(path),
