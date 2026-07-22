@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import sircom2026.database as database_module
+from sircom2026 import database_repositories
 from sircom2026.database import (
     SCHEMA_VERSION,
     Database,
@@ -57,6 +59,35 @@ def foreign_key_column_groups(connection: sqlite3.Connection, table: str) -> set
 
 
 class DatabaseMigrationTest(unittest.TestCase):
+    def test_database_module_preserves_public_facade_contract(self) -> None:
+        public_names = {
+            "ACTIVE_JOB_STATUSES",
+            "Database",
+            "LOT_WRITE_BLOCKED_STATUSES",
+            "PROBLEM_SEVERITIES",
+            "Repositories",
+            "SCHEMA_VERSION",
+            "STEP_STATUSES",
+            "SchemaVersionError",
+            "TECHNICAL_EVENT_PAYLOAD_KEYS",
+            "connect_sqlite",
+            "migrate_database",
+            "LotsRepository",
+            "StepsRepository",
+            "JobsRepository",
+            "ArtifactsRepository",
+            "EventsRepository",
+            "ProblemsRepository",
+            "PurgeTracesRepository",
+        }
+
+        for name in public_names:
+            with self.subTest(name=name):
+                self.assertTrue(hasattr(database_module, name))
+
+        self.assertIs(database_module.Repositories, database_repositories.Repositories)
+        self.assertIs(database_module.LotsRepository, database_repositories.LotsRepository)
+
     def test_migrate_empty_database_creates_normative_tables_and_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             sqlite_path = Path(tmp) / "sircom.sqlite3"
