@@ -801,7 +801,7 @@ def _record_missing_source_problem(
         code="SIRCOM_IMAGE_ZIP_SOURCE_MISSING",
         title="Zip images source introuvable",
         cause="L'inspection ne trouve pas l'artefact zip images source courant.",
-        action="Deposer a nouveau le zip images, puis relancer l'inspection.",
+        action="Déposer à nouveau le zip images, puis relancer l'inspection.",
     )
 
 
@@ -860,7 +860,7 @@ def _default_problem_definition(code: str) -> dict[str, str]:
         "code": code or "SIRCOM_IMAGE_ZIP_INVALID",
         "title": "Zip images invalide",
         "cause": "Le zip images ne respecte pas les contraintes d'import V1.",
-        "action": "Corriger le zip images puis le deposer a nouveau.",
+        "action": "Corriger le zip images puis le déposer à nouveau.",
     }
 
 
@@ -868,20 +868,20 @@ _PROBLEM_DEFINITIONS: dict[str, dict[str, str]] = {
     "SIRCOM_IMAGE_ZIP_CONTROL_CHARACTERS": {
         "code": "SIRCOM_IMAGE_ZIP_CONTROL_CHARACTERS",
         "title": "Nom de fichier invalide",
-        "cause": "Le zip contient un nom avec caractere de controle.",
-        "action": "Renommer le fichier concerne puis deposer un nouveau zip.",
+        "cause": "Le zip contient un nom avec caractère de contrôle.",
+        "action": "Renommer le fichier concerné puis déposer un nouveau zip.",
     },
     "SIRCOM_IMAGE_ZIP_DUPLICATE_NAMES": {
         "code": "SIRCOM_IMAGE_ZIP_DUPLICATE_NAMES",
         "title": "Noms d'images en doublon",
-        "cause": "Plusieurs images ont le meme nom apres normalisation Unicode et casse.",
-        "action": "Renommer les images en doublon puis deposer un nouveau zip.",
+        "cause": "Plusieurs images ont le même nom après normalisation Unicode et casse.",
+        "action": "Renommer les images en doublon puis déposer un nouveau zip.",
     },
     "SIRCOM_IMAGE_ZIP_EMPTY_NAME": {
         "code": "SIRCOM_IMAGE_ZIP_EMPTY_NAME",
         "title": "Nom de fichier vide",
-        "cause": "Le zip contient une entree sans nom exploitable.",
-        "action": "Recreer le zip sans entree vide puis le deposer a nouveau.",
+        "cause": "Le zip contient une entrée sans nom exploitable.",
+        "action": "Recréer le zip sans entrée vide puis le déposer à nouveau.",
     },
     "SIRCOM_IMAGE_ZIP_ENCRYPTED_ENTRY": {
         "code": "SIRCOM_IMAGE_ZIP_ENCRYPTED_ENTRY",
@@ -892,20 +892,20 @@ _PROBLEM_DEFINITIONS: dict[str, dict[str, str]] = {
     "SIRCOM_IMAGE_ZIP_ENTRY_IN_SUBFOLDER": {
         "code": "SIRCOM_IMAGE_ZIP_ENTRY_IN_SUBFOLDER",
         "title": "Fichier en sous-dossier",
-        "cause": "La V1 accepte uniquement des fichiers a la racine du zip, hors fichiers systeme ignorables.",
-        "action": "Placer les fichiers utiles a la racine du zip puis le deposer a nouveau.",
+        "cause": "La V1 accepte uniquement des fichiers à la racine du zip, hors fichiers système ignorables.",
+        "action": "Placer les fichiers utiles à la racine du zip puis le déposer à nouveau.",
     },
     "SIRCOM_IMAGE_ZIP_IMAGE_IN_SUBFOLDER": {
         "code": "SIRCOM_IMAGE_ZIP_IMAGE_IN_SUBFOLDER",
         "title": "Image en sous-dossier",
-        "cause": "La V1 accepte uniquement les images placees a la racine du zip.",
-        "action": "Placer toutes les images a la racine du zip puis le deposer a nouveau.",
+        "cause": "La V1 accepte uniquement les images placées à la racine du zip.",
+        "action": "Placer toutes les images à la racine du zip puis le déposer à nouveau.",
     },
     "SIRCOM_IMAGE_ZIP_IMAGE_TOO_LARGE": {
         "code": "SIRCOM_IMAGE_ZIP_IMAGE_TOO_LARGE",
         "title": "Image trop volumineuse",
-        "cause": "Au moins une image depasse la taille maximale configuree.",
-        "action": "Reduire la taille des images concernees puis deposer un nouveau zip.",
+        "cause": "Au moins une image dépasse la taille maximale configurée.",
+        "action": "Réduire la taille des images concernées puis déposer un nouveau zip.",
     },
     "SIRCOM_IMAGE_HEIC_REFUSED": {
         "code": "SIRCOM_IMAGE_HEIC_REFUSED",
@@ -922,37 +922,37 @@ _PROBLEM_DEFINITIONS: dict[str, dict[str, str]] = {
     "SIRCOM_IMAGE_ZIP_NO_TREATABLE_IMAGE": {
         "code": "SIRCOM_IMAGE_ZIP_NO_TREATABLE_IMAGE",
         "title": "Aucune image traitable",
-        "cause": "Le zip ne contient aucune image exploitable a la racine.",
-        "action": "Deposer un zip avec images a la racine ou continuer sans images.",
+        "cause": "Le zip ne contient aucune image exploitable à la racine.",
+        "action": "Déposer un zip avec images à la racine ou continuer sans images.",
     },
     "SIRCOM_IMAGE_ZIP_TOO_MANY_IMAGES": {
         "code": "SIRCOM_IMAGE_ZIP_TOO_MANY_IMAGES",
         "title": "Trop d'images",
-        "cause": "Le zip contient plus d'images que la limite configuree.",
-        "action": "Reduire le nombre d'images puis deposer un nouveau zip.",
+        "cause": "Le zip contient plus d'images que la limite configurée.",
+        "action": "Réduire le nombre d'images puis déposer un nouveau zip.",
     },
     "SIRCOM_IMAGE_ZIP_TOO_MANY_FILES": {
         "code": "SIRCOM_IMAGE_ZIP_TOO_MANY_FILES",
         "title": "Trop de fichiers",
-        "cause": "Le zip contient plus de fichiers que la limite configuree.",
-        "action": "Reduire le contenu du zip puis le deposer a nouveau.",
+        "cause": "Le zip contient plus de fichiers que la limite configurée.",
+        "action": "Réduire le contenu du zip puis le déposer à nouveau.",
     },
     "SIRCOM_IMAGE_ZIP_UNCOMPRESSED_TOO_LARGE": {
         "code": "SIRCOM_IMAGE_ZIP_UNCOMPRESSED_TOO_LARGE",
-        "title": "Zip trop volumineux apres decompression",
-        "cause": "La taille totale annoncee apres decompression depasse la limite configuree.",
-        "action": "Reduire le contenu du zip puis le deposer a nouveau.",
+        "title": "Zip trop volumineux après décompression",
+        "cause": "La taille totale annoncée après décompression dépasse la limite configurée.",
+        "action": "Réduire le contenu du zip puis le déposer à nouveau.",
     },
     "SIRCOM_IMAGE_ZIP_UNREADABLE": {
         "code": "SIRCOM_IMAGE_ZIP_UNREADABLE",
         "title": "Zip images illisible",
-        "cause": "Le zip source ne peut pas etre relu par le worker.",
-        "action": "Deposer a nouveau le zip images.",
+        "cause": "Le zip source ne peut pas être relu par le worker.",
+        "action": "Déposer à nouveau le zip images.",
     },
     "SIRCOM_IMAGE_ZIP_UNSAFE_PATH": {
         "code": "SIRCOM_IMAGE_ZIP_UNSAFE_PATH",
         "title": "Chemin dangereux dans le zip",
-        "cause": "Le zip contient un chemin absolu ou une remontee de repertoire.",
-        "action": "Recreer le zip avec des images a la racine, sans chemin special.",
+        "cause": "Le zip contient un chemin absolu ou une remontée de répertoire.",
+        "action": "Recréer le zip avec des images à la racine, sans chemin spécial.",
     },
 }
