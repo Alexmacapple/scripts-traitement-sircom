@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import threading
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
+from sircom2026.app_lifecycle import build_lifespan, periodic_worker_loop
 from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import create_lot_with_steps
@@ -88,6 +92,87 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertFalse(result.processed)
             self.assertEqual(result.outcome, "disabled")
             self.assertFalse(settings.sqlite_path.exists())
+
+    def test_periodic_worker_loop_repolls_immediately_after_processed_job(self) -> None:
+        async def exercise() -> list[int]:
+            with tempfile.TemporaryDirectory() as tmp:
+                settings = load_settings(
+                    {
+                        "SIRCOM_DATA_DIR": str(Path(tmp) / "data"),
+                        "SIRCOM_SQLITE_PATH": str(Path(tmp) / "data" / "sircom.sqlite3"),
+                        "SIRCOM_WORKER_POLL_SECONDS": "5",
+                    }
+                )
+                sleeps: list[int] = []
+
+                async def fake_to_thread(_func, *, settings):
+                    return SimpleNamespace(processed=True)
+
+                async def fake_sleep(delay: int) -> None:
+                    sleeps.append(delay)
+                    raise asyncio.CancelledError
+
+                with (
+                    patch(
+                        "sircom2026.app_lifecycle.asyncio.to_thread",
+                        side_effect=fake_to_thread,
+                    ),
+                    patch(
+                        "sircom2026.app_lifecycle.asyncio.sleep",
+                        side_effect=fake_sleep,
+                    ),
+                ):
+                    with self.assertRaises(asyncio.CancelledError):
+                        await periodic_worker_loop(settings)
+
+                return sleeps
+
+        self.assertEqual(asyncio.run(exercise()), [0])
+
+    def test_lifespan_starts_and_cancels_purge_and_worker_tasks(self) -> None:
+        class FakeTask:
+            def __init__(self) -> None:
+                self.cancelled = False
+
+            def cancel(self) -> None:
+                self.cancelled = True
+
+            def __await__(self):
+                if False:
+                    yield None
+                return None
+
+        async def exercise() -> list[FakeTask]:
+            with tempfile.TemporaryDirectory() as tmp:
+                settings = load_settings(
+                    {
+                        "SIRCOM_DATA_DIR": str(Path(tmp) / "data"),
+                        "SIRCOM_SQLITE_PATH": str(Path(tmp) / "data" / "sircom.sqlite3"),
+                        "SIRCOM_WORKER_ENABLED": "true",
+                    }
+                )
+                tasks: list[FakeTask] = []
+
+                def fake_create_task(coro):
+                    coro.close()
+                    task = FakeTask()
+                    tasks.append(task)
+                    return task
+
+                with (
+                    patch("sircom2026.app_lifecycle.reconcile_artifacts_at_startup"),
+                    patch(
+                        "sircom2026.app_lifecycle.asyncio.create_task",
+                        side_effect=fake_create_task,
+                    ),
+                ):
+                    async with build_lifespan(settings, None)(object()):
+                        self.assertEqual(len(tasks), 2)
+                        self.assertFalse(any(task.cancelled for task in tasks))
+
+                return tasks
+
+        self.assertTrue(all(task.cancelled for task in asyncio.run(exercise())))
 
     def test_job_is_enqueued_acquired_run_and_completed_with_progress(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
