@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
@@ -14,7 +15,12 @@ from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import create_lot_with_steps
-from sircom2026.purge import delete_lot_and_purge_if_idle, lot_id_hash, purge_expired_lots
+from sircom2026.purge import (
+    delete_lot_and_purge_if_idle,
+    lot_id_hash,
+    prune_old_quarantine_files,
+    purge_expired_lots,
+)
 from sircom2026 import purge as purge_module
 from sircom2026.state import record_problem
 from sircom2026.worker import JobResult, WorkerJobContext, enqueue_job
@@ -220,6 +226,64 @@ class PurgeTest(unittest.TestCase):
             "evenements": 0,
             "problemes": 0,
         })
+
+    def test_delete_lot_expires_stale_lease_before_purging(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            database = Database(settings.sqlite_path)
+            lot_id = client.post("/api/lots", json={"title": "Lot bail expire"}).json()["lot"]["id"]
+            lot_dir = settings.data_dir / "lots" / lot_id
+            lot_dir.mkdir(parents=True)
+            (lot_dir / "fichier.txt").write_text("contenu", encoding="utf-8")
+
+            with database.transaction() as repositories:
+                job = create_owned_running_job(
+                    repositories,
+                    lot_id=lot_id,
+                    step_key="diagnostic_excel",
+                    run_id="run_stale_lease",
+                )
+                repositories.connection.execute(
+                    """
+                    UPDATE jobs
+                    SET lease_until = ?
+                    WHERE id = ?
+                    """,
+                    ("2000-01-01T00:00:00+00:00", job["id"]),
+                )
+
+            response = client.delete(f"/api/lots/{lot_id}")
+            with database.session() as repositories:
+                lot = repositories.lots.get_required(lot_id)
+                trace = repositories.purge_traces.get_by_lot_id_hash(lot_id_hash(lot_id))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["purge"]["status"], "purged")
+        self.assertEqual(lot["status"], "purge")
+        self.assertIsNotNone(trace)
+        self.assertFalse(lot_dir.exists())
+
+    def test_quarantine_retention_removes_old_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            settings = make_settings(tmpdir, SIRCOM_PURGE_TRACE_RETENTION_DAYS="1")
+            old_file = settings.data_dir / "quarantine" / "excel" / "old.xlsx"
+            fresh_file = settings.data_dir / "quarantine" / "excel" / "fresh.xlsx"
+            old_file.parent.mkdir(parents=True)
+            old_file.write_bytes(b"ancien")
+            fresh_file.write_bytes(b"recent")
+            old_timestamp = (datetime.now(UTC) - timedelta(days=2)).timestamp()
+            os.utime(old_file, (old_timestamp, old_timestamp))
+
+            removed_count = prune_old_quarantine_files(settings=settings)
+            old_file_exists = old_file.exists()
+            fresh_file_exists = fresh_file.exists()
+
+        self.assertEqual(removed_count, 1)
+        self.assertFalse(old_file_exists)
+        self.assertTrue(fresh_file_exists)
 
     def test_purge_resumes_after_files_deleted_but_sql_finalization_failed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

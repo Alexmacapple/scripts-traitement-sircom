@@ -94,6 +94,21 @@ class ApiAccessErrorsTest(unittest.TestCase):
         self.assertEqual(response.json()["error"]["code"], "SIRCOM_ACCESS_DENIED")
         self.assertEqual(list_response.json()["pagination"]["total"], 0)
 
+    def test_protected_route_with_foreign_host_header_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            response = client.post(
+                "/api/lots",
+                headers={"Host": "example.invalid", "Origin": "http://example.invalid"},
+                json={"title": "Lot pirate"},
+            )
+            list_response = client.get("/api/lots")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error"]["code"], "SIRCOM_ACCESS_DENIED")
+        self.assertEqual(list_response.json()["pagination"]["total"], 0)
+
     def test_mutating_request_from_same_origin_is_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))

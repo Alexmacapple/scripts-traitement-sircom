@@ -17,6 +17,7 @@ from sircom2026.csv_preview import (
     CSV_FINAL_ARTIFACT_ROLE,
     CSV_PREVIEW_STEP_KEY,
 )
+from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES
 from sircom2026.image_matching import (
     EXPORT_IMAGES_FOLDER,
     MATCHING_ARTIFACT_ROLE,
@@ -33,7 +34,13 @@ from sircom2026.reports import (
     TECHNICAL_REPORT_ARTIFACT_ROLE,
 )
 from sircom2026.state import record_problem
-from sircom2026.worker import JobResult, WorkerJobContext, WorkerLeaseLost, enqueue_job
+from sircom2026.worker import (
+    IdempotencyKeyConsumedError,
+    JobResult,
+    WorkerJobContext,
+    WorkerLeaseLost,
+    enqueue_job,
+)
 
 
 PACKAGE_STEP_KEY = "package_final"
@@ -99,7 +106,13 @@ def request_package_generation(
     idempotency_key: str,
     accept_warnings: bool = False,
 ) -> PackageGenerationResult:
-    repositories.lots.get_required(lot_id)
+    lot = repositories.lots.get_required(lot_id)
+    if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
+        raise PackageError(
+            409,
+            "SIRCOM_LOT_NOT_MUTABLE",
+            "Lot non modifiable.",
+        )
     _require_no_blocking_problem(repositories, lot_id=lot_id)
     store = ArtifactStore(
         settings.data_dir,
@@ -135,13 +148,20 @@ def request_package_generation(
             "schema_version": PACKAGE_SCHEMA_VERSION,
         },
     )
-    enqueued = enqueue_job(
-        repositories,
-        lot_id=lot_id,
-        step_key=PACKAGE_STEP_KEY,
-        idempotency_key=idempotency_key,
-        input_fingerprint=input_fingerprint,
-    )
+    try:
+        enqueued = enqueue_job(
+            repositories,
+            lot_id=lot_id,
+            step_key=PACKAGE_STEP_KEY,
+            idempotency_key=idempotency_key,
+            input_fingerprint=input_fingerprint,
+        )
+    except IdempotencyKeyConsumedError as exc:
+        raise PackageError(
+            409,
+            "SIRCOM_IDEMPOTENCY_KEY_CONSUMED",
+            "Cette demande de génération du package a déjà été consommée.",
+        ) from exc
     repositories.events.create(
         lot_id=lot_id,
         step_key=PACKAGE_STEP_KEY,
@@ -201,6 +221,8 @@ def run_package_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
         return JobResult(final_step_status="bloque")
 
     context.set_progress(3, 5)
+    prepared = None
+    package_committed = False
     try:
         package_sha256 = sha256_file(temp_package)
         package_size = temp_package.stat().st_size
@@ -267,8 +289,11 @@ def run_package_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
                     "step_key": PACKAGE_STEP_KEY,
                 },
             )
+            package_committed = True
     except Exception:
         temp_package.unlink(missing_ok=True)
+        if prepared is not None and not package_committed:
+            prepared.final_path.unlink(missing_ok=True)
         raise
 
     context.set_progress(5, 5)

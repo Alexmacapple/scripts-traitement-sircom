@@ -476,7 +476,7 @@ function buildVisualResultsContract(data, statusSource, rawTestsById = {}) {
     // Preserve the producer's run timestamp (B11); generated_at is the build time.
     timestamp: statusSource.runTimestamp || data.generated,
     generated_at: data.generated,
-    base_url: config.base_url || statusSource.baseUrl || null,
+    base_url: statusSource.baseUrl || config.base_url || null,
     ...(scope ? { scope } : {}),
     summary: {
       total: summary.total,

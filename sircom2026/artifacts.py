@@ -96,11 +96,19 @@ class ArtifactStore:
         )
         temp_path = self._temp_path(lot_id, artifact["id"])
         final_path = self.path_for(artifact["relative_path"])
-        final_path.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(temp_path, final_path)
-        committed = repositories.artifacts.update_status(artifact["id"], _CURRENT_ARTIFACT_STATUS)
-        repositories.lots.refresh_artifact_counters(lot_id)
-        return committed
+        try:
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(temp_path, final_path)
+            committed = repositories.artifacts.update_status(
+                artifact["id"],
+                _CURRENT_ARTIFACT_STATUS,
+            )
+            repositories.lots.refresh_artifact_counters(lot_id)
+            return committed
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            final_path.unlink(missing_ok=True)
+            raise
 
     def create_pending(
         self,
@@ -256,8 +264,8 @@ class ArtifactStore:
                 artifact,
                 code="SIRCOM_ARTIFACT_FILE_MISSING",
                 title="Fichier artefact manquant",
-                cause="Un artefact reference en base n'existe plus dans le store local.",
-                action="Relancer l'etape qui produit cet artefact avant de le telecharger.",
+                cause="Un artefact référencé en base n'existe plus dans le store local.",
+                action="Relancer l'étape qui produit cet artefact avant de le télécharger.",
             )
             raise ArtifactUnavailableError("Artifact file is missing.")
         actual_sha256 = sha256_file(artifact_path)
@@ -266,9 +274,9 @@ class ArtifactStore:
                 repositories,
                 artifact,
                 code="SIRCOM_ARTIFACT_HASH_MISMATCH",
-                title="Empreinte artefact incoherente",
-                cause="Un artefact reference en base ne correspond plus a son empreinte SHA-256.",
-                action="Relancer l'etape qui produit cet artefact pour recreer une version coherente.",
+                title="Empreinte artefact incohérente",
+                cause="Un artefact référencé en base ne correspond plus à son empreinte SHA-256.",
+                action="Relancer l'étape qui produit cet artefact pour recréer une version cohérente.",
                 technical={"actual_sha256": actual_sha256},
             )
             raise ArtifactUnavailableError("Artifact checksum mismatch.")
@@ -296,8 +304,8 @@ class ArtifactStore:
                         artifact,
                         code="SIRCOM_ARTIFACT_FILE_MISSING",
                         title="Fichier artefact manquant",
-                        cause="Un artefact reference en base n'existe plus dans le store local.",
-                        action="Relancer l'etape qui produit cet artefact avant de le telecharger.",
+                        cause="Un artefact référencé en base n'existe plus dans le store local.",
+                        action="Relancer l'étape qui produit cet artefact avant de le télécharger.",
                     )
                     missing_files += 1
                 else:
@@ -307,14 +315,14 @@ class ArtifactStore:
                             repositories,
                             artifact,
                             code="SIRCOM_ARTIFACT_HASH_MISMATCH",
-                            title="Empreinte artefact incoherente",
+                            title="Empreinte artefact incohérente",
                             cause=(
-                                "Un artefact reference en base ne correspond "
-                                "plus a son empreinte SHA-256."
+                                "Un artefact référencé en base ne correspond "
+                                "plus à son empreinte SHA-256."
                             ),
                             action=(
-                                "Relancer l'etape qui produit cet artefact "
-                                "pour recreer une version coherente."
+                                "Relancer l'étape qui produit cet artefact "
+                                "pour recréer une version cohérente."
                             ),
                             technical={"actual_sha256": actual_sha256},
                         )
@@ -422,6 +430,7 @@ class ArtifactStore:
         )
         quarantine_path.parent.mkdir(parents=True, exist_ok=True)
         os.replace(path, quarantine_path)
+        os.utime(quarantine_path, None)
 
     def _relative_to_root(self, path: Path) -> str:
         root = self.root.resolve(strict=False)
@@ -470,6 +479,11 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def cleanup_artifact_paths(paths: list[Path]) -> None:
+    for path in paths:
+        path.unlink(missing_ok=True)
 
 
 def _new_artifact_id() -> str:

@@ -363,8 +363,10 @@ async def upload_lot_images(
             exc.message,
             details=exc.details,
         ) from exc
-    except (KeyError, ValueError) as exc:
+    except KeyError as exc:
         raise lot_not_found() from exc
+    except ValueError as exc:
+        raise lot_not_mutable() from exc
     finally:
         if prepared is not None:
             prepared.path.unlink(missing_ok=True)
@@ -996,14 +998,18 @@ def lot_not_found() -> ApiError:
     )
 
 
+def lot_not_mutable() -> ApiError:
+    return ApiError(
+        409,
+        "SIRCOM_LOT_NOT_MUTABLE",
+        "Lot non modifiable.",
+    )
+
+
 def require_mutable_upload_target(repositories, lot_id: str) -> None:
     lot = repositories.lots.get_required(lot_id)
     if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
-        raise ApiError(
-            409,
-            "SIRCOM_LOT_NOT_MUTABLE",
-            "Lot non modifiable.",
-        )
+        raise lot_not_mutable()
 
 
 def mapping_submission_to_dict(payload: MappingSubmissionRequest) -> dict[str, object]:

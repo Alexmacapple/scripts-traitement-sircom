@@ -11,7 +11,7 @@ steps:
   - action: open
     url: "{base_url}/"
   - action: assert_text
-    text: "Préparation Sircom 2026"
+    text: "Préparation du livrable excel pour le publipostage"
   - action: assert_text
     text: "Créer ou reprendre un lot"
   - action: assert_text

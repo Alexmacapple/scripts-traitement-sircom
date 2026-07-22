@@ -195,118 +195,129 @@ def validate_csv_preview(
         event_type="job.started",
         payload={"status": "en_cours", "step_key": CSV_PREVIEW_STEP_KEY},
     )
-    preview_artifact = store.put_temp_then_commit(
-        repositories,
-        lot_id=lot_id,
-        step_key=CSV_PREVIEW_STEP_KEY,
-        run_id=run_id,
-        kind=CSV_PREVIEW_ARTIFACT_KIND,
-        role=CSV_PREVIEW_ARTIFACT_ROLE,
-        filename="apercu-csv.json",
-        content=preview_content,
-        metadata={
-            "columns_count": len(headers),
-            "rows_count": public_preview["rows_count"],
-            "rules_version": CSV_PREVIEW_RULES_VERSION,
-            "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
-        },
-        mime_type=CSV_PREVIEW_MIME_TYPE,
-        lease_version=int(job["lease_version"]),
-    )
-    csv_artifact = store.put_temp_then_commit(
-        repositories,
-        lot_id=lot_id,
-        step_key=CSV_PREVIEW_STEP_KEY,
-        run_id=run_id,
-        kind=CSV_FINAL_ARTIFACT_KIND,
-        role=CSV_FINAL_ARTIFACT_ROLE,
-        filename="sircom-indesign-utf16.csv",
-        content=csv_content,
-        metadata={
-            "columns_count": len(headers),
-            "rows_count": len(rows),
-            "rules_version": CSV_PREVIEW_RULES_VERSION,
-            "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
-        },
-        mime_type=CSV_FINAL_MIME_TYPE,
-        lease_version=int(job["lease_version"]),
-    )
-    finished = repositories.jobs.finish_owned(
-        job_id=job["id"],
-        worker_id=CSV_PREVIEW_API_WORKER_ID,
-        run_id=run_id,
-        lease_version=int(job["lease_version"]),
-        status="succeeded",
-        expected_input_fingerprint=input_fingerprint,
-    )
-    if finished is None:
-        raise CsvPreviewError(
-            409,
-            "SIRCOM_CSV_PREVIEW_COMMIT_REJECTED",
-            "La validation de l'aperçu CSV n'est plus courante.",
+    committed_artifact_paths = []
+    validation_committed = False
+    try:
+        preview_artifact = store.put_temp_then_commit(
+            repositories,
+            lot_id=lot_id,
+            step_key=CSV_PREVIEW_STEP_KEY,
+            run_id=run_id,
+            kind=CSV_PREVIEW_ARTIFACT_KIND,
+            role=CSV_PREVIEW_ARTIFACT_ROLE,
+            filename="apercu-csv.json",
+            content=preview_content,
+            metadata={
+                "columns_count": len(headers),
+                "rows_count": public_preview["rows_count"],
+                "rules_version": CSV_PREVIEW_RULES_VERSION,
+                "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
+            },
+            mime_type=CSV_PREVIEW_MIME_TYPE,
+            lease_version=int(job["lease_version"]),
         )
-
-    snapshot = record_human_validation_snapshot(
-        repositories,
-        lot_id=lot_id,
-        step_key=CSV_PREVIEW_STEP_KEY,
-        run_id=run_id,
-        decision_payload={
-            "csv_artifact_id": csv_artifact["id"],
-            "csv_sha256": csv_artifact["sha256"],
-            "preview_artifact_id": preview_artifact["id"],
-            "preview_sha256": preview_artifact["sha256"],
-            "rules_version": CSV_PREVIEW_RULES_VERSION,
-            "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
-        },
-        reason="csv_preview_validated",
-    )
-    for warning in public_preview["warnings"]:
-        if warning.get("persist_problem"):
-            record_problem(
-                repositories,
-                lot_id=lot_id,
-                step_key=CSV_PREVIEW_STEP_KEY,
-                run_id=run_id,
-                severity="alerte",
-                code=warning["code"],
-                title=warning["title"],
-                cause=warning["cause"],
-                action=warning["action"],
+        committed_artifact_paths.append(store.path_for(preview_artifact["relative_path"]))
+        csv_artifact = store.put_temp_then_commit(
+            repositories,
+            lot_id=lot_id,
+            step_key=CSV_PREVIEW_STEP_KEY,
+            run_id=run_id,
+            kind=CSV_FINAL_ARTIFACT_KIND,
+            role=CSV_FINAL_ARTIFACT_ROLE,
+            filename="sircom-indesign-utf16.csv",
+            content=csv_content,
+            metadata={
+                "columns_count": len(headers),
+                "rows_count": len(rows),
+                "rules_version": CSV_PREVIEW_RULES_VERSION,
+                "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
+            },
+            mime_type=CSV_FINAL_MIME_TYPE,
+            lease_version=int(job["lease_version"]),
+        )
+        committed_artifact_paths.append(store.path_for(csv_artifact["relative_path"]))
+        finished = repositories.jobs.finish_owned(
+            job_id=job["id"],
+            worker_id=CSV_PREVIEW_API_WORKER_ID,
+            run_id=run_id,
+            lease_version=int(job["lease_version"]),
+            status="succeeded",
+            expected_input_fingerprint=input_fingerprint,
+        )
+        if finished is None:
+            raise CsvPreviewError(
+                409,
+                "SIRCOM_CSV_PREVIEW_COMMIT_REJECTED",
+                "La validation de l'aperçu CSV n'est plus courante.",
             )
-    complete_step(
-        repositories,
-        lot_id=lot_id,
-        step_key=CSV_PREVIEW_STEP_KEY,
-        run_id=run_id,
-        with_warnings=bool(public_preview["warnings"]),
-    )
-    repositories.events.create(
-        lot_id=lot_id,
-        step_key=CSV_PREVIEW_STEP_KEY,
-        run_id=run_id,
-        event_type="csv.preview_validated",
-        payload={
-            "artifact_id": csv_artifact["id"],
-            "columns_count": len(headers),
-            "rows_count": len(rows),
-            "status": "termine_avec_alertes" if public_preview["warnings"] else "termine",
-            "step_key": CSV_PREVIEW_STEP_KEY,
-        },
-    )
-    _enqueue_ready_auto_steps(
-        repositories,
-        lot_id=lot_id,
-        source_step_key=CSV_PREVIEW_STEP_KEY,
-        source_run_id=run_id,
-    )
-    return CsvPreviewValidationResult(
-        preview=public_preview,
-        preview_artifact=preview_artifact,
-        csv_artifact=csv_artifact,
-        lot=get_lot_detail(repositories, lot_id),
-        invalidated_steps=snapshot.invalidated_steps,
-    )
+
+        snapshot = record_human_validation_snapshot(
+            repositories,
+            lot_id=lot_id,
+            step_key=CSV_PREVIEW_STEP_KEY,
+            run_id=run_id,
+            decision_payload={
+                "csv_artifact_id": csv_artifact["id"],
+                "csv_sha256": csv_artifact["sha256"],
+                "preview_artifact_id": preview_artifact["id"],
+                "preview_sha256": preview_artifact["sha256"],
+                "rules_version": CSV_PREVIEW_RULES_VERSION,
+                "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
+            },
+            reason="csv_preview_validated",
+        )
+        for warning in public_preview["warnings"]:
+            if warning.get("persist_problem"):
+                record_problem(
+                    repositories,
+                    lot_id=lot_id,
+                    step_key=CSV_PREVIEW_STEP_KEY,
+                    run_id=run_id,
+                    severity="alerte",
+                    code=warning["code"],
+                    title=warning["title"],
+                    cause=warning["cause"],
+                    action=warning["action"],
+                )
+        complete_step(
+            repositories,
+            lot_id=lot_id,
+            step_key=CSV_PREVIEW_STEP_KEY,
+            run_id=run_id,
+            with_warnings=bool(public_preview["warnings"]),
+        )
+        repositories.events.create(
+            lot_id=lot_id,
+            step_key=CSV_PREVIEW_STEP_KEY,
+            run_id=run_id,
+            event_type="csv.preview_validated",
+            payload={
+                "artifact_id": csv_artifact["id"],
+                "columns_count": len(headers),
+                "rows_count": len(rows),
+                "status": "termine_avec_alertes" if public_preview["warnings"] else "termine",
+                "step_key": CSV_PREVIEW_STEP_KEY,
+            },
+        )
+        _enqueue_ready_auto_steps(
+            repositories,
+            lot_id=lot_id,
+            source_step_key=CSV_PREVIEW_STEP_KEY,
+            source_run_id=run_id,
+        )
+        result = CsvPreviewValidationResult(
+            preview=public_preview,
+            preview_artifact=preview_artifact,
+            csv_artifact=csv_artifact,
+            lot=get_lot_detail(repositories, lot_id),
+            invalidated_steps=snapshot.invalidated_steps,
+        )
+        validation_committed = True
+        return result
+    finally:
+        if not validation_committed:
+            for artifact_path in committed_artifact_paths:
+                artifact_path.unlink(missing_ok=True)
 
 
 def get_csv_export_payload(

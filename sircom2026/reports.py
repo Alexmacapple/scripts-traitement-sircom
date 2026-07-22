@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError
+from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError, cleanup_artifact_paths
 from sircom2026.config import Settings
 from sircom2026.csv_contract import CSV_CONTRACT_ARTIFACT_ROLE, CSV_CONTRACT_STEP_KEY
 from sircom2026.csv_preview import (
@@ -106,76 +106,85 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
     ).encode("utf-8")
 
     context.set_progress(3, 4)
-    with context.database.transaction() as repositories:
-        _require_current_lease(repositories, context)
-        repositories.problems.mark_open_obsolete_for_steps(
-            lot_id=context.lot_id,
-            step_keys=(REPORTS_STEP_KEY,),
-        )
-        repositories.artifacts.mark_obsolete_for_steps(
-            lot_id=context.lot_id,
-            step_keys=(REPORTS_STEP_KEY,),
-        )
-        source_metadata = _report_source_metadata(snapshot)
-        business_artifact = store.put_temp_then_commit(
-            repositories,
-            lot_id=context.lot_id,
-            step_key=REPORTS_STEP_KEY,
-            run_id=context.run_id,
-            kind=BUSINESS_REPORT_ARTIFACT_KIND,
-            role=BUSINESS_REPORT_ARTIFACT_ROLE,
-            filename=BUSINESS_REPORT_FILENAME,
-            content=business_content,
-            metadata=dict(source_metadata),
-            mime_type=BUSINESS_REPORT_MIME_TYPE,
-            lease_version=context.leased_job.lease_version,
-        )
-        technical_artifact = store.put_temp_then_commit(
-            repositories,
-            lot_id=context.lot_id,
-            step_key=REPORTS_STEP_KEY,
-            run_id=context.run_id,
-            kind=TECHNICAL_REPORT_ARTIFACT_KIND,
-            role=TECHNICAL_REPORT_ARTIFACT_ROLE,
-            filename=TECHNICAL_REPORT_FILENAME,
-            content=technical_content,
-            metadata=dict(source_metadata),
-            mime_type=TECHNICAL_REPORT_MIME_TYPE,
-            lease_version=context.leased_job.lease_version,
-        )
-        output_fingerprint = fingerprint_payload(
-            {
-                "business_artifact_id": business_artifact["id"],
-                "business_sha256": business_artifact["sha256"],
-                "kind": "reports",
-                "rules_version": REPORTS_RULES_VERSION,
-                "schema_version": REPORTS_SCHEMA_VERSION,
-                "source_artifacts": {
-                    key: {
-                        "id": artifact["id"],
-                        "sha256": artifact["sha256"],
-                    }
-                    for key, artifact in snapshot["artifacts"].items()
-                    if artifact is not None
+    committed_artifact_paths = []
+    reports_committed = False
+    try:
+        with context.database.transaction() as repositories:
+            _require_current_lease(repositories, context)
+            repositories.problems.mark_open_obsolete_for_steps(
+                lot_id=context.lot_id,
+                step_keys=(REPORTS_STEP_KEY,),
+            )
+            repositories.artifacts.mark_obsolete_for_steps(
+                lot_id=context.lot_id,
+                step_keys=(REPORTS_STEP_KEY,),
+            )
+            source_metadata = _report_source_metadata(snapshot)
+            business_artifact = store.put_temp_then_commit(
+                repositories,
+                lot_id=context.lot_id,
+                step_key=REPORTS_STEP_KEY,
+                run_id=context.run_id,
+                kind=BUSINESS_REPORT_ARTIFACT_KIND,
+                role=BUSINESS_REPORT_ARTIFACT_ROLE,
+                filename=BUSINESS_REPORT_FILENAME,
+                content=business_content,
+                metadata=dict(source_metadata),
+                mime_type=BUSINESS_REPORT_MIME_TYPE,
+                lease_version=context.leased_job.lease_version,
+            )
+            committed_artifact_paths.append(store.path_for(business_artifact["relative_path"]))
+            technical_artifact = store.put_temp_then_commit(
+                repositories,
+                lot_id=context.lot_id,
+                step_key=REPORTS_STEP_KEY,
+                run_id=context.run_id,
+                kind=TECHNICAL_REPORT_ARTIFACT_KIND,
+                role=TECHNICAL_REPORT_ARTIFACT_ROLE,
+                filename=TECHNICAL_REPORT_FILENAME,
+                content=technical_content,
+                metadata=dict(source_metadata),
+                mime_type=TECHNICAL_REPORT_MIME_TYPE,
+                lease_version=context.leased_job.lease_version,
+            )
+            committed_artifact_paths.append(store.path_for(technical_artifact["relative_path"]))
+            output_fingerprint = fingerprint_payload(
+                {
+                    "business_artifact_id": business_artifact["id"],
+                    "business_sha256": business_artifact["sha256"],
+                    "kind": "reports",
+                    "rules_version": REPORTS_RULES_VERSION,
+                    "schema_version": REPORTS_SCHEMA_VERSION,
+                    "source_artifacts": {
+                        key: {
+                            "id": artifact["id"],
+                            "sha256": artifact["sha256"],
+                        }
+                        for key, artifact in snapshot["artifacts"].items()
+                        if artifact is not None
+                    },
+                    "technical_artifact_id": technical_artifact["id"],
+                    "technical_sha256": technical_artifact["sha256"],
+                }
+            )
+            has_alerts = snapshot["problem_counts"]["alerte"] > 0
+            repositories.events.create(
+                lot_id=context.lot_id,
+                step_key=REPORTS_STEP_KEY,
+                run_id=context.run_id,
+                event_type="reports.generated",
+                payload={
+                    "artifact_id": business_artifact["id"],
+                    "artifacts_count": 2,
+                    "rows_count": snapshot["integrity"]["csv_rows_count"],
+                    "status": "termine_avec_alertes" if has_alerts else "termine",
+                    "step_key": REPORTS_STEP_KEY,
                 },
-                "technical_artifact_id": technical_artifact["id"],
-                "technical_sha256": technical_artifact["sha256"],
-            }
-        )
-        has_alerts = snapshot["problem_counts"]["alerte"] > 0
-        repositories.events.create(
-            lot_id=context.lot_id,
-            step_key=REPORTS_STEP_KEY,
-            run_id=context.run_id,
-            event_type="reports.generated",
-            payload={
-                "artifact_id": business_artifact["id"],
-                "artifacts_count": 2,
-                "rows_count": snapshot["integrity"]["csv_rows_count"],
-                "status": "termine_avec_alertes" if has_alerts else "termine",
-                "step_key": REPORTS_STEP_KEY,
-            },
-        )
+            )
+            reports_committed = True
+    finally:
+        if not reports_committed:
+            cleanup_artifact_paths(committed_artifact_paths)
 
     context.set_progress(4, 4)
     return JobResult(
@@ -424,6 +433,13 @@ def _build_report_snapshot(
     lot = repositories.lots.get_required(lot_id)
     steps = repositories.steps.list_for_lot(lot_id)
     problems = repositories.problems.list_for_lot(lot_id, limit=500)
+    problem_counts = {
+        severity: repositories.problems.count_open_by_severity(
+            lot_id=lot_id,
+            severity=severity,
+        )
+        for severity in ("bloquant", "alerte", "information")
+    }
     events = repositories.events.list_for_lot(lot_id, limit=200)
 
     excel_source = _required_current_artifact(
@@ -537,7 +553,6 @@ def _build_report_snapshot(
         inspection_payload = inspection.payload
         matching_artifact = matching.artifact
         matching_payload = matching.payload
-    problem_counts = _problem_counts(problems)
     artifacts = {
         "excel_source": excel_source,
         "diagnostic": diagnostic.artifact,

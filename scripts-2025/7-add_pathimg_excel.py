@@ -11,6 +11,7 @@
 
 import openpyxl
 import os
+from collections import defaultdict
 
 def normalize_image_id(image_id):
     """Normalise l'ID pour le nom de fichier : minuscules, sans points ni espaces"""
@@ -23,7 +24,8 @@ def normalize_image_id(image_id):
     return normalized
 
 # Configuration du chemin des images (format POSIX pour InDesign 19.4+)
-IMAGE_BASE_PATH = "/Users/victoria/Documents/export-jpg-resize"
+DEFAULT_IMAGE_BASE_PATH = "/Users/victoria/Documents/export-jpg-resize"
+IMAGE_BASE_PATH = os.environ.get("SIRCOM_IMAGE_BASE_PATH", DEFAULT_IMAGE_BASE_PATH)
 
 # 1. Définir le fichier source
 file_path = "6-clean-headers.xlsx"
@@ -68,6 +70,7 @@ try:
         # 7. Parcourir les données et générer les chemins d'images
         rows_processed = 0
         paths_generated = 0
+        normalized_ids_by_imageid = defaultdict(list)
         
         for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
             rows_processed += 1
@@ -89,6 +92,12 @@ try:
 
                 # Normaliser l'ID avant de générer le chemin
                 normalized_id = normalize_image_id(image_id)
+                normalized_ids_by_imageid[normalized_id].append(imageid_cell.row)
+                if len(normalized_ids_by_imageid[normalized_id]) > 1:
+                    rows = ", ".join(str(row_number) for row_number in normalized_ids_by_imageid[normalized_id])
+                    raise ValueError(
+                        f"Collision imageid dossier-{normalized_id}.jpg aux lignes {rows}"
+                    )
 
                 # Générer le chemin complet avec l'ID normalisé (format POSIX)
                 full_path = f"{IMAGE_BASE_PATH}/dossier-{normalized_id}.jpg"

@@ -14,7 +14,7 @@ from openpyxl.utils.cell import column_index_from_string
 
 from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError, safe_artifact_filename
 from sircom2026.config import Settings
-from sircom2026.database import Repositories
+from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
 from sircom2026.excel_diagnostic import ascii_key, clean_indesign_header
 from sircom2026.excel_diagnostic_pipeline import (
     ExcelDiagnosticNotReady,
@@ -216,6 +216,7 @@ def save_mapping_draft(
     source: str = "draft",
     profile_id: str | None = None,
 ) -> MappingOperationResult:
+    _require_mutable_lot(repositories, lot_id)
     default_mapping = build_default_mapping_from_current_diagnostic(
         repositories,
         settings=settings,
@@ -270,6 +271,7 @@ def validate_mapping(
     submission: dict[str, Any],
     idempotency_key: str,
 ) -> MappingOperationResult:
+    _require_mutable_lot(repositories, lot_id)
     default_mapping = build_default_mapping_from_current_diagnostic(
         repositories,
         settings=settings,
@@ -345,6 +347,7 @@ def save_profile_from_validated_mapping(
     lot_id: str,
     name: str | None,
 ) -> dict[str, Any]:
+    _require_mutable_lot(repositories, lot_id)
     mapping = read_current_mapping_artifact(
         repositories,
         settings=settings,
@@ -378,6 +381,7 @@ def apply_profile_as_draft(
     profile_id: str,
     idempotency_key: str,
 ) -> MappingOperationResult:
+    _require_mutable_lot(repositories, lot_id)
     default_mapping = build_default_mapping_from_current_diagnostic(
         repositories,
         settings=settings,
@@ -421,6 +425,16 @@ def apply_profile_as_draft(
         },
     )
     return result
+
+
+def _require_mutable_lot(repositories: Repositories, lot_id: str) -> None:
+    lot = repositories.lots.get_required(lot_id)
+    if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
+        raise MappingError(
+            409,
+            "SIRCOM_LOT_NOT_MUTABLE",
+            "Lot non modifiable.",
+        )
 
 
 def mapping_from_submission(

@@ -13,6 +13,7 @@ import openpyxl
 import os
 import re
 import unicodedata
+from collections import Counter
 
 # Fonction pour nettoyer les noms des colonnes
 def clean_col_name(col_name):
@@ -57,8 +58,7 @@ try:
         print(f"Traitement de la feuille : {sheet_name}")
         sheet = workbook[sheet_name]
         
-        # Compter les colonnes avec des en-têtes
-        headers_processed = 0
+        header_changes = []
         
         # Parcourir les en-têtes de colonnes (première ligne) et les nettoyer
         for column in sheet.iter_cols(min_row=1, max_row=1):
@@ -66,16 +66,30 @@ try:
                 if cell.value is not None:
                     original_value = str(cell.value)
                     cleaned_value = clean_col_name(original_value)
-                    cell.value = cleaned_value
-                    headers_processed += 1
-                    
+                    header_changes.append((cell, original_value, cleaned_value))
+
+        cleaned_counts = Counter(cleaned for _cell, _original, cleaned in header_changes)
+        collisions = sorted(name for name, count in cleaned_counts.items() if name and count > 1)
+        if collisions:
+            raise ValueError(
+                f"Collisions d'en-têtes après nettoyage dans la feuille '{sheet_name}' : "
+                + ", ".join(collisions)
+            )
+
+        # Appliquer les noms nettoyés après validation de l'unicité
+        for headers_processed, (cell, original_value, cleaned_value) in enumerate(
+            header_changes,
+            start=1,
+        ):
+            cell.value = cleaned_value
+
                     # Afficher quelques exemples de transformation
-                    if headers_processed <= 10:
-                        print(f"  Colonne {openpyxl.utils.get_column_letter(cell.column)}: '{original_value}' → '{cleaned_value}'")
-                    elif headers_processed == 11:
-                        print(f"  ... (et {sheet.max_column - 10} autres colonnes)")
+            if headers_processed <= 10:
+                print(f"  Colonne {openpyxl.utils.get_column_letter(cell.column)}: '{original_value}' → '{cleaned_value}'")
+            elif headers_processed == 11:
+                print(f"  ... (et {sheet.max_column - 10} autres colonnes)")
         
-        print(f"{headers_processed} en-têtes nettoyés dans la feuille '{sheet_name}'")
+        print(f"{len(header_changes)} en-têtes nettoyés dans la feuille '{sheet_name}'")
     
     # 5. Enregistrer le fichier modifié
     output_filename = "6-clean-headers.xlsx"

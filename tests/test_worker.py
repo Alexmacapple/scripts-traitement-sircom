@@ -9,6 +9,7 @@ from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import create_lot_with_steps
 from sircom2026.worker import (
+    IdempotencyKeyConsumedError,
     JobResult,
     LocalWorker,
     WorkerLeaseLost,
@@ -228,6 +229,39 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertEqual(first.job["id"], same_key.job["id"])
             self.assertEqual(first.job["id"], other_key.job["id"])
             self.assertEqual(active_jobs, 1)
+
+    def test_consumed_idempotency_key_is_not_reused_after_success(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot idempotence")
+                enqueue_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="diagnostic_excel",
+                    idempotency_key="diagnostic:consumed",
+                    run_id="run_diag_consumed",
+                    input_fingerprint="input_consumed",
+                )
+
+            worker = LocalWorker(
+                database,
+                {"diagnostic_excel": lambda _context: JobResult()},
+                worker_id="worker-idempotence",
+                lease_seconds=60,
+            )
+            result = worker.run_once()
+            self.assertEqual(result.outcome, "succeeded")
+
+            with database.transaction() as repositories:
+                with self.assertRaises(IdempotencyKeyConsumedError):
+                    enqueue_job(
+                        repositories,
+                        lot_id=lot["id"],
+                        step_key="diagnostic_excel",
+                        idempotency_key="diagnostic:consumed",
+                        run_id="run_diag_new",
+                    )
 
     def test_lease_prevents_two_workers_from_acquiring_the_same_job(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -470,6 +504,41 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertEqual(reclaimed["attempt"], 2)
             self.assertEqual(reclaimed["lease_owner"], "worker-b")
             self.assertEqual(reclaimed["lease_version"], 2)
+
+    def test_enqueue_returns_existing_expired_reclaimable_job_for_same_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot expired idempotence")
+                first = enqueue_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="normalisation_contenu",
+                    idempotency_key="normalisation:expired",
+                    run_id="run_norm_expired",
+                )
+                repositories.jobs.acquire_next(
+                    worker_id="worker-a",
+                    lease_seconds=60,
+                    step_keys=("normalisation_contenu",),
+                )
+                repositories.connection.execute(
+                    "UPDATE jobs SET lease_until = ? WHERE id = ?",
+                    ("2000-01-01T00:00:00+00:00", first.job["id"]),
+                )
+                repositories.jobs.expire_stale_leases()
+
+                same_key = enqueue_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="normalisation_contenu",
+                    idempotency_key="normalisation:expired",
+                    run_id="run_norm_ignored",
+                )
+
+            self.assertFalse(same_key.created)
+            self.assertEqual(same_key.job["id"], first.job["id"])
+            self.assertEqual(same_key.job["status"], "expired")
 
     def test_expired_job_without_lease_until_is_not_reclaimed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

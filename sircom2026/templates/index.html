@@ -1079,6 +1079,24 @@
               {% if active_view == "mapping" and mapping_payload %}
                 {% set mapping = mapping_payload.mapping %}
                 {% set profiles = mapping_payload.profiles %}
+                {% set mapping_source_labels = {
+                  "default": "proposé",
+                  "draft": "brouillon",
+                  "profile_draft": "profil en brouillon",
+                  "validated": "validé"
+                } %}
+                {% set role_labels = {
+                  "texte": "Texte",
+                  "date": "Date",
+                  "region": "Région",
+                  "departement": "Département",
+                  "nom_image_source": "Nom de l'image source",
+                  "siret": "SIRET",
+                  "telephone": "Téléphone",
+                  "code_postal": "Code postal",
+                  "code_administratif": "Code administratif",
+                  "id_dossier": "Identifiant dossier"
+                } %}
                 <section class="fr-mt-5v" aria-labelledby="mapping-step-title">
                   <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
                     <div class="fr-col">
@@ -1086,12 +1104,12 @@
                     </div>
                     <div class="fr-col-auto">
                       <p class="fr-badge fr-badge--sm">
-                        {{ mapping.source }}
+                        {{ mapping_source_labels.get(mapping.source, mapping.source) }}
                       </p>
                     </div>
                   </div>
 
-                  <div class="fr-alert fr-alert--info fr-mt-2v" role="alert">
+                  <div class="fr-alert fr-alert--info fr-mt-2v">
                     <h4 class="fr-alert__title">Décision à prendre sur le mapping</h4>
                     <p class="fr-mb-1v">
                       Colonnes proposées : {{ mapping.columns | length }}.
@@ -1240,10 +1258,10 @@
                                               {% if column.locked %}disabled aria-disabled="true"{% endif %}
                                             >
                                               {% for role in ["texte", "date", "region", "departement", "nom_image_source", "siret", "telephone", "code_postal", "code_administratif"] %}
-                                                <option value="{{ role }}" {% if column.logical_role == role %}selected{% endif %}>{{ role }}</option>
+                                                <option value="{{ role }}" {% if column.logical_role == role %}selected{% endif %}>{{ role_labels.get(role, role) }}</option>
                                               {% endfor %}
                                               {% if column.logical_role == "id_dossier" %}
-                                                <option value="id_dossier" selected>id_dossier</option>
+                                                <option value="id_dossier" selected>{{ role_labels.get("id_dossier") }}</option>
                                               {% endif %}
                                             </select>
                                           </div>

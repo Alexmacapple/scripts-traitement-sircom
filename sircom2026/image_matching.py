@@ -14,7 +14,7 @@ from typing import Any
 
 from PIL import Image, UnidentifiedImageError
 
-from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError
+from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError, cleanup_artifact_paths
 from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
 from sircom2026.image_formats import prepare_image_for_jpeg
@@ -32,7 +32,14 @@ from sircom2026.invalidation import (
 from sircom2026.lots import get_lot_detail
 from sircom2026.state import record_problem
 from sircom2026.transform import NORMALIZATION_ARTIFACT_ROLE, NORMALIZATION_STEP_KEY
-from sircom2026.worker import EnqueuedJob, JobResult, WorkerJobContext, WorkerLeaseLost, enqueue_job
+from sircom2026.worker import (
+    EnqueuedJob,
+    IdempotencyKeyConsumedError,
+    JobResult,
+    WorkerJobContext,
+    WorkerLeaseLost,
+    enqueue_job,
+)
 
 
 MATCHING_IMAGES_STEP_KEY = "matching_images"
@@ -127,13 +134,20 @@ def enqueue_image_matching_job(
         step_key=MATCHING_IMAGES_STEP_KEY,
         input_payload=image_matching_input_payload(repositories, lot_id=lot_id),
     )
-    return enqueue_job(
-        repositories,
-        lot_id=lot_id,
-        step_key=MATCHING_IMAGES_STEP_KEY,
-        idempotency_key=idempotency_key,
-        input_fingerprint=input_fingerprint,
-    )
+    try:
+        return enqueue_job(
+            repositories,
+            lot_id=lot_id,
+            step_key=MATCHING_IMAGES_STEP_KEY,
+            idempotency_key=f"{idempotency_key}:{input_fingerprint[:16]}",
+            input_fingerprint=input_fingerprint,
+        )
+    except IdempotencyKeyConsumedError as exc:
+        raise ImageResolutionError(
+            409,
+            "SIRCOM_IDEMPOTENCY_KEY_CONSUMED",
+            "Cette demande de traitement images a déjà été consommée.",
+        ) from exc
 
 
 def run_image_matching_job(context: WorkerJobContext, *, settings: Settings) -> JobResult:
@@ -209,110 +223,119 @@ def run_image_matching_job(context: WorkerJobContext, *, settings: Settings) -> 
     ).encode("utf-8")
 
     context.set_progress(4, 5)
-    with context.database.transaction() as repositories:
-        _require_current_lease(repositories, context)
-        repositories.problems.mark_open_obsolete_for_steps(
-            lot_id=context.lot_id,
-            step_keys=(MATCHING_IMAGES_STEP_KEY,),
-        )
-        repositories.artifacts.mark_obsolete_for_steps(
-            lot_id=context.lot_id,
-            step_keys=(MATCHING_IMAGES_STEP_KEY,),
-        )
-        matching_artifact = store.put_temp_then_commit(
-            repositories,
-            lot_id=context.lot_id,
-            step_key=MATCHING_IMAGES_STEP_KEY,
-            run_id=context.run_id,
-            kind=MATCHING_ARTIFACT_KIND,
-            role=MATCHING_ARTIFACT_ROLE,
-            filename="matching-images.json",
-            content=matching_content,
-            metadata={
-                "ambiguous_count": matching["ambiguous_count"],
-                "conversion_failed_count": matching["conversion_failed_count"],
-                "matched_count": matching["matched_count"],
-                "missing_count": matching["missing_count"],
-                "processed_images_count": matching["processed_images_count"],
-                "rules_version": MATCHING_RULES_VERSION,
-                "schema_version": MATCHING_SCHEMA_VERSION,
-                "source_image_zip_artifact_id": source_artifact["id"],
-                "source_inspection_artifact_id": inspection.artifact["id"],
-                "source_normalization_artifact_id": normalized.artifact["id"],
-                "tolerant_count": matching["tolerant_count"],
-                "unreferenced_count": matching["unreferenced_count"],
-            },
-            mime_type=MATCHING_MIME_TYPE,
-            lease_version=context.leased_job.lease_version,
-        )
-        processed_artifact = store.put_temp_then_commit(
-            repositories,
-            lot_id=context.lot_id,
-            step_key=MATCHING_IMAGES_STEP_KEY,
-            run_id=context.run_id,
-            kind=PROCESSED_IMAGES_ARTIFACT_KIND,
-            role=PROCESSED_IMAGES_ARTIFACT_ROLE,
-            filename="images-traitees.zip",
-            content=processed_zip_content,
-            metadata={
-                "folder": EXPORT_IMAGES_FOLDER,
-                "images_count": matching["processed_images_count"],
-                "jpeg_quality": FINAL_IMAGE_JPEG_QUALITY,
-                "max_width_px": FINAL_IMAGE_MAX_WIDTH_PX,
-                "rules_version": MATCHING_RULES_VERSION,
-                "schema_version": MATCHING_SCHEMA_VERSION,
-            },
-            mime_type=PROCESSED_IMAGES_MIME_TYPE,
-            lease_version=context.leased_job.lease_version,
-        )
-        for problem in image_matching_problems(matching):
-            record_problem(
+    committed_artifact_paths: list[Path] = []
+    matching_committed = False
+    try:
+        with context.database.transaction() as repositories:
+            _require_current_lease(repositories, context)
+            repositories.problems.mark_open_obsolete_for_steps(
+                lot_id=context.lot_id,
+                step_keys=(MATCHING_IMAGES_STEP_KEY,),
+            )
+            repositories.artifacts.mark_obsolete_for_steps(
+                lot_id=context.lot_id,
+                step_keys=(MATCHING_IMAGES_STEP_KEY,),
+            )
+            matching_artifact = store.put_temp_then_commit(
                 repositories,
                 lot_id=context.lot_id,
                 step_key=MATCHING_IMAGES_STEP_KEY,
                 run_id=context.run_id,
-                severity=problem["severity"],
-                code=problem["code"],
-                title=problem["title"],
-                cause=problem["cause"],
-                action=problem["action"],
-                location=problem.get("location"),
-                technical=problem.get("technical"),
+                kind=MATCHING_ARTIFACT_KIND,
+                role=MATCHING_ARTIFACT_ROLE,
+                filename="matching-images.json",
+                content=matching_content,
+                metadata={
+                    "ambiguous_count": matching["ambiguous_count"],
+                    "conversion_failed_count": matching["conversion_failed_count"],
+                    "matched_count": matching["matched_count"],
+                    "missing_count": matching["missing_count"],
+                    "processed_images_count": matching["processed_images_count"],
+                    "rules_version": MATCHING_RULES_VERSION,
+                    "schema_version": MATCHING_SCHEMA_VERSION,
+                    "source_image_zip_artifact_id": source_artifact["id"],
+                    "source_inspection_artifact_id": inspection.artifact["id"],
+                    "source_normalization_artifact_id": normalized.artifact["id"],
+                    "tolerant_count": matching["tolerant_count"],
+                    "unreferenced_count": matching["unreferenced_count"],
+                },
+                mime_type=MATCHING_MIME_TYPE,
+                lease_version=context.leased_job.lease_version,
             )
-        output_fingerprint = fingerprint_payload(
-            {
-                "artifact_sha256": matching_artifact["sha256"],
-                "kind": "image_matching",
-                "matching_artifact_id": matching_artifact["id"],
-                "processed_images_artifact_id": processed_artifact["id"],
-                "processed_images_sha256": processed_artifact["sha256"],
-                "rules_version": MATCHING_RULES_VERSION,
-                "schema_version": MATCHING_SCHEMA_VERSION,
-                "source_image_zip_artifact_id": source_artifact["id"],
-                "source_image_zip_sha256": source_artifact["sha256"],
-                "source_inspection_artifact_id": inspection.artifact["id"],
-                "source_normalization_artifact_id": normalized.artifact["id"],
-            }
-        )
-        repositories.events.create(
-            lot_id=context.lot_id,
-            step_key=MATCHING_IMAGES_STEP_KEY,
-            run_id=context.run_id,
-            event_type="images.matching_completed",
-            payload={
-                "artifact_id": matching_artifact["id"],
-                "ambiguous_count": matching["ambiguous_count"],
-                "conversion_failed_count": matching["conversion_failed_count"],
-                "missing_count": matching["missing_count"],
-                "processed_images_count": matching["processed_images_count"],
-                "status": "bloque" if matching["blocking"] else (
-                    "termine_avec_alertes" if matching["has_warnings"] else "termine"
-                ),
-                "step_key": MATCHING_IMAGES_STEP_KEY,
-                "tolerant_count": matching["tolerant_count"],
-                "unreferenced_count": matching["unreferenced_count"],
-            },
-        )
+            committed_artifact_paths.append(store.path_for(matching_artifact["relative_path"]))
+            processed_artifact = store.put_temp_then_commit(
+                repositories,
+                lot_id=context.lot_id,
+                step_key=MATCHING_IMAGES_STEP_KEY,
+                run_id=context.run_id,
+                kind=PROCESSED_IMAGES_ARTIFACT_KIND,
+                role=PROCESSED_IMAGES_ARTIFACT_ROLE,
+                filename="images-traitees.zip",
+                content=processed_zip_content,
+                metadata={
+                    "folder": EXPORT_IMAGES_FOLDER,
+                    "images_count": matching["processed_images_count"],
+                    "jpeg_quality": FINAL_IMAGE_JPEG_QUALITY,
+                    "max_width_px": FINAL_IMAGE_MAX_WIDTH_PX,
+                    "rules_version": MATCHING_RULES_VERSION,
+                    "schema_version": MATCHING_SCHEMA_VERSION,
+                },
+                mime_type=PROCESSED_IMAGES_MIME_TYPE,
+                lease_version=context.leased_job.lease_version,
+            )
+            committed_artifact_paths.append(store.path_for(processed_artifact["relative_path"]))
+            for problem in image_matching_problems(matching):
+                record_problem(
+                    repositories,
+                    lot_id=context.lot_id,
+                    step_key=MATCHING_IMAGES_STEP_KEY,
+                    run_id=context.run_id,
+                    severity=problem["severity"],
+                    code=problem["code"],
+                    title=problem["title"],
+                    cause=problem["cause"],
+                    action=problem["action"],
+                    location=problem.get("location"),
+                    technical=problem.get("technical"),
+                )
+            output_fingerprint = fingerprint_payload(
+                {
+                    "artifact_sha256": matching_artifact["sha256"],
+                    "kind": "image_matching",
+                    "matching_artifact_id": matching_artifact["id"],
+                    "processed_images_artifact_id": processed_artifact["id"],
+                    "processed_images_sha256": processed_artifact["sha256"],
+                    "rules_version": MATCHING_RULES_VERSION,
+                    "schema_version": MATCHING_SCHEMA_VERSION,
+                    "source_image_zip_artifact_id": source_artifact["id"],
+                    "source_image_zip_sha256": source_artifact["sha256"],
+                    "source_inspection_artifact_id": inspection.artifact["id"],
+                    "source_normalization_artifact_id": normalized.artifact["id"],
+                }
+            )
+            repositories.events.create(
+                lot_id=context.lot_id,
+                step_key=MATCHING_IMAGES_STEP_KEY,
+                run_id=context.run_id,
+                event_type="images.matching_completed",
+                payload={
+                    "artifact_id": matching_artifact["id"],
+                    "ambiguous_count": matching["ambiguous_count"],
+                    "conversion_failed_count": matching["conversion_failed_count"],
+                    "missing_count": matching["missing_count"],
+                    "processed_images_count": matching["processed_images_count"],
+                    "status": "bloque" if matching["blocking"] else (
+                        "termine_avec_alertes" if matching["has_warnings"] else "termine"
+                    ),
+                    "step_key": MATCHING_IMAGES_STEP_KEY,
+                    "tolerant_count": matching["tolerant_count"],
+                    "unreferenced_count": matching["unreferenced_count"],
+                },
+            )
+            matching_committed = True
+    finally:
+        if not matching_committed:
+            cleanup_artifact_paths(committed_artifact_paths)
 
     context.set_progress(5, 5)
     return JobResult(
@@ -390,10 +413,14 @@ def build_image_matching_payload(
             source_zip_sha256=source_zip_sha256,
             rules_fingerprint=rules_fingerprint,
         )
-        if binding["source_name"]:
-            referenced_sources.add(binding["source_name"])
         bindings.append(binding)
 
+    _mark_duplicate_automatic_sources(bindings)
+    referenced_sources = {
+        str(binding["source_name"])
+        for binding in bindings
+        if binding.get("status") == "matched" and binding.get("source_name")
+    }
     unreferenced_images = [
         {
             "source_name": image["name"],
@@ -426,6 +453,30 @@ def build_image_matching_payload(
     }
     _refresh_matching_counts(payload)
     return payload
+
+
+def _mark_duplicate_automatic_sources(bindings: list[dict[str, Any]]) -> None:
+    matched_sources = Counter(
+        str(binding["source_name"])
+        for binding in bindings
+        if binding.get("status") == "matched"
+        and binding.get("source_name")
+    )
+    duplicate_sources = {
+        source_name for source_name, count in matched_sources.items() if count > 1
+    }
+    if not duplicate_sources:
+        return
+    for binding in bindings:
+        source_name = binding.get("source_name")
+        if (
+            binding.get("status") == "matched"
+            and source_name in duplicate_sources
+        ):
+            binding["status"] = "ambiguous"
+            binding["pathimg"] = ""
+            binding["match_level"] = "source_duplicate"
+            binding["duplicate_source_name"] = source_name
 
 
 def build_processed_images_zip(source_zip_path: Path, matching_payload: dict[str, Any]) -> bytes:

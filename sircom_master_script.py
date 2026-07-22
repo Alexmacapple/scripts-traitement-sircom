@@ -22,7 +22,7 @@ Fonctionnalités :
 ✓ Mode verbose optionnel
 
 Usage:
-    python3 sircom_master_script.py [--verbose]
+    python3 sircom_master_script.py [--verbose] [--image-path PATH] [--source-images-dir PATH]
 """
 
 import os
@@ -46,6 +46,7 @@ REQUIREMENTS_2025_FILE = "requirements-2025.txt"
 
 # Configuration par défaut du chemin des images (format POSIX pour InDesign 19.4+)
 DEFAULT_IMAGE_PATH = "/Users/victoria/Documents/export-jpg-resize"
+DEFAULT_SOURCE_IMAGES_DIR = "images"
 
 # Liste des scripts à exécuter dans l'ordre
 SCRIPTS_CHAIN = [
@@ -121,7 +122,13 @@ SCRIPTS_CHAIN = [
 # ==========================================
 
 class SircomMasterProcessor:
-    def __init__(self, verbose=False):
+    def __init__(
+        self,
+        verbose=False,
+        *,
+        image_path: str | None = None,
+        source_images_dir: str | None = None,
+    ):
         self.verbose = verbose
         self.start_time = datetime.now()
         self.log_filename = f"sircom-processing-{self.start_time.strftime('%Y%m%d-%H%M%S')}.log"
@@ -137,7 +144,9 @@ class SircomMasterProcessor:
         self.setup_logging()
         
         # Variables de traitement
-        self.image_path = DEFAULT_IMAGE_PATH
+        self.image_path = image_path or DEFAULT_IMAGE_PATH
+        self.image_path_configured = image_path is not None
+        self.source_images_dir = source_images_dir or DEFAULT_SOURCE_IMAGES_DIR
         
     def setup_logging(self):
         """Configure le système de logs"""
@@ -203,6 +212,10 @@ class SircomMasterProcessor:
     def configure_image_path(self):
         """Configuration interactive du chemin des images"""
         self.logger.info("🖼️  CONFIGURATION DU CHEMIN DES IMAGES")
+        if self.image_path_configured:
+            self.logger.info(f"✅ Chemin configuré par option : {self.image_path}")
+            print(f"\n✅ Chemin des images InDesign configuré : {self.image_path}")
+            return
         print(f"\n🖼️  Configuration du chemin des images pour InDesign")
         print(f"Chemin par défaut : {DEFAULT_IMAGE_PATH}")
         print()
@@ -353,34 +366,10 @@ class SircomMasterProcessor:
         return True, f"OK ({file_size:,} octets)"
 
     def update_image_path_in_script(self):
-        """Mettre à jour le chemin des images dans le script 7"""
-        script_path = os.path.join(SCRIPTS_DIR, "7-add_pathimg_excel.py")
-        
-        if self.image_path != DEFAULT_IMAGE_PATH:
-            self.logger.info(f"🔧 Mise à jour du chemin d'images dans {script_path}")
-            
-            try:
-                # Lire le contenu du script
-                with open(script_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                # Remplacer le chemin par défaut
-                old_line = f'IMAGE_BASE_PATH = "{DEFAULT_IMAGE_PATH}"'
-                new_line = f'IMAGE_BASE_PATH = "{self.image_path}"'
-                
-                if old_line in content:
-                    content = content.replace(old_line, new_line)
-                    
-                    # Écrire le fichier modifié
-                    with open(script_path, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    
-                    self.logger.info(f"✅ Chemin d'images mis à jour dans {script_path}")
-                else:
-                    self.logger.warning(f"⚠️  Ligne à remplacer non trouvée dans {script_path}")
-                    
-            except Exception as e:
-                self.logger.error(f"❌ Erreur lors de la mise à jour de {script_path} : {e}")
+        """Préparer les paramètres images sans modifier les scripts source."""
+        self.logger.info("🔧 Paramètres images transmis par environnement")
+        self.logger.info(f"  Chemin InDesign : {self.image_path}")
+        self.logger.info(f"  Dossier images source : {self.source_images_dir}")
 
     def execute_script(self, script_info, step_number):
         """Exécuter un script individuel"""
@@ -395,13 +384,18 @@ class SircomMasterProcessor:
         start_time = time.time()
         
         try:
+            env = os.environ.copy()
+            env["SIRCOM_IMAGE_BASE_PATH"] = self.image_path
+            env["SIRCOM_SOURCE_IMAGE_DIR"] = self.source_images_dir
+
             # Exécuter le script
             result = subprocess.run(
                 [self.python_venv, script_name],
                 check=True,
                 capture_output=True,
                 text=True,
-                cwd=os.getcwd()
+                cwd=os.getcwd(),
+                env=env,
             )
             
             execution_time = time.time() - start_time
@@ -608,9 +602,11 @@ Rapport généré automatiquement le {end_time.strftime('%d/%m/%Y à %H:%M:%S')}
             self.logger.info("🚀 DÉBUT DE L'EXÉCUTION DE LA CHAÎNE")
             self.logger.info("="*80)
             
+            chain_success = True
             for i, script_info in enumerate(SCRIPTS_CHAIN, 1):
                 if not self.execute_script(script_info, i):
                     self.logger.error(f"❌ Échec à l'étape {i} - Arrêt du traitement")
+                    chain_success = False
                     break
                     
                 # Petite pause entre les scripts
@@ -622,11 +618,16 @@ Rapport généré automatiquement le {end_time.strftime('%d/%m/%Y à %H:%M:%S')}
             
             success, report_file = self.generate_final_report()
             
-            if success:
+            if success and chain_success:
                 self.logger.info("🎉 TRAITEMENT TERMINÉ AVEC SUCCÈS !")
                 if report_file:
                     print(f"\n📊 Rapport détaillé disponible : {report_file}")
                 return True
+            elif success:
+                self.logger.error("❌ Traitement interrompu : rapport généré mais chaîne incomplète")
+                if report_file:
+                    print(f"\n📊 Rapport détaillé disponible : {report_file}")
+                return False
             else:
                 self.logger.error("❌ Erreur lors de la génération du rapport")
                 return False
@@ -652,6 +653,8 @@ def main():
 Exemples d'utilisation :
   python3 sircom_master_script.py              # Exécution normale
   python3 sircom_master_script.py --verbose    # Mode verbose avec logs détaillés
+  python3 sircom_master_script.py --image-path /Users/victoria/Documents/export-jpg-resize
+  python3 sircom_master_script.py --source-images-dir ./images
         """
     )
     
@@ -660,11 +663,25 @@ Exemples d'utilisation :
         action='store_true',
         help='Mode verbose - affichage détaillé des logs'
     )
+    parser.add_argument(
+        '--image-path',
+        default=None,
+        help='Chemin POSIX final écrit dans @pathimg pour InDesign'
+    )
+    parser.add_argument(
+        '--source-images-dir',
+        default=None,
+        help="Dossier local contenant les images source à traiter"
+    )
     
     args = parser.parse_args()
     
     # Créer et lancer le processeur
-    processor = SircomMasterProcessor(verbose=args.verbose)
+    processor = SircomMasterProcessor(
+        verbose=args.verbose,
+        image_path=args.image_path,
+        source_images_dir=args.source_images_dir,
+    )
     success = processor.run()
     
     # Code de sortie

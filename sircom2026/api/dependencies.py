@@ -21,12 +21,14 @@ def get_database(request: Request) -> Database:
         settings.sqlite_path,
         busy_timeout_ms=settings.sqlite_busy_timeout_ms,
     )
-    try:
-        database.migrate()
-    except (OSError, SchemaVersionError, sqlite3.Error) as exc:
-        raise ApiError(
-            500,
-            "SIRCOM_DATABASE_UNAVAILABLE",
-            "Base locale indisponible.",
-        ) from exc
+    if not getattr(request.app.state, "database_migrated", False):
+        try:
+            database.migrate()
+        except (OSError, SchemaVersionError, sqlite3.Error) as exc:
+            raise ApiError(
+                500,
+                "SIRCOM_DATABASE_UNAVAILABLE",
+                "Base locale indisponible.",
+            ) from exc
+        request.app.state.database_migrated = True
     return database

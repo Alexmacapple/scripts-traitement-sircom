@@ -102,6 +102,13 @@ def require_action(action: AccessAction):
         request: Request,
         actor: ActorContext = Depends(get_actor_context),
     ) -> ActorContext:
+        local_host_reason = _local_host_header_reason(request)
+        if local_host_reason is not None:
+            raise ApiError(
+                403,
+                "SIRCOM_ACCESS_DENIED",
+                "Acces refuse.",
+            )
         cross_origin_reason = _unsafe_cross_origin_reason(request)
         if cross_origin_reason is not None:
             raise ApiError(
@@ -141,6 +148,21 @@ def _is_loopback_bind_host(bind_host: str) -> bool:
 
 
 _UNSAFE_METHODS = {"DELETE", "PATCH", "POST", "PUT"}
+_LOCAL_ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1", "testserver"}
+
+
+def _local_host_header_reason(request: Request) -> str | None:
+    host_header = request.headers.get("host")
+    if not host_header:
+        return "host_missing"
+    parts = urlsplit(f"{request.url.scheme}://{host_header}")
+    if not parts.hostname:
+        return "host_malformed"
+    if parts.hostname.lower() not in _LOCAL_ALLOWED_HOSTS:
+        return "host_not_allowed"
+    if _normalized_port(parts) is None:
+        return "host_port_invalid"
+    return None
 
 
 def _unsafe_cross_origin_reason(request: Request) -> str | None:

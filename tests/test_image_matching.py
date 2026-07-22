@@ -301,6 +301,46 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertIsNone(rows["A.B"]["source_name"])
         self.assertIsNone(rows["AB"]["source_name"])
 
+    def test_automatic_source_file_collision_blocks_matching(self) -> None:
+        matching = build_image_matching_payload(
+            normalized_payload([("ID-1", "shared.jpg"), ("ID-2", "shared.jpg")]),
+            inspection_payload(["shared.jpg"]),
+            source_image_zip_artifact=source_artifact(),
+            source_normalization_artifact_id="artifact_normalized",
+            source_inspection_artifact_id="artifact_inspection",
+            indesign_image_root="/Users/victoria/Documents/export-jpg-resize",
+        )
+
+        rows = row_by_id(matching)
+        self.assertTrue(matching["blocking"])
+        self.assertEqual(matching["ambiguous_count"], 2)
+        self.assertEqual(matching["matched_count"], 0)
+        self.assertEqual(matching["unreferenced_count"], 1)
+        self.assertEqual(rows["ID-1"]["status"], "ambiguous")
+        self.assertEqual(rows["ID-2"]["status"], "ambiguous")
+        self.assertEqual(rows["ID-1"]["match_level"], "source_duplicate")
+        self.assertEqual(rows["ID-2"]["duplicate_source_name"], "shared.jpg")
+        self.assertEqual(rows["ID-1"]["pathimg"], "")
+
+    def test_manual_source_file_collision_with_automatic_match_blocks_matching(self) -> None:
+        matching = build_image_matching_payload(
+            normalized_payload([("ID-A", "source-a.jpg"), ("ID-B", "source-b.jpg")]),
+            inspection_payload(["source-a.jpg", "source-b.jpg"]),
+            source_image_zip_artifact=source_artifact(),
+            source_normalization_artifact_id="artifact_normalized",
+            source_inspection_artifact_id="artifact_inspection",
+            indesign_image_root="/Users/victoria/Documents/export-jpg-resize",
+            manual_resolutions={"ID-B": "source-a.jpg"},
+        )
+
+        rows = row_by_id(matching)
+        self.assertTrue(matching["blocking"])
+        self.assertEqual(matching["ambiguous_count"], 2)
+        self.assertEqual(rows["ID-A"]["status"], "ambiguous")
+        self.assertEqual(rows["ID-B"]["status"], "ambiguous")
+        self.assertEqual(rows["ID-A"]["match_level"], "source_duplicate")
+        self.assertEqual(rows["ID-B"]["duplicate_source_name"], "source-a.jpg")
+
     def test_tolerant_ambiguity_blocks_until_manual_resolution(self) -> None:
         unresolved = build_image_matching_payload(
             normalized_payload([("ID-A", "Photo A.jpg")]),

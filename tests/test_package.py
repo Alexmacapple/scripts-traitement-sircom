@@ -47,6 +47,11 @@ class PackageApiTest(unittest.TestCase):
             )
             package_job = run_until_step(settings, "package_final")
             package_response = client.get(f"/api/lots/{lot_id}/package")
+            replay_consumed_key = client.post(
+                f"/api/lots/{lot_id}/package",
+                json={"accept_warnings": True},
+                headers={"X-Idempotency-Key": "package-with-warnings"},
+            )
             download = client.get(package_response.json()["artifact"]["download_url"])
             html_after = client.get(f"/lots/{lot_id}/export?view=package_final")
             database = Database(settings.sqlite_path)
@@ -64,6 +69,11 @@ class PackageApiTest(unittest.TestCase):
         self.assertEqual(enqueue.status_code, 202, enqueue.text)
         self.assertTrue(enqueue.json()["job"]["created"])
         self.assertEqual(package_job.outcome, "succeeded")
+        self.assertEqual(replay_consumed_key.status_code, 409)
+        self.assertEqual(
+            replay_consumed_key.json()["error"]["code"],
+            "SIRCOM_IDEMPOTENCY_KEY_CONSUMED",
+        )
         self.assertEqual(package_response.status_code, 200, package_response.text)
         self.assertEqual(download.status_code, 200, download.text)
         self.assertIn(

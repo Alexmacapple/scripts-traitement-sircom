@@ -26,9 +26,14 @@ if not os.path.exists(file_path):
 print(f"Traitement du fichier : {file_path}")
 
 try:
-    # 3. Lire le fichier Excel avec pandas
+    # 3. Lire le fichier Excel avec pandas en texte pour préserver les zéros initiaux
     print(f"Lecture du fichier Excel...")
-    df = pd.read_excel(file_path, na_values=None, keep_default_na=False)
+    df = pd.read_excel(
+        file_path,
+        dtype=str,
+        na_values=None,
+        keep_default_na=False,
+    )
 
     print(f"Fichier Excel lu avec succès")
     print(f"Dimensions : {len(df)} lignes × {len(df.columns)} colonnes")
@@ -36,17 +41,9 @@ try:
     # 4. Vérifier et nettoyer les données pour CSV
     print(f"Préparation des données pour CSV...")
 
-    # Remplacer les NaN par "#N/A" MAIS conserver les types numériques pour les IDs
+    # Remplacer les NaN par "#N/A" et conserver tous les contenus en texte
     df = df.fillna("#N/A")
-
-    # Conversion intelligente : garder les colonnes numériques comme numériques, le reste en string
-    for col in df.columns:
-        if col in ['f_id', 'imageid'] or 'id' in str(col).lower():
-            # Pour les colonnes d'ID, convertir en string en préservant les nombres
-            df[col] = df[col].apply(lambda x: str(int(x)) if isinstance(x, (int, float)) and not pd.isna(x) and x != "#N/A" else str(x))
-        else:
-            # Pour les autres colonnes, convertir en string
-            df[col] = df[col].astype(str)
+    df = df.astype(str)
 
     # Compter les éléments spéciaux
     total_cells = len(df) * len(df.columns)

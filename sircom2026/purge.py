@@ -55,6 +55,7 @@ def delete_lot_and_purge_if_idle(
             trace=serialize_purge_trace(trace) if trace else None,
         )
 
+    repositories.jobs.expire_stale_leases()
     active_jobs = repositories.jobs.count_active_for_lot(lot_id)
     cancel_requested_jobs = 0
     if active_jobs:
@@ -73,6 +74,7 @@ def delete_lot_and_purge_if_idle(
             },
         )
 
+    repositories.jobs.expire_stale_leases()
     active_jobs_remaining = repositories.jobs.count_processing_for_lot(lot_id)
     if active_jobs_remaining:
         return PurgeOutcome(
@@ -99,6 +101,7 @@ def purge_lot(
     lot_id: str,
 ) -> PurgeOutcome:
     lot = repositories.lots.get_required(lot_id)
+    repositories.jobs.expire_stale_leases()
     active_jobs_remaining = repositories.jobs.count_processing_for_lot(lot_id)
     if active_jobs_remaining:
         return PurgeOutcome(
@@ -215,10 +218,12 @@ def purge_deleted_lots_once(
     for lot in repositories.lots.list_deleted_ready_for_purge(deleted_before=deleted_before):
         repositories.jobs.request_cancel_for_lot(lot["id"])
         repositories.jobs.cancel_queued_for_lot(lot["id"])
+        repositories.jobs.expire_stale_leases()
         if repositories.jobs.count_processing_for_lot(lot["id"]):
             continue
         outcomes.append(purge_lot(repositories, settings=settings, lot_id=lot["id"]))
     prune_old_purge_traces(repositories, settings=settings)
+    prune_old_quarantine_files(settings=settings)
     return outcomes
 
 
@@ -239,6 +244,34 @@ def prune_old_purge_traces(repositories: Repositories, *, settings: Settings) ->
         datetime.now(UTC) - timedelta(days=settings.purge_trace_retention_days)
     ).isoformat(timespec="seconds")
     return repositories.purge_traces.prune_before(cutoff)
+
+
+def prune_old_quarantine_files(*, settings: Settings) -> int:
+    quarantine_root = settings.data_dir / "quarantine"
+    if not quarantine_root.exists():
+        return 0
+
+    cutoff = datetime.now(UTC) - timedelta(days=settings.purge_trace_retention_days)
+    removed_count = 0
+    for path in quarantine_root.rglob("*"):
+        if not path.is_file():
+            continue
+        modified_at = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+        if modified_at <= cutoff:
+            path.unlink(missing_ok=True)
+            removed_count += 1
+
+    directories = sorted(
+        (path for path in quarantine_root.rglob("*") if path.is_dir()),
+        key=lambda path: len(path.parts),
+        reverse=True,
+    )
+    for directory in directories:
+        try:
+            directory.rmdir()
+        except OSError:
+            pass
+    return removed_count
 
 
 def storage_summary(repositories: Repositories, *, settings: Settings) -> dict[str, Any]:

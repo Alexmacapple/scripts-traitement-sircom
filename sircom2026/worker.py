@@ -19,6 +19,10 @@ class WorkerLeaseLost(RuntimeError):
     """Raised when the current worker no longer owns the job lease."""
 
 
+class IdempotencyKeyConsumedError(ValueError):
+    """Raised when a finished job key is reused for a new processing request."""
+
+
 @dataclass(frozen=True)
 class JobResult:
     with_warnings: bool = False
@@ -504,6 +508,18 @@ def enqueue_job(
         idempotency_key=idempotency_key,
     )
     if existing is not None:
+        if existing["status"] == "expired":
+            step = repositories.steps.get_by_lot_key(lot_id, step_key)
+            if (
+                step is not None
+                and step["current_run_id"] == existing["run_id"]
+                and existing["lease_until"] is not None
+            ):
+                return EnqueuedJob(existing, created=False)
+        if existing["status"] not in {"queued", "leased", "running"}:
+            raise IdempotencyKeyConsumedError(
+                f"Idempotency key already consumed for {lot_id}/{step_key}."
+            )
         return EnqueuedJob(existing, created=False)
 
     active_job = repositories.jobs.get_active_for_step(lot_id=lot_id, step_key=step_key)

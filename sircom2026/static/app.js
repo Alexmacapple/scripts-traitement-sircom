@@ -41,7 +41,17 @@ function setStructuredLine(element, label, text) {
 }
 
 async function parseJsonResponse(response) {
-  const payload = await response.json();
+  const body = await response.text();
+  let payload = {};
+  if (body) {
+    try {
+      payload = JSON.parse(body) || {};
+    } catch {
+      if (response.ok) {
+        throw new Error("Réponse serveur invalide.");
+      }
+    }
+  }
   if (!response.ok) {
     const error = payload.error || {};
     throw new Error(error.message || "Action impossible.");
@@ -257,9 +267,9 @@ if (createLotForm) {
       createLotIdempotencyKey = null;
       setButtonBusy(submitButton, false);
       showError(
-        "Creation impossible",
+        "Création impossible",
         error.message,
-        "Verifier le formulaire puis reessayer."
+        "Vérifier le formulaire puis réessayer."
       );
     }
   });
@@ -283,7 +293,7 @@ if (deleteLotButton) {
       showError(
         "Suppression impossible",
         error.message,
-        "Verifier l'etat du lot puis reessayer."
+        "Vérifier l'état du lot puis réessayer."
       );
     }
   });
@@ -655,7 +665,7 @@ retryButtons.forEach((button) => {
       showError(
         "Relance impossible",
         error.message,
-        "Verifier l'etat du lot puis reessayer."
+        "Vérifier l'état du lot puis réessayer."
       );
     }
   });

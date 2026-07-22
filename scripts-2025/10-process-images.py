@@ -36,6 +36,7 @@ GÉNÉRICITÉ :
 import os
 import sys
 import logging
+import argparse
 from pathlib import Path
 from datetime import datetime
 from PIL import Image
@@ -53,7 +54,7 @@ DPI = 300
 
 # Chemins des fichiers et répertoires
 EXCEL_FILE = "7-add-pathimg.xlsx"  # Utiliser le fichier avec le mapping
-SOURCE_DIR = "/Users/alex/Desktop/Made-In-France/images"  # Dossier avec nos 5 images
+SOURCE_DIR = os.environ.get("SIRCOM_SOURCE_IMAGE_DIR", "images")
 TARGET_DIR = "export_images_id_dossier_rename_resize"
 
 # Extensions d'images supportées
@@ -141,6 +142,18 @@ def is_valid_image_value(value):
     text = str(value).strip()
     return text not in ["", "#N/A", "N/A"]
 
+class AmbiguousImageMatchError(ValueError):
+    """Signalée quand plusieurs fichiers peuvent correspondre à la même image."""
+
+    def __init__(self, target_name, candidates):
+        self.target_name = target_name
+        self.candidates = sorted(candidates)
+        super().__init__(
+            f"Plusieurs images correspondent à {target_name!r} : "
+            + ", ".join(self.candidates)
+        )
+
+
 def find_best_match(target_name, available_files, logger):
     """
     Trouve la meilleure correspondance pour un nom de fichier
@@ -149,22 +162,34 @@ def find_best_match(target_name, available_files, logger):
     target_normalized = normalize_filename(target_name)
     
     # 1. Correspondance exacte
-    if target_name in available_files:
+    exact_candidates = [filename for filename in available_files if filename == target_name]
+    if len(exact_candidates) == 1:
         return target_name
+    if len(exact_candidates) > 1:
+        raise AmbiguousImageMatchError(target_name, exact_candidates)
     
     # 2. Correspondance normalisée
-    for filename in available_files:
-        if normalize_filename(filename) == target_normalized:
-            logger.info(f"  Correspondance normalisée trouvée : {filename}")
-            return filename
+    normalized_candidates = [
+        filename for filename in available_files if normalize_filename(filename) == target_normalized
+    ]
+    if len(normalized_candidates) == 1:
+        logger.info(f"  Correspondance normalisée trouvée : {normalized_candidates[0]}")
+        return normalized_candidates[0]
+    if len(normalized_candidates) > 1:
+        raise AmbiguousImageMatchError(target_name, normalized_candidates)
     
     # 3. Correspondance sans extension (pour les erreurs .pptx → .jpg)
     target_base = os.path.splitext(target_normalized)[0]
-    for filename in available_files:
-        file_base = os.path.splitext(normalize_filename(filename))[0]
-        if file_base == target_base:
-            logger.info(f"  Correspondance par nom de base trouvée : {filename}")
-            return filename
+    base_candidates = [
+        filename
+        for filename in available_files
+        if os.path.splitext(normalize_filename(filename))[0] == target_base
+    ]
+    if len(base_candidates) == 1:
+        logger.info(f"  Correspondance par nom de base trouvée : {base_candidates[0]}")
+        return base_candidates[0]
+    if len(base_candidates) > 1:
+        raise AmbiguousImageMatchError(target_name, base_candidates)
     
     # 4. Correspondance partielle (contient le nom principal)
     # Utile pour les cas comme "Virebent_photophore" vs "MadeByVirebent_2025_..."
@@ -172,10 +197,16 @@ def find_best_match(target_name, available_files, logger):
         keywords = target_base.split('_')[:2]  # Prendre les 2 premiers mots
         if keywords:
             main_keyword = keywords[0]
-            for filename in available_files:
-                if main_keyword.lower() in filename.lower():
-                    logger.info(f"  Correspondance partielle trouvée : {filename}")
-                    return filename
+            candidates = [
+                filename
+                for filename in available_files
+                if main_keyword.lower() in filename.lower()
+            ]
+            if len(candidates) == 1:
+                logger.info(f"  Correspondance partielle trouvée : {candidates[0]}")
+                return candidates[0]
+            if len(candidates) > 1:
+                raise AmbiguousImageMatchError(target_name, candidates)
     
     return None
 
@@ -345,8 +376,39 @@ def process_and_rename_image(image_path, new_name, target_dir, logger):
         logger.error(f"  ERREUR lors du traitement : {e}")
         return False, 0
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Traiter les images source Made in France 2025."
+    )
+    parser.add_argument(
+        "--source-dir",
+        default=os.environ.get("SIRCOM_SOURCE_IMAGE_DIR", SOURCE_DIR),
+        help="Dossier contenant les images source",
+    )
+    parser.add_argument(
+        "--target-dir",
+        default=TARGET_DIR,
+        help="Dossier de sortie des images JPG traitées",
+    )
+    parser.add_argument(
+        "--excel-file",
+        default=EXCEL_FILE,
+        help="Fichier Excel de mapping image à lire",
+    )
+    return parser.parse_args()
+
+
 def main():
     """Fonction principale"""
+    global SOURCE_DIR, TARGET_DIR, EXCEL_FILE
+
+    args = parse_args()
+    source_dir = args.source_dir
+    target_dir = args.target_dir
+    excel_file = args.excel_file
+    SOURCE_DIR = source_dir
+    TARGET_DIR = target_dir
+    EXCEL_FILE = excel_file
     
     # Configuration du logging
     logger = setup_logging()
@@ -357,8 +419,8 @@ def main():
         logger.info(f"  - Largeur max : {MAX_WIDTH}px")
         logger.info(f"  - Qualité JPEG : {JPEG_QUALITY}%")
         logger.info(f"  - DPI : {DPI}")
-        logger.info(f"  - Source : {SOURCE_DIR}")
-        logger.info(f"  - Destination : {TARGET_DIR}")
+        logger.info(f"  - Source : {source_dir}")
+        logger.info(f"  - Destination : {target_dir}")
         
         # Vérifications préliminaires
         if not check_prerequisites(logger):
@@ -366,18 +428,18 @@ def main():
             return False
         
         # Lecture du mapping depuis Excel
-        mapping = read_excel_mapping(EXCEL_FILE, logger)
+        mapping = read_excel_mapping(excel_file, logger)
         if not mapping:
             logger.error("Impossible de continuer sans mapping ID/image")
             return False
         
         # Récupération des images disponibles
-        available_images = get_available_images(SOURCE_DIR)
-        logger.info(f"{len(available_images)} images disponibles dans {SOURCE_DIR}")
+        available_images = get_available_images(source_dir)
+        logger.info(f"{len(available_images)} images disponibles dans {source_dir}")
         
         # Créer le répertoire de destination
-        Path(TARGET_DIR).mkdir(parents=True, exist_ok=True)
-        logger.info(f"Répertoire de destination : {TARGET_DIR}")
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
+        logger.info(f"Répertoire de destination : {target_dir}")
         
         # Traitement des images selon le mapping
         logger.info("="*80)
@@ -396,7 +458,17 @@ def main():
             # CORRECTION IMPORTANTE : On cherche l'image PAR SON NOM, pas par position !
             # L'ancien script prenait juste l'image N pour le dossier N (FAUX)
             # Maintenant on cherche l'image qui a VRAIMENT ce nom
-            matched_file = find_best_match(source_image_name, available_images.keys(), logger)
+            try:
+                matched_file = find_best_match(source_image_name, available_images.keys(), logger)
+            except AmbiguousImageMatchError as exc:
+                logger.error(
+                    "Image ambiguë : %s (dossier %s). Candidats : %s",
+                    source_image_name,
+                    dossier_id,
+                    ", ".join(exc.candidates),
+                )
+                error_count += 1
+                continue
             
             if matched_file:
                 logger.info(f"Traitement : {matched_file} → {new_name}")
@@ -407,7 +479,7 @@ def main():
                 source_path = available_images[matched_file]
                 
                 # Traiter et renommer l'image
-                success, file_size = process_and_rename_image(source_path, new_name, TARGET_DIR, logger)
+                success, file_size = process_and_rename_image(source_path, new_name, target_dir, logger)
                 if success:
                     success_count += 1
                     total_size += file_size
@@ -421,7 +493,10 @@ def main():
         used_images = set()
         for image_mapping in mapping.values():
             source_name = image_mapping["source_name"]
-            matched = find_best_match(source_name, available_images.keys(), logger)
+            try:
+                matched = find_best_match(source_name, available_images.keys(), logger)
+            except AmbiguousImageMatchError:
+                matched = None
             if matched:
                 used_images.add(matched)
         
@@ -438,13 +513,13 @@ def main():
         logger.info(f"Images traitées avec succès : {success_count}")
         logger.info(f"Erreurs de traitement : {error_count}")
         logger.info(f"Images référencées mais non trouvées : {not_found_count}")
-        logger.info(f"Répertoire de sortie : {TARGET_DIR}")
+        logger.info(f"Répertoire de sortie : {target_dir}")
         logger.info(f"Espace disque utilisé : {total_size:,} octets ({total_size/1024/1024:.2f} MB)")
         
         # Lister les fichiers dans le répertoire de destination
-        if os.path.exists(TARGET_DIR):
-            output_files = sorted(os.listdir(TARGET_DIR))
-            logger.info(f"\nFICHIERS CRÉÉS DANS {TARGET_DIR} :")
+        if os.path.exists(target_dir):
+            output_files = sorted(os.listdir(target_dir))
+            logger.info(f"\nFICHIERS CRÉÉS DANS {target_dir} :")
             for file in output_files[:10]:  # Afficher les 10 premiers
                 logger.info(f"  - {file}")
             if len(output_files) > 10:
@@ -455,12 +530,11 @@ def main():
         if success_count > 0 and error_count == 0 and not_found_count == 0:
             logger.info("TRAITEMENT TERMINÉ AVEC SUCCÈS !")
             return True
-        elif success_count > 0:
-            logger.warning("TRAITEMENT TERMINÉ AVEC DES AVERTISSEMENTS")
-            return True
+        if success_count > 0:
+            logger.error("TRAITEMENT INCOMPLET : erreurs ou images manquantes")
         else:
             logger.error("AUCUNE IMAGE N'A PU ÊTRE TRAITÉE")
-            return False
+        return False
             
     except Exception as e:
         logger.error(f"Erreur critique : {e}")

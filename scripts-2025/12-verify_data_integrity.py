@@ -8,7 +8,38 @@ pour s'assurer qu'aucune ligne n'a été décalée
 """
 
 import pandas as pd
+import re
 import sys
+import unicodedata
+
+
+def normalize_header(value):
+    text = "" if value is None else str(value)
+    text = unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode("utf-8")
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+def find_column(columns, candidates):
+    normalized_columns = {normalize_header(column): column for column in columns}
+    for candidate in candidates:
+        normalized_candidate = normalize_header(candidate)
+        if normalized_candidate in normalized_columns:
+            return normalized_columns[normalized_candidate]
+    for normalized, original in normalized_columns.items():
+        if any(normalize_header(candidate) in normalized for candidate in candidates):
+            return original
+    raise ValueError(f"Colonne introuvable parmi : {', '.join(candidates)}")
+
+
+def optional_column(columns, candidates, default="#N/A"):
+    try:
+        return find_column(columns, candidates)
+    except ValueError:
+        return default
+
+
+def normalize_id(value):
+    return "" if pd.isna(value) else str(value).strip()
 
 def verify_data_integrity():
     print('=== VÉRIFICATION DE LA COHÉRENCE DES DONNÉES ===')
@@ -17,42 +48,37 @@ def verify_data_integrity():
     try:
         # 1. Lire le fichier Excel source
         excel_file = 'Sircom.xlsx'
-        df_excel = pd.read_excel(excel_file)
+        df_excel = pd.read_excel(excel_file, dtype=str, na_values=None, keep_default_na=False)
         print(f'Excel source lu : {len(df_excel)} lignes (hors en-tête)')
 
         # 2. Lire le CSV final
         csv_file = '9-final-sircom-indesign-utf16.csv'
-        df_csv = pd.read_csv(csv_file, encoding='utf-16')
+        df_csv = pd.read_csv(csv_file, encoding='utf-16', dtype=str, keep_default_na=False)
         print(f'CSV final lu : {len(df_csv)} lignes (hors en-tête)')
         print()
         
         # 3. Extraire les données pour comparaison
-        # Colonnes Excel - Nouvelle structure 25 colonnes (A-Y)
-        col_id_excel = df_excel.columns[5]  # Colonne F = ID
-        col_produit_excel = df_excel.columns[6]  # Colonne G = Produit
-        col_entreprise_excel = df_excel.columns[7]  # Colonne H = Entreprise
-        col_image_excel = df_excel.columns[24]  # Colonne Y = Photo
+        col_id_excel = find_column(df_excel.columns, ['f_id', 'id dossier', 'id_dossier', 'ID du dossier', 'B_ID'])
+        col_produit_excel = optional_column(df_excel.columns, ['produit', 'dénomination', 'nom produit'])
+        col_entreprise_excel = optional_column(df_excel.columns, ['entreprise', 'nom entreprise'])
+        col_image_excel = optional_column(df_excel.columns, ['photo', 'image', 'photo produit'])
+        col_id_csv = find_column(df_csv.columns, ['f_id', 'id dossier', 'id_dossier'])
+        col_image_csv = find_column(df_csv.columns, ['imageid'])
+        col_entreprise_csv = optional_column(df_csv.columns, ['entreprise'])
+        col_produit_csv = optional_column(df_csv.columns, ['produit', 'denomina'])
         
         # Créer un dictionnaire des données Excel
         excel_data = {}
+        duplicate_excel_ids = []
         for idx, row in df_excel.iterrows():
-            id_val = row[col_id_excel]
-            if pd.notna(id_val) and str(id_val) not in ['#N/A', '']:
-                # Gérer les IDs numériques et alphanumériques
-                try:
-                    # Si c'est un nombre float, convertir en int
-                    if isinstance(id_val, (int, float)):
-                        id_str = str(int(id_val))
-                    else:
-                        # Si c'est une chaîne, garder tel quel
-                        id_str = str(id_val)
-                except:
-                    id_str = str(id_val)
-
+            id_str = normalize_id(row[col_id_excel])
+            if id_str not in ['#N/A', '']:
+                if id_str in excel_data:
+                    duplicate_excel_ids.append(id_str)
                 excel_data[id_str] = {
-                    'entreprise': str(row[col_entreprise_excel]) if pd.notna(row[col_entreprise_excel]) else '#N/A',
-                    'produit': str(row[col_produit_excel]) if pd.notna(row[col_produit_excel]) else '#N/A',
-                    'image_source': str(row[col_image_excel]) if pd.notna(row[col_image_excel]) else '#N/A',
+                    'entreprise': str(row[col_entreprise_excel]) if col_entreprise_excel != '#N/A' else '#N/A',
+                    'produit': str(row[col_produit_excel]) if col_produit_excel != '#N/A' else '#N/A',
+                    'image_source': str(row[col_image_excel]) if col_image_excel != '#N/A' else '#N/A',
                     'position_excel': idx + 1
                 }
         
@@ -64,12 +90,19 @@ def verify_data_integrity():
         # Vérifier chaque ligne du CSV
         errors = []
         warnings = []
+        if duplicate_excel_ids:
+            for duplicate_id in sorted(set(duplicate_excel_ids)):
+                errors.append(f"ID dupliqué dans Excel source : {duplicate_id}")
+        seen_csv_ids = set()
         
         for idx, row in df_csv.iterrows():
-            csv_id = str(row['f_id'])
-            csv_image = str(row['imageid'])
-            csv_entreprise = str(row['h_entrepri']) if 'h_entrepri' in row else '#N/A'
-            csv_produit = str(row['g_denomina']) if 'g_denomina' in row else '#N/A'
+            csv_id = normalize_id(row[col_id_csv])
+            csv_image = str(row[col_image_csv])
+            csv_entreprise = str(row[col_entreprise_csv]) if col_entreprise_csv != '#N/A' else '#N/A'
+            csv_produit = str(row[col_produit_csv]) if col_produit_csv != '#N/A' else '#N/A'
+            if csv_id in seen_csv_ids:
+                errors.append(f"Ligne {idx+2}: ID dupliqué dans CSV final : {csv_id}")
+            seen_csv_ids.add(csv_id)
             
             # Tronquer pour l'affichage
             entreprise_display = csv_entreprise[:27] + '...' if len(csv_entreprise) > 30 else csv_entreprise
@@ -110,7 +143,7 @@ def verify_data_integrity():
         print()
         
         # IDs manquants dans le CSV
-        csv_ids = set(str(row['f_id']) for _, row in df_csv.iterrows())
+        csv_ids = set(normalize_id(row[col_id_csv]) for _, row in df_csv.iterrows())
         missing_ids = set(excel_data.keys()) - csv_ids
         if missing_ids:
             print(f"IDs présents dans Excel mais absents du CSV final :")
@@ -139,26 +172,16 @@ def verify_data_integrity():
         
         print()
         
-        # Vérification spécifique des images
         print("VÉRIFICATION DES ASSOCIATIONS IMAGE/DOSSIER :")
         print()
-        
-        # Quelques exemples pour valider avec les nouveaux IDs alphanumériques
-        verif_samples = [
-            ('ara072025-hgv', 'Photo produit HGV', 'HGV'),
-            ('ara432025-rochefreres', 'Photo produit Roche Frères', 'Roche Frères'),
-            ('corse2a2025-neutralvision', 'Photo produit Neutral Vision', 'Neutral Vision'),
-        ]
-        
-        for check_id, expected_source, description in verif_samples:
-            if check_id in excel_data:
-                csv_row = df_csv[df_csv['f_id'] == check_id]
-                if not csv_row.empty:
-                    csv_image = csv_row.iloc[0]['imageid']
-                    print(f"  ID {check_id} ({description}):")
-                    print(f"    - Image source Excel : {excel_data[check_id]['image_source'][:50]}")
-                    print(f"    - Image CSV : {csv_image}")
-                    print(f"    - Correct" if csv_image == f"dossier-{check_id}.jpg" else f"    - ERREUR")
+        image_ok_count = 0
+        for _idx, row in df_csv.iterrows():
+            csv_id = normalize_id(row[col_id_csv])
+            csv_image = str(row[col_image_csv])
+            expected_image = f"dossier-{csv_id.lower().replace('.', '').replace(' ', '')}.jpg"
+            if csv_image == expected_image:
+                image_ok_count += 1
+        print(f"  Associations image conformes : {image_ok_count}/{len(df_csv)}")
         
         print()
         print('='*120)
