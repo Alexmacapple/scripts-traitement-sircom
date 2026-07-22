@@ -37,6 +37,45 @@ Preuve attendue :
 - tests unitaires du store et test API de téléchargement, dont le cas 404
   indiscernable.
 
+## Complément rapport ShipGuard - 2026-07-22
+
+Finding traité : `SG-001`, origine stable `r1-z03-003`.
+
+Titre ShipGuard : les réparations d'artefacts faites pendant des lectures
+peuvent être perdues.
+
+Décision appliquée : `Database.session()` commite désormais une transaction
+implicite SQLite si une lecture a déclenché une réparation d'artefact, et
+rollbacke cette transaction implicite en cas d'exception. Les lectures pures ne
+changent pas de comportement, car aucune transaction n'est ouverte sans écriture.
+
+Preuve locale :
+
+- suite artefacts ciblée : `tests.test_artifacts`, `16 tests`, `OK` ;
+- suite complète : `183 tests`, `OK`, `2 skipped`.
+
+Limite : le correctif rend durables les réparations déclenchées par les
+lectures locales. Il ne transforme pas toutes les lectures en transactions
+`BEGIN IMMEDIATE`, afin d'éviter de bloquer inutilement les autres accès.
+
+## Complément rapport ShipGuard - 2026-07-22 - statut lot après réparation
+
+Finding traité : `SG-001`, origine stable `r1-z03-005`.
+
+Titre ShipGuard : un artefact corrompu ou manquant n'entraîne pas de recalcul
+du statut du lot.
+
+Décision appliquée : la réparation d'artefact en lecture recalcule désormais le
+statut du lot après avoir marqué l'artefact `obsolete` et créé le problème
+métier. Un lot terminé avec un artefact devenu indisponible repasse donc en
+`termine_avec_alertes` au lieu de garder un statut qui ne reflète plus l'alerte.
+
+Preuve locale :
+
+- `tests.test_artifacts.ArtifactDownloadApiTest.test_artifact_read_repair_recomputes_lot_status`,
+  `OK` ;
+- `tests.test_artifacts`, `17 tests`, `OK`.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)

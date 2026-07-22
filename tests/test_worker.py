@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import tempfile
 import unittest
 from pathlib import Path
@@ -136,6 +137,54 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertIn("job.started", event_types)
             self.assertIn("job.progress", event_types)
             self.assertIn("job.succeeded", event_types)
+
+    def test_worker_sends_periodic_heartbeat_while_handler_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = migrated_database(tmp)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot heartbeat")
+                queued = enqueue_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="diagnostic_excel",
+                    idempotency_key="diagnostic:heartbeat",
+                    run_id="run_diag_heartbeat",
+                    input_fingerprint="input_heartbeat",
+                )
+
+            heartbeat_seen = threading.Event()
+            observed_intervals: list[float] = []
+            original_heartbeat = WorkerJobContext.heartbeat
+
+            def observed_heartbeat(context: WorkerJobContext) -> None:
+                original_heartbeat(context)
+                observed_intervals.append(context.heartbeat_seconds)
+                heartbeat_seen.set()
+
+            def handler(_context: WorkerJobContext) -> JobResult:
+                heartbeat_seen.wait(1.0)
+                return JobResult()
+
+            WorkerJobContext.heartbeat = observed_heartbeat
+            try:
+                worker = LocalWorker(
+                    database,
+                    {"diagnostic_excel": handler},
+                    worker_id="worker-a",
+                    lease_seconds=60,
+                    heartbeat_seconds=0.01,
+                )
+                result = worker.run_once()
+            finally:
+                WorkerJobContext.heartbeat = original_heartbeat
+
+            with database.session() as repositories:
+                job = repositories.jobs.get_required(queued.job["id"])
+
+            self.assertTrue(heartbeat_seen.is_set())
+            self.assertIn(0.01, observed_intervals)
+            self.assertEqual(result.outcome, "succeeded")
+            self.assertEqual(job["status"], "succeeded")
 
     def test_double_submission_returns_existing_active_job(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

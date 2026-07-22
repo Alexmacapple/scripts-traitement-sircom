@@ -32,6 +32,30 @@ Preuve attendue :
 
 - tests au niveau octets.
 
+## Complément rapport ShipGuard - 2026-07-22
+
+Finding traité : `SG-001`, origine stable `r1-z05-001`.
+
+Titre ShipGuard : un test dépend d'un CSV local ignoré par Git.
+
+Décision appliquée : le test de comparaison structurelle ne lit plus le CSV
+2025 stocké dans `livrables-miweb-2025/`, car ce dossier est ignoré par Git. Il
+utilise désormais une référence synthétique générée en mémoire avec les mêmes
+propriétés de format contrôlées : UTF-16 avec BOM, séparateur virgule et fins de
+ligne LF. Le test conserve l'intention : prouver que la référence 2025 sert
+d'oracle de format, pas de liste normative de colonnes.
+
+Preuve locale :
+
+- test ciblé :
+  `tests.test_csv_contract.CsvContractTest.test_structure_comparison_uses_reference_format_not_2025_header_list`,
+  `OK` ;
+- suite CSV contract : `tests.test_csv_contract`, `5 tests`, `OK`.
+
+Limite : la fixture synthétique ne valide pas le contenu réel 2025 ; elle valide
+le contrat de format exercé par ce test. La compatibilité métier InDesign réelle
+reste couverte par les autres validations prévues au ticket.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)

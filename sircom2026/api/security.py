@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
+from urllib.parse import urlsplit
 
 from fastapi import Depends, Request
 
@@ -101,6 +102,13 @@ def require_action(action: AccessAction):
         request: Request,
         actor: ActorContext = Depends(get_actor_context),
     ) -> ActorContext:
+        cross_origin_reason = _unsafe_cross_origin_reason(request)
+        if cross_origin_reason is not None:
+            raise ApiError(
+                403,
+                "SIRCOM_ACCESS_DENIED",
+                "Acces refuse.",
+            )
         resource = AccessResource.from_request(request)
         policy = get_access_policy(request)
         decision = policy.authorize(actor, action, resource)
@@ -130,3 +138,50 @@ def _is_loopback_bind_host(bind_host: str) -> bool:
     if normalized.startswith("[") and normalized.endswith("]"):
         normalized = normalized[1:-1]
     return normalized in {"127.0.0.1", "localhost", "::1"}
+
+
+_UNSAFE_METHODS = {"DELETE", "PATCH", "POST", "PUT"}
+
+
+def _unsafe_cross_origin_reason(request: Request) -> str | None:
+    if request.method.upper() not in _UNSAFE_METHODS:
+        return None
+    for header_name in ("origin", "referer"):
+        source = request.headers.get(header_name)
+        if source and not _source_matches_request_origin(source, request):
+            return f"{header_name}_not_same_origin"
+    return None
+
+
+def _source_matches_request_origin(source: str, request: Request) -> bool:
+    source = source.strip()
+    if not source or source == "null" or any(character.isspace() for character in source):
+        return False
+    source_parts = urlsplit(source)
+    if source_parts.scheme not in {"http", "https"} or not source_parts.hostname:
+        return False
+    request_parts = _request_origin_parts(request)
+    if request_parts is None:
+        return False
+    request_scheme, request_host, request_port = request_parts
+    return (
+        source_parts.scheme == request_scheme
+        and source_parts.hostname.lower() == request_host
+        and _normalized_port(source_parts) == request_port
+    )
+
+
+def _request_origin_parts(request: Request) -> tuple[str, str, int] | None:
+    host_header = request.headers.get("host")
+    if not host_header:
+        return None
+    parts = urlsplit(f"{request.url.scheme}://{host_header}")
+    if not parts.hostname:
+        return None
+    return request.url.scheme, parts.hostname.lower(), _normalized_port(parts)
+
+
+def _normalized_port(parts) -> int:
+    if parts.port is not None:
+        return parts.port
+    return 443 if parts.scheme == "https" else 80

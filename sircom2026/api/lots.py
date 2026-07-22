@@ -15,7 +15,7 @@ from sircom2026.csv_preview import (
     get_csv_preview_payload,
     validate_csv_preview,
 )
-from sircom2026.database import Database
+from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Database
 from sircom2026.excel_diagnostic_pipeline import (
     ExcelDiagnosticNotReady,
     get_persisted_excel_diagnostic,
@@ -202,11 +202,18 @@ async def upload_lot_excel(
     file: Annotated[UploadFile, File()],
 ) -> dict[str, object]:
     settings = request.app.state.settings
-    max_bytes = settings.max_excel_mb * 1024 * 1024
-    content = await file.read(max_bytes + 1)
     idempotency_key = idempotency_key_from_request(request)
     if idempotency_key is None:
         idempotency_key = f"upload_excel:{uuid.uuid4().hex}"
+
+    with database.transaction() as repositories:
+        try:
+            require_mutable_upload_target(repositories, lot_id)
+        except KeyError as exc:
+            raise lot_not_found() from exc
+
+    max_bytes = settings.max_excel_mb * 1024 * 1024
+    content = await file.read(max_bytes + 1)
 
     with database.transaction() as repositories:
         try:
@@ -315,6 +322,12 @@ async def upload_lot_images(
     idempotency_key = idempotency_key_from_request(request)
     if idempotency_key is None:
         idempotency_key = f"upload_images:{uuid.uuid4().hex}"
+
+    with database.transaction() as repositories:
+        try:
+            require_mutable_upload_target(repositories, lot_id)
+        except KeyError as exc:
+            raise lot_not_found() from exc
 
     prepared = None
     prepared_artifact = None
@@ -981,6 +994,16 @@ def lot_not_found() -> ApiError:
         "SIRCOM_LOT_NOT_FOUND",
         "Lot introuvable.",
     )
+
+
+def require_mutable_upload_target(repositories, lot_id: str) -> None:
+    lot = repositories.lots.get_required(lot_id)
+    if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
+        raise ApiError(
+            409,
+            "SIRCOM_LOT_NOT_MUTABLE",
+            "Lot non modifiable.",
+        )
 
 
 def mapping_submission_to_dict(payload: MappingSubmissionRequest) -> dict[str, object]:

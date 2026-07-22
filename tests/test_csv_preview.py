@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from openpyxl import Workbook
 
 from sircom2026.app import create_app
+from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import load_settings
 from sircom2026.csv_contract import verify_indesign_csv_bytes
 from sircom2026.database import Database
@@ -232,6 +233,50 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertIn(b"schema_version", preview_payload)
         csv_step = next(step for step in lot["steps"] if step["key"] == "previsualisation_csv")
         self.assertEqual(csv_step["status"], "termine_avec_alertes")
+
+    def test_export_refuses_non_current_or_unreadable_final_artifact(self) -> None:
+        for case_name, expected_code in (
+            ("obsolete", "SIRCOM_CSV_PREVIEW_NOT_VALIDATED"),
+            ("missing_file", "SIRCOM_CSV_ARTIFACT_UNAVAILABLE"),
+        ):
+            with self.subTest(case=case_name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    tmpdir = Path(tmp)
+                    workbook_path = tmpdir / "fixtures" / f"{case_name}.xlsx"
+                    create_preview_workbook(workbook_path)
+                    settings = make_settings(tmpdir)
+                    client = TestClient(create_app(settings))
+                    lot_id = prepare_verified_lot(
+                        client,
+                        settings,
+                        workbook_path,
+                        key=f"artifact-{case_name}",
+                        sort_decision="tri_region_departement",
+                    )
+                    validation = client.post(
+                        f"/api/lots/{lot_id}/csv/preview/validate",
+                        headers={"X-Idempotency-Key": f"preview-{case_name}"},
+                    )
+                    csv_artifact_id = validation.json()["csv_artifact"]["id"]
+
+                    database = Database(settings.sqlite_path)
+                    if case_name == "obsolete":
+                        with database.transaction() as repositories:
+                            repositories.artifacts.update_status(csv_artifact_id, "obsolete")
+                    else:
+                        with database.session() as repositories:
+                            artifact = repositories.artifacts.get_required(csv_artifact_id)
+                        store = ArtifactStore(
+                            settings.data_dir,
+                            pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
+                        )
+                        store.path_for(artifact["relative_path"]).unlink()
+
+                    export = client.get(f"/api/lots/{lot_id}/csv/export")
+
+                self.assertEqual(validation.status_code, 200, validation.text)
+                self.assertEqual(export.status_code, 409)
+                self.assertEqual(export.json()["error"]["code"], expected_code)
 
     def test_preview_requires_sort_and_contract_without_blocking_missing_images(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

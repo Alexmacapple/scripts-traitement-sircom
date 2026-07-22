@@ -76,13 +76,23 @@ def ready_auto_enqueue_step_keys(repositories, *, lot_id: str, source_step_key: 
         child_step = steps_by_key.get(child_key)
         if child_step is None:
             continue
-        parents = V1_INVALIDATION_PARENTS.get(child_key, ())
+        parents = _ready_parent_step_keys(child_key, steps_by_key)
         if all(
             steps_by_key.get(parent_key, {}).get("status") in ready_parent_statuses
             for parent_key in parents
         ):
             ready_children.append(child_key)
     return tuple(sorted(ready_children, key=lambda key: STEP_ORDER.get(key, 999)))
+
+
+def _ready_parent_step_keys(child_key: str, steps_by_key: dict[str, dict]) -> tuple[str, ...]:
+    parents = V1_INVALIDATION_PARENTS.get(child_key, ())
+    if child_key != "rapports":
+        return parents
+    upload_images = steps_by_key.get("upload_images")
+    if upload_images and upload_images.get("status") in V1_AUTO_ENQUEUE_PARENT_STATUSES:
+        return parents
+    return tuple(parent for parent in parents if parent != "matching_images")
 
 
 def _require_known_step(step_key: str) -> None:

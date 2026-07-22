@@ -35,7 +35,7 @@ from sircom2026.worker import JobResult, WorkerJobContext, WorkerLeaseLost, enqu
 ALLOWED_ZIP_EXTENSIONS = (".zip",)
 IMAGE_ZIP_MIME_TYPE = "application/zip"
 IMAGE_ZIP_UPLOAD_RULES_VERSION = "image-zip-upload-v1"
-IMAGE_ZIP_INSPECTION_RULES_VERSION = "image-zip-inspection-v1"
+IMAGE_ZIP_INSPECTION_RULES_VERSION = "image-zip-inspection-v2"
 UPLOAD_IMAGES_STEP_KEY = "upload_images"
 INSPECTION_IMAGES_STEP_KEY = "inspection_images"
 UPLOAD_WORKER_ID = "http-upload"
@@ -273,6 +273,10 @@ def upload_prepared_image_zip_for_lot(
         repositories,
         lot_id=lot_id,
         step_key=INSPECTION_IMAGES_STEP_KEY,
+        input_payload={
+            "rules_version": IMAGE_ZIP_INSPECTION_RULES_VERSION,
+            "schema_version": 1,
+        },
     )
     inspection = enqueue_job(
         repositories,
@@ -446,6 +450,9 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
             ignored_entries_count += 1
             continue
         non_ignored_files_count += 1
+        if info.flag_bits & 0x1:
+            blockers["SIRCOM_IMAGE_ZIP_ENCRYPTED_ENTRY"] += 1
+            continue
 
         extension = Path(parts[-1]).suffix.lower()
         refused_format_code = REFUSED_SOURCE_IMAGE_EXTENSION_CODES.get(extension)
@@ -875,6 +882,12 @@ _PROBLEM_DEFINITIONS: dict[str, dict[str, str]] = {
         "title": "Nom de fichier vide",
         "cause": "Le zip contient une entree sans nom exploitable.",
         "action": "Recreer le zip sans entree vide puis le deposer a nouveau.",
+    },
+    "SIRCOM_IMAGE_ZIP_ENCRYPTED_ENTRY": {
+        "code": "SIRCOM_IMAGE_ZIP_ENCRYPTED_ENTRY",
+        "title": "Entrée zip chiffrée",
+        "cause": "Le zip contient une entrée protégée par mot de passe que le worker ne peut pas extraire.",
+        "action": "Recréer le zip sans chiffrement puis le déposer à nouveau.",
     },
     "SIRCOM_IMAGE_ZIP_ENTRY_IN_SUBFOLDER": {
         "code": "SIRCOM_IMAGE_ZIP_ENTRY_IN_SUBFOLDER",

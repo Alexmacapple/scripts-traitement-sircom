@@ -1,0 +1,18 @@
+name: "Plan du site"
+description: "Auto-generated info-page smoke test for the Sircom 2026 local UI"
+priority: medium
+requires_auth: false
+timeout: 30s
+tags: [auto-generated, info-page, sircom]
+generated_by: sg-visual-discover
+generated_date: "2026-07-22"
+
+steps:
+  - action: open
+    url: "{base_url}/plan-du-site"
+  - action: assert_text
+    text: "Plan du site"
+  - action: assert_text
+    text: "Navigation disponible"
+  - action: screenshot
+    screenshot: "plan-du-site.png"

@@ -1,0 +1,25 @@
+# visual-tests/_config.yaml — ShipGuard project configuration (v2)
+version: 2
+base_url: "http://127.0.0.1:8000"
+credentials:
+  username: "testuser"
+  password: "testpass"
+screenshots_dir: "visual-tests/_results/screenshots"
+report_path: "visual-tests/_results/report.md"
+build_command: null
+
+# App-under-test lifecycle (used by: shipguard serve / run --serve).
+# {port} is replaced by a free port; base_url is then derived automatically.
+app:
+  type: server
+  root: .
+  start: ".venv/bin/python -m uvicorn sircom2026.app:app --host 127.0.0.1 --port {port}"
+  healthcheck: "/health"
+  startup_timeout_ms: 30000
+
+# Named recette profiles (used by: shipguard run --profile=NAME).
+# scope matches manifest paths and step URLs; checks pick the deterministic lanes.
+profiles:
+  sircom-smoke:
+    scope: "all"
+    checks: [page-load, local-assets, browser-errors, screenshots]

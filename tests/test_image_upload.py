@@ -42,6 +42,21 @@ def zip_bytes(entries: list[tuple[str, bytes]]) -> bytes:
     return output.getvalue()
 
 
+def zip_bytes_with_encrypted_flag(entries: list[tuple[str, bytes]]) -> bytes:
+    content = bytearray(zip_bytes(entries))
+    for signature, flags_offset in ((b"PK\x03\x04", 6), (b"PK\x01\x02", 8)):
+        start = 0
+        while True:
+            index = content.find(signature, start)
+            if index < 0:
+                break
+            offset = index + flags_offset
+            flags = int.from_bytes(content[offset : offset + 2], "little") | 0x1
+            content[offset : offset + 2] = flags.to_bytes(2, "little")
+            start = index + 4
+    return bytes(content)
+
+
 def image_zip_file(
     filename: str,
     content: bytes,
@@ -234,6 +249,30 @@ class ImageZipUploadApiTest(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], "SIRCOM_IMAGE_ZIP_TOO_LARGE")
         self.assertEqual(payload["error"]["details"]["max_mb"], 1)
 
+    def test_lot_target_is_checked_before_zip_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp))
+            client = TestClient(create_app(settings))
+            deleted_lot_id = client.post("/api/lots", json={"title": "Lot supprime"}).json()[
+                "lot"
+            ]["id"]
+            client.delete(f"/api/lots/{deleted_lot_id}")
+
+            missing_response = client.post(
+                "/api/lots/lot_missing/images",
+                files=image_zip_file("images.rar", b"not a zip archive"),
+            )
+            deleted_response = client.post(
+                f"/api/lots/{deleted_lot_id}/images",
+                files=image_zip_file("images.rar", b"not a zip archive"),
+            )
+
+        self.assertEqual(missing_response.status_code, 404)
+        self.assertEqual(missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND")
+        self.assertFalse((settings.data_dir / "lots" / "lot_missing").exists())
+        self.assertEqual(deleted_response.status_code, 409)
+        self.assertEqual(deleted_response.json()["error"]["code"], "SIRCOM_LOT_NOT_MUTABLE")
+
     def test_unknown_lot_returns_structured_404(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
@@ -413,6 +452,36 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
                 }
                 self.assertIn(expected_code, blocking_codes)
                 self.assertEqual(inspection_tmp, [])
+
+    def test_worker_blocks_encrypted_zip_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp))
+            client = TestClient(create_app(settings))
+            lot_id = client.post("/api/lots", json={"title": "Lot chiffre"}).json()[
+                "lot"
+            ]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/images",
+                files=image_zip_file(
+                    "images.zip",
+                    zip_bytes_with_encrypted_flag([("photo.jpg", b"image")]),
+                ),
+                headers={"X-Idempotency-Key": "upload-encrypted"},
+            )
+            worker_result = run_worker_once(settings=settings)
+            status_response = client.get(f"/api/lots/{lot_id}/images/status")
+
+        self.assertEqual(upload.status_code, 202)
+        self.assertEqual(worker_result.outcome, "succeeded")
+        self.assertEqual(status_response.status_code, 200)
+        payload = status_response.json()
+        self.assertFalse(payload["inspection"]["inspectable"])
+        blocking_codes = {
+            problem["code"]
+            for problem in payload["problem_groups"]["bloquant"]["items"]
+        }
+        self.assertIn("SIRCOM_IMAGE_ZIP_ENCRYPTED_ENTRY", blocking_codes)
 
     def test_status_before_worker_returns_structured_409(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,0 +1,22 @@
+name: "Accueil"
+description: "Auto-generated homepage smoke test for the Sircom 2026 local UI"
+priority: high
+requires_auth: false
+timeout: 30s
+tags: [auto-generated, homepage, sircom]
+generated_by: sg-visual-discover
+generated_date: "2026-07-22"
+
+steps:
+  - action: open
+    url: "{base_url}/"
+  - action: assert_text
+    text: "Préparation Sircom 2026"
+  - action: assert_text
+    text: "Créer ou reprendre un lot"
+  - action: assert_text
+    text: "Créer le lot"
+  - action: assert_text
+    text: "Lots"
+  - action: screenshot
+    screenshot: "home.png"

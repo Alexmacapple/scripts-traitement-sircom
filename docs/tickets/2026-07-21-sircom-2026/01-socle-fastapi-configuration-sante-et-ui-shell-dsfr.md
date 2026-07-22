@@ -54,6 +54,50 @@ Preuve attendue :
 - commande de test ciblée ;
 - capture ou sortie montrant les routes de santé.
 
+## Complément rapport ShipGuard - 2026-07-22
+
+Finding traité : `SG-001`, origine stable `r1-z05-002`.
+
+Titre ShipGuard : la dépendance de test déclare `httpx2` au lieu de `httpx`.
+
+Décision appliquée : l'extra `test` de `pyproject.toml` déclare désormais
+`httpx>=0.27,<1`. C'est la dépendance réellement utilisée par
+`fastapi.testclient.TestClient`, alors que `httpx2` ne couvre pas ce besoin sur
+une installation propre.
+
+Preuve locale :
+
+- parsing `pyproject.toml` : `httpx>=0.27,<1` présent, `httpx2` absent ;
+- import environnement courant : `httpx 0.28.1` et `TestClient` importables ;
+- suite API/web utilisant `TestClient` :
+  `tests.test_web_socle tests.test_lots_api tests.test_api_access_errors`,
+  `42 tests`, `OK`.
+
+Limite : je n'ai pas relancé une installation réseau propre de `.[test]` ; la
+preuve locale vérifie le manifeste corrigé et l'environnement déjà installé.
+
+## Complément rapport ShipGuard - 2026-07-22 - dépendances 2025
+
+Finding traité : `SG-001`, origine stable `r1-z05-003`.
+
+Titre ShipGuard : dépendances non épinglées par le script maître à
+l'exécution.
+
+Décision appliquée : le script maître 2025 ne pose plus `openpyxl`,
+`pandas` et `Pillow` comme noms nus. Les dépendances du flux historique sont
+centralisées dans `requirements-2025.txt`, avec bornes basses et hautes, puis
+installées par `pip install -r requirements-2025.txt`.
+
+Preuve locale :
+
+- `tests.test_sircom_master_dependencies`, `1 test`, `OK` ;
+- inspection du manifeste 2025 : `openpyxl>=3.1,<4`, `pandas>=2.2,<3` et
+  `Pillow>=12,<13` présents.
+
+Limite : je n'ai pas lancé d'installation réseau propre du flux 2025 ; la
+preuve vérifie le chemin d'installation appelé par le script maître et le
+contenu versionné des contraintes.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)

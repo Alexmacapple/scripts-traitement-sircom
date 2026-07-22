@@ -92,7 +92,7 @@
                 </div>
               </div>
               <div class="fr-col-12 fr-col-md-4">
-                <ul class="fr-btns-group fr-btns-group--inline-md">
+                <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--icon-left sircom-action-group">
                   <li>
                     <button class="fr-btn fr-icon-add-line fr-btn--icon-left" type="submit">
                       Créer le lot
@@ -269,6 +269,7 @@
                           id="delete-lot-button"
                           type="button"
                           data-lot-id="{{ selected_lot.id }}"
+                          data-lot-title="{{ (selected_lot.title or selected_lot.id)|e }}"
                         >
                           Supprimer
                         </button>

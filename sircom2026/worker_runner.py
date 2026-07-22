@@ -41,6 +41,7 @@ def run_worker_once(
         effective_handlers,
         worker_id=current_settings.worker_id,
         lease_seconds=current_settings.worker_lease_ttl_seconds,
+        heartbeat_seconds=current_settings.worker_heartbeat_seconds,
         max_active_jobs=current_settings.max_active_jobs,
     )
     result = worker.run_once()

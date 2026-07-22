@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from sircom2026.database import Repositories
+from sircom2026.state import recompute_lot_status
 
 
 _SAFE_FILENAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -514,3 +515,4 @@ def _mark_artifact_obsolete_with_problem(
             **(technical or {}),
         },
     )
+    recompute_lot_status(repositories, artifact["lot_id"])

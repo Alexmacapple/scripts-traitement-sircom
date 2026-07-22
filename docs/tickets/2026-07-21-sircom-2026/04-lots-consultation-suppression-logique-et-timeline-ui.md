@@ -32,6 +32,47 @@ Preuve attendue :
 
 - tests `TestClient` et vue UI minimale fonctionnelle.
 
+## Complément rapport ShipGuard - 2026-07-22
+
+Finding traité : `SG-001`, origine stable `r1-z01-001`.
+
+Titre ShipGuard : suppression de lot déclenchée en un clic sans confirmation.
+
+Décision appliquée : le bouton de suppression expose désormais le titre du lot
+avec `data-lot-title`, et `sircom2026/static/app.js` appelle une confirmation
+navigateur avant toute requête `DELETE /api/lots/{lot_id}`. Si l'utilisateur
+annule, aucun état occupé n'est appliqué au bouton et aucune suppression n'est
+déclenchée.
+
+Preuve locale :
+
+- suite lots `TestClient` : `tests.test_lots_api`, `15 tests`, `OK` ;
+- parcours navigateur explicite :
+  `SIRCOM_RUN_PLAYWRIGHT=1 tests.test_lots_playwright`, `2 tests`, `OK` ;
+- suite complète : `179 tests`, `OK`, `2 skipped`.
+
+Limite : la confirmation utilise le dialogue natif `window.confirm`, sans
+modale DSFR dédiée. Ce choix garde la correction minimale et fournit
+l'annulation native du navigateur.
+
+## Complément rapport ShipGuard - 2026-07-22 - tests UI lots
+
+Findings traités : `SG-001`, origines stables `r1-z01-002` et `r1-z05-004`.
+
+Titres ShipGuard : le test visuel d'accueil ne vérifie pas explicitement le
+bouton Créer le lot ; le test Playwright choisit un port libre puis le relâche
+avant Uvicorn.
+
+Décision appliquée : le manifeste visuel d'accueil vérifie désormais le libellé
+`Créer le lot`. Le serveur Playwright conserve une socket TCP déjà liée et la
+passe à Uvicorn, ce qui évite de libérer le port entre la découverte et le
+démarrage du serveur.
+
+Preuve locale :
+
+- `node visual-tests/build-review.mjs` : `2 pass`, `0 fail`, `0 error` ;
+- `SIRCOM_RUN_PLAYWRIGHT=1 tests.test_lots_playwright`, `2 tests`, `OK`.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)

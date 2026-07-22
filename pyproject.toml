@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "httpx2>=2.7,<3",
+    "httpx>=0.27,<1",
     "playwright>=1.54,<2",
     "pytest>=8,<9",
 ]

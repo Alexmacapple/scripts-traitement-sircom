@@ -252,10 +252,23 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("view=upload_images", html)
         self.assertIn("Préparer le package final", html)
         self.assertIn('id="delete-lot-button"', html)
+        self.assertIn('data-lot-title="Lot UI"', html)
         self.assertIn("/static/sircom.css", html)
         self.assertIn("/static/app.js", html)
         self.assertNotIn('href="#"', html)
         self.assertNotIn(str(Path(tmp)), html)
+
+    def test_delete_lot_button_requires_browser_confirmation(self) -> None:
+        app_js_path = Path(__file__).resolve().parents[1] / "sircom2026" / "static" / "app.js"
+        script = app_js_path.read_text(encoding="utf-8")
+
+        self.assertIn("function confirmLotDeletion", script)
+        self.assertIn("window.confirm", script)
+        self.assertIn("if (!confirmLotDeletion(deleteLotButton)) return;", script)
+        self.assertLess(
+            script.index("if (!confirmLotDeletion(deleteLotButton)) return;"),
+            script.index('method: "DELETE"'),
+        )
 
     def test_home_ui_tolerates_steps_without_retry_actions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

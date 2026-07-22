@@ -42,7 +42,7 @@ import logging
 VENV_NAME = "venv"
 SOURCE_FILE = "Sircom.xlsx"
 SCRIPTS_DIR = "scripts-2025"
-REQUIRED_PACKAGES = ["openpyxl", "pandas", "Pillow"]
+REQUIREMENTS_2025_FILE = "requirements-2025.txt"
 
 # Configuration par défaut du chemin des images (format POSIX pour InDesign 19.4+)
 DEFAULT_IMAGE_PATH = "/Users/victoria/Documents/export-jpg-resize"
@@ -249,17 +249,25 @@ class SircomMasterProcessor:
             python_venv = os.path.join(venv_path, "bin", "python")
             pip_venv = os.path.join(venv_path, "bin", "pip")
 
+        requirements_path = os.path.join(os.getcwd(), REQUIREMENTS_2025_FILE)
+        if not os.path.exists(requirements_path):
+            self.logger.error(f"❌ Fichier de dépendances manquant : {REQUIREMENTS_2025_FILE}")
+            return False
+
         # Installer les dépendances
         self.logger.info("📚 Installation des dépendances")
-        for package in REQUIRED_PACKAGES:
-            try:
-                self.logger.info(f"  📦 Installation de {package}...")
-                result = subprocess.run([pip_venv, "install", package], 
-                                      check=True, capture_output=True, text=True)
-                self.logger.info(f"  ✅ {package} installé")
-            except subprocess.CalledProcessError as e:
-                self.logger.error(f"  ❌ Erreur installation {package} : {e}")
-                return False
+        try:
+            self.logger.info(f"  📦 Installation depuis {REQUIREMENTS_2025_FILE}...")
+            subprocess.run(
+                [pip_venv, "install", "-r", requirements_path],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.logger.info(f"  ✅ Dépendances installées depuis {REQUIREMENTS_2025_FILE}")
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"  ❌ Erreur installation dépendances : {e}")
+            return False
 
         self.python_venv = python_venv
         self.logger.info("✅ Environnement virtuel prêt")

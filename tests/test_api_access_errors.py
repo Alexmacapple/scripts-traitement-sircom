@@ -79,6 +79,47 @@ class ApiAccessErrorsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("limits", response.json())
 
+    def test_mutating_request_from_foreign_origin_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            response = client.post(
+                "/api/lots",
+                headers={"Origin": "https://example.invalid"},
+                json={"title": "Lot pirate"},
+            )
+            list_response = client.get("/api/lots")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error"]["code"], "SIRCOM_ACCESS_DENIED")
+        self.assertEqual(list_response.json()["pagination"]["total"], 0)
+
+    def test_mutating_request_from_same_origin_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            response = client.post(
+                "/api/lots",
+                headers={"Origin": "http://testserver"},
+                json={"title": "Lot local"},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["lot"]["title"], "Lot local")
+
+    def test_mutating_request_from_foreign_referer_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            response = client.post(
+                "/api/lots",
+                headers={"Referer": "https://example.invalid/piege"},
+                json={"title": "Lot pirate"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error"]["code"], "SIRCOM_ACCESS_DENIED")
+
     def test_local_access_policy_refuses_non_loopback_bind_without_auth(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp), SIRCOM_BIND_HOST="0.0.0.0")

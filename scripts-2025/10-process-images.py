@@ -20,8 +20,9 @@ CORRECTION APPORTÉE :
 CE QUE FAIT CE SCRIPT :
 1. Lit le fichier Excel source (Sircom.xlsx)
 2. Récupère le mapping réel :
-   - Colonne B (position 2) : ID du dossier (ex: 24331205)
-   - Colonne CE (position 83) : Nom réel de l'image uploadée (ex: packshot.jpg)
+   - Colonne f_id : ID du dossier (ex: 24331205)
+   - Colonne photo source : nom réel de l'image uploadée (ex: packshot.jpg)
+   - Colonne imageid : nom final attendu (ex: dossier-24331205.jpg)
 3. Pour chaque dossier, cherche L'IMAGE EXACTE par son nom
 4. La renomme selon le pattern : dossier-{ID}.jpg
 5. Redimensionne et optimise pour l'impression (350px, 300 DPI)
@@ -32,13 +33,13 @@ GÉNÉRICITÉ :
 - Signale les images manquantes ou non référencées
 """
 
-import pandas as pd
 import os
 import sys
 import logging
 from pathlib import Path
 from datetime import datetime
 from PIL import Image
+import openpyxl
 import re
 
 # ==========================================
@@ -60,6 +61,17 @@ ALLOWED_EXTENSIONS = [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'tif', 'tiff', 
     'bmp', 'eps', 'svg', 'ico', 'heic', 'heif', 'psd', 
     'raw', 'hdr', 'exr', 'jp2', 'pgm', 'ppm', 'xcf'
+]
+
+SOURCE_IMAGE_COLUMN_CANDIDATES = [
+    "y_photodu",
+    "y_photo",
+    "photo_du_produit",
+    "photo_produit",
+    "photo",
+    "nom_image_source",
+    "image_source",
+    "source_image",
 ]
 
 # ==========================================
@@ -100,6 +112,34 @@ def normalize_filename(filename):
         return ""
     # Enlever les espaces multiples et normaliser
     return re.sub(r'\s+', ' ', filename.strip())
+
+def normalize_column_name(column_name):
+    """Normalise un nom de colonne pour identifier la colonne photo source"""
+    if column_name is None:
+        return ""
+    return re.sub(r"[^\w]", "", str(column_name).strip().lower())
+
+def find_source_image_column(columns):
+    """Trouve la colonne qui contient le nom source réellement uploadé"""
+    normalized_columns = {
+        normalize_column_name(column): column
+        for column in columns
+    }
+    for candidate in SOURCE_IMAGE_COLUMN_CANDIDATES:
+        normalized_candidate = normalize_column_name(candidate)
+        if normalized_candidate in normalized_columns:
+            return normalized_columns[normalized_candidate]
+    for normalized, original in normalized_columns.items():
+        if "photo" in normalized:
+            return original
+    return None
+
+def is_valid_image_value(value):
+    """Indique si une cellule d'image contient une valeur exploitable"""
+    if value is None:
+        return False
+    text = str(value).strip()
+    return text not in ["", "#N/A", "N/A"]
 
 def find_best_match(target_name, available_files, logger):
     """
@@ -172,41 +212,70 @@ def read_excel_mapping(excel_file, logger):
 
     Adapté pour lire depuis 7-add-pathimg.xlsx qui contient :
     - Colonne f_id : ID du dossier
-    - Colonne imageid : Nom de l'image normalisée
+    - Colonne photo source : nom réel de l'image uploadée
+    - Colonne imageid : nom final normalisé
 
-    Retourne un dictionnaire : {ID_dossier: nom_image_source}
+    Retourne un dictionnaire :
+    {ID_dossier: {"source_name": nom_image_source, "final_name": nom_image_final}}
     """
     logger.info(f"Lecture du fichier Excel : {excel_file}")
 
     try:
-        # Lire le fichier Excel
-        df = pd.read_excel(excel_file)
+        workbook = openpyxl.load_workbook(excel_file, read_only=True, data_only=True)
+        worksheet = workbook.active
+        headers = [
+            cell.value
+            for cell in next(worksheet.iter_rows(min_row=1, max_row=1))
+        ]
+        header_indexes = {
+            header: index
+            for index, header in enumerate(headers)
+            if header is not None
+        }
 
         # Utiliser les colonnes par nom (plus robuste)
-        if 'f_id' not in df.columns or 'imageid' not in df.columns:
+        if 'f_id' not in header_indexes or 'imageid' not in header_indexes:
             logger.error("Colonnes f_id ou imageid non trouvées")
-            logger.error(f"   Colonnes disponibles : {list(df.columns)}")
+            logger.error(f"   Colonnes disponibles : {headers}")
+            return {}
+        source_image_column = find_source_image_column(headers)
+        if source_image_column is None:
+            logger.error("Colonne photo source non trouvée")
+            logger.error(f"   Colonnes disponibles : {headers}")
             return {}
 
         logger.info(f"Colonne ID : f_id")
-        logger.info(f"Colonne Image : imageid")
+        logger.info(f"Colonne Image source : {source_image_column}")
+        logger.info(f"Colonne Image finale : imageid")
+        id_index = header_indexes['f_id']
+        source_image_index = header_indexes[source_image_column]
+        final_image_index = header_indexes['imageid']
 
         # Créer le mapping
         mapping = {}
         skipped = 0
 
-        for index, row in df.iterrows():
-            dossier_id = row['f_id']
-            image_name = row['imageid']
+        for row in worksheet.iter_rows(min_row=2, values_only=True):
+            dossier_id = row[id_index]
+            source_image_name = row[source_image_index]
+            final_image_name = row[final_image_index]
 
             # Vérifier que les deux valeurs sont valides
-            if pd.notna(dossier_id) and pd.notna(image_name) and str(image_name) not in ['#N/A', 'N/A', '']:
-                # Le nom est déjà au format dossier-xxx.jpg
-                # On garde le nom complet pour la recherche
-                mapping[str(dossier_id)] = str(image_name)
+            if (
+                dossier_id is not None
+                and is_valid_image_value(source_image_name)
+                and is_valid_image_value(final_image_name)
+            ):
+                mapping[str(dossier_id)] = {
+                    "source_name": str(source_image_name).strip(),
+                    "final_name": str(final_image_name).strip(),
+                }
 
                 if len(mapping) <= 5:  # Afficher les 5 premiers
-                    logger.info(f"  Mapping : {dossier_id} → {image_name}")
+                    logger.info(
+                        f"  Mapping : {dossier_id} → {source_image_name} "
+                        f"→ {final_image_name}"
+                    )
             else:
                 skipped += 1
 
@@ -219,6 +288,9 @@ def read_excel_mapping(excel_file, logger):
     except Exception as e:
         logger.error(f"Erreur lors de la lecture du fichier Excel : {e}")
         return {}
+    finally:
+        if 'workbook' in locals():
+            workbook.close()
 
 def get_available_images(source_dir):
     """Récupère la liste des images disponibles"""
@@ -317,10 +389,9 @@ def main():
         not_found_count = 0
         total_size = 0
         
-        for dossier_id, source_image_name in mapping.items():
-            # CORRECTION : Utiliser directement le nom normalisé de imageid
-            # source_image_name contient déjà le bon nom (ex: dossier-ara072025-hgv.jpg)
-            new_name = source_image_name  # Utiliser directement le nom de imageid
+        for dossier_id, image_mapping in mapping.items():
+            source_image_name = image_mapping["source_name"]
+            new_name = image_mapping["final_name"]
 
             # CORRECTION IMPORTANTE : On cherche l'image PAR SON NOM, pas par position !
             # L'ancien script prenait juste l'image N pour le dossier N (FAUX)
@@ -348,7 +419,8 @@ def main():
         
         # Images non utilisées
         used_images = set()
-        for source_name in mapping.values():
+        for image_mapping in mapping.values():
+            source_name = image_mapping["source_name"]
             matched = find_best_match(source_name, available_images.keys(), logger)
             if matched:
                 used_images.add(matched)

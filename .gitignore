@@ -96,3 +96,6 @@ push-to-github.sh
 # Logs supplémentaires
 orchestrator-run.log
 sircom-processing-*.log
+# ShipGuard session artifacts (added by shipguard init)
+visual-tests/_results/
+# visual-tests/_regressions.yaml  # uncomment to keep regression memory out of git

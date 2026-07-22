@@ -183,6 +183,28 @@ class ExcelUploadApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["error"]["code"], "SIRCOM_EXCEL_UNREADABLE")
 
+    def test_lot_target_is_checked_before_excel_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+            deleted_lot_id = client.post("/api/lots", json={"title": "Lot supprime"}).json()[
+                "lot"
+            ]["id"]
+            client.delete(f"/api/lots/{deleted_lot_id}")
+
+            missing_response = client.post(
+                "/api/lots/lot_missing/excel",
+                files=excel_file("source.csv", b"not an excel archive", "text/csv"),
+            )
+            deleted_response = client.post(
+                f"/api/lots/{deleted_lot_id}/excel",
+                files=excel_file("source.csv", b"not an excel archive", "text/csv"),
+            )
+
+        self.assertEqual(missing_response.status_code, 404)
+        self.assertEqual(missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND")
+        self.assertEqual(deleted_response.status_code, 409)
+        self.assertEqual(deleted_response.json()["error"]["code"], "SIRCOM_LOT_NOT_MUTABLE")
+
     def test_unknown_lot_returns_structured_404(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))

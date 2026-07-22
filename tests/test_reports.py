@@ -281,6 +281,91 @@ class ReportsApiTest(unittest.TestCase):
             self.assertNotIn(sensitive_value, technical_text)
             self.assertNotIn(sensitive_value, events_text)
 
+    def test_reports_are_generated_without_image_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "rapports-sans-images.xlsx"
+            create_reports_workbook(workbook_path)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = client.post("/api/lots", json={"title": "Lot sans images"}).json()["lot"][
+                "id"
+            ]
+
+            upload_excel = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file(workbook_path),
+                headers={"X-Idempotency-Key": "reports-no-images-excel"},
+            )
+            diagnostic = run_until_step(settings, "diagnostic_excel")
+            mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
+            validate_mapping = client.post(
+                f"/api/lots/{lot_id}/mapping/validate",
+                json=mapping_submission(mapping),
+                headers={"X-Idempotency-Key": "reports-no-images-mapping"},
+            )
+            fusion = run_until_step(settings, "fusion_multi_onglets")
+            normalization = run_until_step(settings, "normalisation_contenu")
+            csv_contract = run_until_step(settings, "verification_csv_indesign")
+            validate_sort = client.post(
+                f"/api/lots/{lot_id}/tri/validate",
+                json={"decision": "tri_region_departement"},
+                headers={"X-Idempotency-Key": "reports-no-images-sort"},
+            )
+            validate_preview = client.post(
+                f"/api/lots/{lot_id}/csv/preview/validate",
+                headers={"X-Idempotency-Key": "reports-no-images-preview"},
+            )
+            reports_job = run_until_step(settings, "rapports")
+            reports = client.get(f"/api/lots/{lot_id}/reports")
+            business_download = client.get(
+                reports.json()["business_report_artifact"]["download_url"]
+            )
+            technical_download = client.get(
+                reports.json()["technical_report_artifact"]["download_url"]
+            )
+            database = Database(settings.sqlite_path)
+            with database.session() as repositories:
+                report_step = repositories.steps.get_by_lot_key(lot_id, "rapports")
+                matching_step = repositories.steps.get_by_lot_key(lot_id, "matching_images")
+                problem_codes = [
+                    problem["code"]
+                    for problem in repositories.problems.list_for_lot(
+                        lot_id,
+                        include_resolved=True,
+                    )
+                ]
+
+        self.assertEqual(upload_excel.status_code, 202, upload_excel.text)
+        self.assertEqual(validate_mapping.status_code, 200, validate_mapping.text)
+        self.assertEqual(validate_sort.status_code, 200, validate_sort.text)
+        self.assertEqual(validate_preview.status_code, 200, validate_preview.text)
+        for result in (diagnostic, fusion, normalization, csv_contract, reports_job):
+            self.assertEqual(result.outcome, "succeeded")
+        self.assertEqual(reports.status_code, 200, reports.text)
+        self.assertIn(report_step["status"], {"termine", "termine_avec_alertes"})
+        self.assertNotIn(matching_step["status"], {"termine", "termine_avec_alertes"})
+        self.assertNotIn("SIRCOM_REPORTS_PREREQUISITE_MISSING", problem_codes)
+
+        business_text = business_download.content.decode("utf-8")
+        self.assertIn("Zip images : non fourni", business_text)
+        self.assertIn("Images détectées dans le zip : 0", business_text)
+        self.assertIn("Flux images : aucun zip images fourni", business_text)
+        self.assertIn("Images présentes : 0", business_text)
+        self.assertIn("Images renommées et optimisées : aucune image fournie", business_text)
+
+        technical = technical_download.json()
+        self.assertEqual(technical["compteurs"]["images"]["processed_images_count"], 0)
+        self.assertEqual(technical["compteurs"]["images"]["missing_count"], 0)
+        source_steps = {
+            (source["step_key"], source["role"])
+            for source in technical["sources"]
+        }
+        self.assertNotIn(("upload_images", "source"), source_steps)
+        self.assertNotIn(("inspection_images", "result"), source_steps)
+        self.assertNotIn(("matching_images", "result"), source_steps)
+        self.assertNotIn(("matching_images", "processed_images"), source_steps)
+
 
 if __name__ == "__main__":
     unittest.main()

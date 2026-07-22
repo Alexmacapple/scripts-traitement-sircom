@@ -43,10 +43,10 @@ def clean_cell_content(value):
     if content == "":
         return "#N/A"
 
-    # Remplacer les sauts de ligne par <br>
+    # Remplacer les sauts de ligne par le marqueur InDesign recherché ensuite.
+    content = content.replace('\r\n', '\n')
+    content = content.replace('\r', '\n')
     content = content.replace('\n', '<br>')
-    content = content.replace('\r\n', '<br>')
-    content = content.replace('\r', '<br>')
 
     # Supprimer les espaces multiples (remplacer par un seul espace)
     content = re.sub(r' +', ' ', content)

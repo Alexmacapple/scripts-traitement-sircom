@@ -32,6 +32,29 @@ Preuve attendue :
 
 - fichier CSV de test vérifié par le contrat.
 
+## Complément rapport ShipGuard - 2026-07-22
+
+Finding traité : `SG-001`, origine stable `r1-z03-002`.
+
+Titre ShipGuard : l'export CSV peut retourner un artefact final non courant ou
+illisible.
+
+Décision appliquée : `_current_preview_artifacts` vérifie désormais que
+l'aperçu et le CSV final sont tous les deux `committed`, puis contrôle la
+lisibilité réelle du CSV final avec `ArtifactStore.open_for_read` avant de
+l'exposer comme artefact courant. Un CSV obsolète rend l'aperçu non validé ; un
+fichier final manquant ou incohérent produit une erreur
+`SIRCOM_CSV_ARTIFACT_UNAVAILABLE`.
+
+Preuve locale :
+
+- suite CSV preview ciblée : `tests.test_csv_preview`, `4 tests`, `OK` ;
+- suite complète : `182 tests`, `OK`, `2 skipped`.
+
+Limite : le contrôle de lisibilité peut marquer un artefact illisible comme
+obsolète via `ArtifactStore`. La persistance durable de cette réparation dans
+les endpoints de lecture reste le sujet distinct `r1-z03-003`.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)

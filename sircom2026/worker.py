@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -70,6 +71,7 @@ class WorkerJobContext:
     leased_job: LeasedJob
     worker_id: str
     lease_seconds: int
+    heartbeat_seconds: float = 30.0
 
     @property
     def lot_id(self) -> str:
@@ -147,16 +149,23 @@ class LocalWorker:
         *,
         worker_id: str = "local-1",
         lease_seconds: int = 300,
+        heartbeat_seconds: float | None = None,
         max_active_jobs: int = 1,
     ) -> None:
         if lease_seconds <= 0:
             raise ValueError("lease_seconds must be greater than 0.")
+        if heartbeat_seconds is not None and heartbeat_seconds <= 0:
+            raise ValueError("heartbeat_seconds must be greater than 0.")
         if max_active_jobs <= 0:
             raise ValueError("max_active_jobs must be greater than 0.")
         self.database = database
         self.handlers = dict(handlers)
         self.worker_id = worker_id
         self.lease_seconds = lease_seconds
+        self.heartbeat_seconds = _effective_heartbeat_seconds(
+            lease_seconds=lease_seconds,
+            heartbeat_seconds=30.0 if heartbeat_seconds is None else heartbeat_seconds,
+        )
         self.max_active_jobs = max_active_jobs
 
     def acquire_next(self) -> LeasedJob | None:
@@ -446,11 +455,13 @@ class LocalWorker:
             leased_job=leased_job,
             worker_id=self.worker_id,
             lease_seconds=self.lease_seconds,
+            heartbeat_seconds=self.heartbeat_seconds,
         )
         handler = self.handlers[leased_job.step_key]
         try:
             context.raise_if_cancelled()
-            result = handler(context)
+            with _PeriodicHeartbeat(context):
+                result = handler(context)
             context.raise_if_cancelled()
         except WorkerCancelled:
             outcome = "canceled" if self.finish_canceled(leased_job) else "rejected"
@@ -557,6 +568,47 @@ def _next_step_input_payload(
 
         return image_matching_input_payload(repositories, lot_id=lot_id)
     return None
+
+
+def _effective_heartbeat_seconds(*, lease_seconds: int, heartbeat_seconds: float) -> float:
+    return min(float(heartbeat_seconds), max(float(lease_seconds) / 2, 0.001))
+
+
+class _PeriodicHeartbeat:
+    def __init__(self, context: WorkerJobContext) -> None:
+        self.context = context
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run,
+            name=f"sircom-worker-heartbeat-{context.leased_job.job_id}",
+            daemon=True,
+        )
+        self._error: BaseException | None = None
+
+    def __enter__(self) -> _PeriodicHeartbeat:
+        self._thread.start()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: Any,
+    ) -> bool:
+        self._stop.set()
+        self._thread.join()
+        if exc_type is None and self._error is not None:
+            raise self._error
+        return False
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.context.heartbeat_seconds):
+            try:
+                self.context.heartbeat()
+            except Exception as exc:
+                self._error = exc
+                self._stop.set()
+                return
 
 
 def request_lot_cancellation(repositories: Repositories, lot_id: str) -> tuple[dict[str, Any], int]:

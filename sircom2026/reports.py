@@ -116,6 +116,7 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
             lot_id=context.lot_id,
             step_keys=(REPORTS_STEP_KEY,),
         )
+        source_metadata = _report_source_metadata(snapshot)
         business_artifact = store.put_temp_then_commit(
             repositories,
             lot_id=context.lot_id,
@@ -125,12 +126,7 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
             role=BUSINESS_REPORT_ARTIFACT_ROLE,
             filename=BUSINESS_REPORT_FILENAME,
             content=business_content,
-            metadata={
-                "rules_version": REPORTS_RULES_VERSION,
-                "schema_version": REPORTS_SCHEMA_VERSION,
-                "source_csv_artifact_id": snapshot["artifacts"]["csv_final"]["id"],
-                "source_matching_artifact_id": snapshot["artifacts"]["matching"]["id"],
-            },
+            metadata=dict(source_metadata),
             mime_type=BUSINESS_REPORT_MIME_TYPE,
             lease_version=context.leased_job.lease_version,
         )
@@ -143,12 +139,7 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
             role=TECHNICAL_REPORT_ARTIFACT_ROLE,
             filename=TECHNICAL_REPORT_FILENAME,
             content=technical_content,
-            metadata={
-                "rules_version": REPORTS_RULES_VERSION,
-                "schema_version": REPORTS_SCHEMA_VERSION,
-                "source_csv_artifact_id": snapshot["artifacts"]["csv_final"]["id"],
-                "source_matching_artifact_id": snapshot["artifacts"]["matching"]["id"],
-            },
+            metadata=dict(source_metadata),
             mime_type=TECHNICAL_REPORT_MIME_TYPE,
             lease_version=context.leased_job.lease_version,
         )
@@ -324,6 +315,7 @@ def build_business_report(snapshot: dict[str, Any], *, generated_at: str) -> str
         [
             "",
             "## Images",
+            f"- Flux images : {_image_workflow_line(snapshot)}",
             f"- Images associées : {matching.get('matched_count', 0)}",
             f"- Images traitées : {matching.get('processed_images_count', 0)}",
             f"- Images manquantes : {matching.get('missing_count', 0)}",
@@ -347,7 +339,7 @@ def build_business_report(snapshot: dict[str, Any], *, generated_at: str) -> str
             "",
             "## Package",
             "- CSV final compatible InDesign : sircom-indesign-utf16.csv",
-            "- Images renommées et optimisées : export-jpg-resize/",
+            _package_images_line(snapshot),
             "- Rapport métier : rapport-metier.md",
             "- Rapport technique : rapport-technique.json",
             "- Mapping utilisé avec provenance complète : mapping-utilise.json",
@@ -504,36 +496,47 @@ def _build_report_snapshot(
         role=CSV_FINAL_ARTIFACT_ROLE,
         ready_statuses=READY_STATUSES,
     )
-    image_zip_source = _required_current_artifact(
+    image_zip_source = _current_artifact(
         repositories,
         lot_id=lot_id,
         step_key=UPLOAD_IMAGES_STEP_KEY,
         role="source",
         ready_statuses=READY_STATUSES,
     )
-    inspection = _required_json_artifact(
-        repositories,
-        store,
-        lot_id=lot_id,
-        step_key=INSPECTION_IMAGES_STEP_KEY,
-        role=INSPECTION_ARTIFACT_ROLE,
-        ready_statuses=READY_STATUSES,
-    )
-    matching = _required_json_artifact(
-        repositories,
-        store,
-        lot_id=lot_id,
-        step_key=MATCHING_IMAGES_STEP_KEY,
-        role=MATCHING_ARTIFACT_ROLE,
-        ready_statuses=READY_STATUSES,
-    )
-    processed_images = _current_artifact(
-        repositories,
-        lot_id=lot_id,
-        step_key=MATCHING_IMAGES_STEP_KEY,
-        role=PROCESSED_IMAGES_ARTIFACT_ROLE,
-        ready_statuses=READY_STATUSES,
-    )
+    if image_zip_source is None:
+        inspection_artifact = None
+        inspection_payload = _empty_image_inspection_payload()
+        matching_artifact = None
+        matching_payload = _empty_image_matching_payload()
+        processed_images = None
+    else:
+        inspection = _required_json_artifact(
+            repositories,
+            store,
+            lot_id=lot_id,
+            step_key=INSPECTION_IMAGES_STEP_KEY,
+            role=INSPECTION_ARTIFACT_ROLE,
+            ready_statuses=READY_STATUSES,
+        )
+        matching = _required_json_artifact(
+            repositories,
+            store,
+            lot_id=lot_id,
+            step_key=MATCHING_IMAGES_STEP_KEY,
+            role=MATCHING_ARTIFACT_ROLE,
+            ready_statuses=READY_STATUSES,
+        )
+        processed_images = _current_artifact(
+            repositories,
+            lot_id=lot_id,
+            step_key=MATCHING_IMAGES_STEP_KEY,
+            role=PROCESSED_IMAGES_ARTIFACT_ROLE,
+            ready_statuses=READY_STATUSES,
+        )
+        inspection_artifact = inspection.artifact
+        inspection_payload = inspection.payload
+        matching_artifact = matching.artifact
+        matching_payload = matching.payload
     problem_counts = _problem_counts(problems)
     artifacts = {
         "excel_source": excel_source,
@@ -546,8 +549,8 @@ def _build_report_snapshot(
         "csv_preview": csv_preview.artifact,
         "csv_final": csv_final,
         "image_zip_source": image_zip_source,
-        "inspection": inspection.artifact,
-        "matching": matching.artifact,
+        "inspection": inspection_artifact,
+        "matching": matching_artifact,
         "processed_images": processed_images,
     }
     return {
@@ -564,14 +567,61 @@ def _build_report_snapshot(
         "sort": sort.payload,
         "csv_contract": csv_contract.payload,
         "csv_preview": csv_preview.payload,
-        "inspection": inspection.payload,
-        "matching": matching.payload,
+        "inspection": inspection_payload,
+        "matching": matching_payload,
         "integrity": _integrity_payload(
             normalization.payload,
             csv_preview.payload,
-            matching.payload,
+            matching_payload,
             problems_count=sum(problem_counts.values()),
         ),
+    }
+
+
+def _report_source_metadata(snapshot: dict[str, Any]) -> dict[str, Any]:
+    metadata = {
+        "rules_version": REPORTS_RULES_VERSION,
+        "schema_version": REPORTS_SCHEMA_VERSION,
+        "source_csv_artifact_id": snapshot["artifacts"]["csv_final"]["id"],
+    }
+    matching = snapshot["artifacts"].get("matching")
+    if matching is not None:
+        metadata["source_matching_artifact_id"] = matching["id"]
+    return metadata
+
+
+def _empty_image_inspection_payload() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "rules_version": "image-zip-inspection-v2",
+        "inspectable": False,
+        "image_count": 0,
+        "images": [],
+        "skipped": True,
+        "reason": "no_image_zip",
+    }
+
+
+def _empty_image_matching_payload() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "rules_version": "image-matching-v1",
+        "rows_count": 0,
+        "bindings_count": 0,
+        "bindings": [],
+        "manual_resolutions": [],
+        "matched_count": 0,
+        "processed_images_count": 0,
+        "missing_count": 0,
+        "ambiguous_count": 0,
+        "unreferenced_count": 0,
+        "conversion_failed_count": 0,
+        "fallback_count": 0,
+        "tolerant_count": 0,
+        "blocking": False,
+        "has_warnings": False,
+        "skipped": True,
+        "reason": "no_image_zip",
     }
 
 
@@ -837,6 +887,18 @@ def _artifact_line(artifact: dict[str, Any] | None) -> str:
     if extension:
         parts.append(f"extension {extension}")
     return ", ".join(parts)
+
+
+def _image_workflow_line(snapshot: dict[str, Any]) -> str:
+    if snapshot["artifacts"]["image_zip_source"] is None:
+        return "aucun zip images fourni"
+    return "zip images traité"
+
+
+def _package_images_line(snapshot: dict[str, Any]) -> str:
+    if snapshot["artifacts"]["image_zip_source"] is None:
+        return "- Images renommées et optimisées : aucune image fournie"
+    return "- Images renommées et optimisées : export-jpg-resize/"
 
 
 def _technical_artifact_entry(artifact: dict[str, Any]) -> dict[str, Any]:

@@ -37,7 +37,9 @@ class LiveServer:
     def __init__(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self._tmpdir.name)
-        self.port = free_port()
+        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server_socket.bind(("127.0.0.1", 0))
+        self.port = int(self._server_socket.getsockname()[1])
         self.base_url = f"http://127.0.0.1:{self.port}"
         self.settings = make_settings(self.tmp_path)
         self.server = uvicorn.Server(
@@ -49,7 +51,11 @@ class LiveServer:
                 log_level="error",
             )
         )
-        self.thread = threading.Thread(target=self.server.run, daemon=True)
+        self.thread = threading.Thread(
+            target=self.server.run,
+            kwargs={"sockets": [self._server_socket]},
+            daemon=True,
+        )
 
     def __enter__(self) -> LiveServer:
         self.thread.start()
@@ -59,6 +65,7 @@ class LiveServer:
     def __exit__(self, *exc_info: object) -> None:
         self.server.should_exit = True
         self.thread.join(timeout=5)
+        self._server_socket.close()
         self._tmpdir.cleanup()
 
     def create_lot(self, title: str) -> dict[str, object]:
@@ -88,12 +95,6 @@ class LiveServer:
                 last_error = exc
             time.sleep(0.1)
         raise RuntimeError("The Uvicorn test server did not become ready.") from last_error
-
-
-def free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
 
 
 def playwright_sync():
@@ -183,7 +184,16 @@ class LotsPlaywrightTest(unittest.TestCase):
                 )
                 assert_png_screenshot(self, page.screenshot(full_page=True))
 
+                dialog_messages: list[str] = []
+
+                def accept_delete_dialog(dialog) -> None:
+                    dialog_messages.append(dialog.message)
+                    dialog.accept()
+
+                page.once("dialog", accept_delete_dialog)
                 page.get_by_role("button", name="Supprimer").click()
+                self.assertTrue(dialog_messages)
+                self.assertIn("Lot Playwright Desktop", dialog_messages[0])
                 page.wait_for_url(f"{server.base_url}/", timeout=5000)
 
                 self.assertEqual(

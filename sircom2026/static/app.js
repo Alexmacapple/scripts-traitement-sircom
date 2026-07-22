@@ -77,6 +77,14 @@ function setButtonBusy(button, busy, busyText) {
   button.textContent = button.dataset.defaultText;
 }
 
+function confirmLotDeletion(button) {
+  const lotTitle = (button.dataset.lotTitle || "").trim();
+  const heading = lotTitle ? `Supprimer le lot "${lotTitle}" ?` : "Supprimer ce lot ?";
+  return window.confirm(
+    `${heading}\n\nCette action retire le lot de la liste. Vous pouvez annuler maintenant.`
+  );
+}
+
 function getSessionStorage() {
   try {
     return window.sessionStorage;
@@ -239,6 +247,7 @@ if (deleteLotButton) {
   deleteLotButton.addEventListener("click", async () => {
     const lotId = deleteLotButton.dataset.lotId;
     if (!lotId) return;
+    if (!confirmLotDeletion(deleteLotButton)) return;
 
     setButtonBusy(deleteLotButton, true, "Suppression en cours");
     try {

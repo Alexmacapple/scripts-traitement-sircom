@@ -743,8 +743,19 @@ def _current_preview_artifacts(
         run_id=step["current_run_id"],
         role=CSV_FINAL_ARTIFACT_ROLE,
     )
-    if preview_artifact is None or csv_artifact is None:
+    if (
+        preview_artifact is None
+        or csv_artifact is None
+        or preview_artifact["status"] != "committed"
+        or csv_artifact["status"] != "committed"
+    ):
         return None
+    _require_readable_artifact(
+        repositories,
+        settings=settings,
+        lot_id=lot_id,
+        artifact=csv_artifact,
+    )
     preview = _read_json_artifact(
         repositories,
         settings=settings,
@@ -790,6 +801,31 @@ def _current_json_artifact(
         artifact=artifact,
     )
     return CurrentJsonArtifact(artifact=artifact, payload=payload)
+
+
+def _require_readable_artifact(
+    repositories: Repositories,
+    *,
+    settings: Settings,
+    lot_id: str,
+    artifact: dict[str, Any],
+) -> None:
+    store = ArtifactStore(
+        settings.data_dir,
+        pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
+    )
+    try:
+        store.open_for_read(
+            repositories,
+            lot_id=lot_id,
+            artifact_id=artifact["id"],
+        )
+    except (ArtifactUnavailableError, OSError, KeyError, ValueError) as exc:
+        raise CsvPreviewError(
+            409,
+            "SIRCOM_CSV_ARTIFACT_UNAVAILABLE",
+            "Un artefact nécessaire à l'aperçu CSV est indisponible.",
+        ) from exc
 
 
 def _read_json_artifact(

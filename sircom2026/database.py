@@ -257,6 +257,12 @@ class Database:
         connection = self.connect()
         try:
             yield Repositories(connection)
+            if connection.in_transaction:
+                connection.commit()
+        except Exception:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
         finally:
             connection.close()
 

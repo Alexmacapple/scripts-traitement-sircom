@@ -38,6 +38,26 @@ Preuve attendue :
 
 - artefacts rapport générés sur lot de test.
 
+## Complément rapport ShipGuard
+
+2026-07-22 - SG-001 `r1-z03-001` :
+
+- constat : `run_reports_job` exigeait un zip images, une inspection et un
+  matching images courants, alors que le flux CSV autorise l'absence d'images ;
+- correction locale : les rapports acceptent désormais l'absence totale de zip
+  images, produisent un bilan images à zéro et n'enregistrent pas de source
+  `matching_images` dans le rapport technique ; si un zip images a été fourni,
+  les artefacts inspection et matching restent requis ;
+- orchestration : `rapports` peut être auto-enchaîné après validation CSV sans
+  parent `matching_images` prêt uniquement lorsqu'aucun zip images courant
+  n'existe ;
+- preuve : `tests.test_reports.ReportsApiTest.test_reports_are_generated_without_image_artifacts`,
+  `tests.test_reports`, `tests.test_package tests.test_csv_preview
+  tests.test_invalidation tests.test_worker`, puis `python -m unittest discover
+  -s tests` avec 177 tests OK et 2 tests sautés ;
+- limite : le comportement du package final sans images reste porté par le
+  ticket 22 et n'est pas étendu par ce correctif.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)

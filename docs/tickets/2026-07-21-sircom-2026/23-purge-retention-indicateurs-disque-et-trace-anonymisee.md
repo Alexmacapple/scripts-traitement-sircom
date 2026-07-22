@@ -34,6 +34,34 @@ Preuve attendue :
 
 - tests de purge sur data dir temporaire.
 
+## Complément rapport ShipGuard - 2026-07-22
+
+Finding traité : `SG-001`, origine stable `r1-z03-004`.
+
+Titre ShipGuard : suppression des fichiers par la purge avant durabilité de la
+transaction SQLite.
+
+Décision appliquée : la purge devient résumable en deux temps. Elle persiste
+d'abord une trace `started` et le statut de lot supprimé, puis valide cette
+intention avant de toucher au répertoire du lot. Si la suppression des fichiers
+réussit mais que la finalisation SQL échoue ensuite, un nouvel appel reprend la
+trace `started`, conserve les compteurs de fichiers et d'octets déjà mesurés,
+puis termine les suppressions SQL et passe le lot au statut `purge`.
+
+Preuve locale :
+
+- test ciblé de panne injectée :
+  `tests.test_purge.PurgeTest.test_purge_resumes_after_files_deleted_but_sql_finalization_failed`,
+  `OK` ;
+- suite purge : `tests.test_purge`, `4 tests`, `OK` ;
+- suite API/web proche :
+  `tests.test_purge tests.test_lots_api tests.test_web_socle`, `35 tests`,
+  `OK`.
+
+Limite : ce correctif couvre la cohérence locale disque/SQLite et la reprise
+idempotente. Il ne change pas le hors périmètre du ticket : sauvegarde longue
+durée et tableau de bord complet d'observabilité.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)

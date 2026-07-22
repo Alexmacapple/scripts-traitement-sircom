@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -13,7 +14,8 @@ from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import create_lot_with_steps
-from sircom2026.purge import lot_id_hash, purge_expired_lots
+from sircom2026.purge import delete_lot_and_purge_if_idle, lot_id_hash, purge_expired_lots
+from sircom2026 import purge as purge_module
 from sircom2026.state import record_problem
 from sircom2026.worker import JobResult, WorkerJobContext, enqueue_job
 from sircom2026.worker_runner import run_worker_once
@@ -218,6 +220,86 @@ class PurgeTest(unittest.TestCase):
             "evenements": 0,
             "problemes": 0,
         })
+
+    def test_purge_resumes_after_files_deleted_but_sql_finalization_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            settings = make_settings(tmpdir)
+            database = Database(settings.sqlite_path)
+            database.migrate()
+
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot reprise purge")
+                lot_id = lot["id"]
+                lot_dir = settings.data_dir / "lots" / lot_id
+                lot_dir.mkdir(parents=True)
+                (lot_dir / "artefact.txt").write_text("contenu temporaire", encoding="utf-8")
+
+            real_remove_lot_directory = purge_module.remove_lot_directory
+
+            def remove_then_fail(path: Path):
+                usage = real_remove_lot_directory(path)
+                raise RuntimeError(f"panne apres suppression de {usage.files_count} fichier")
+
+            with patch("sircom2026.purge.remove_lot_directory", side_effect=remove_then_fail):
+                with self.assertRaises(RuntimeError):
+                    with database.transaction() as repositories:
+                        delete_lot_and_purge_if_idle(
+                            repositories,
+                            settings=settings,
+                            lot_id=lot_id,
+                        )
+
+            with database.session() as repositories:
+                lot_after_failure = repositories.lots.get_required(lot_id)
+                trace_after_failure = repositories.purge_traces.get_by_lot_id_hash(
+                    lot_id_hash(lot_id)
+                )
+                rows_after_failure = {
+                    table: int(
+                        repositories.connection.execute(
+                            f"SELECT COUNT(*) FROM {table} WHERE lot_id = ?",
+                            (lot_id,),
+                        ).fetchone()[0]
+                    )
+                    for table in ("etapes", "jobs", "artefacts", "evenements", "problemes")
+                }
+                lot_dir_exists_after_failure = lot_dir.exists()
+
+            with database.transaction() as repositories:
+                resumed_outcome = delete_lot_and_purge_if_idle(
+                    repositories,
+                    settings=settings,
+                    lot_id=lot_id,
+                )
+
+            with database.session() as repositories:
+                lot_after_resume = repositories.lots.get_required(lot_id)
+                trace_after_resume = repositories.purge_traces.get_by_lot_id_hash(
+                    lot_id_hash(lot_id)
+                )
+            rows_after_resume = count_lot_rows(database, lot_id)
+            lot_dir_exists_after_resume = lot_dir.exists()
+
+        self.assertEqual(lot_after_failure["status"], "supprime")
+        self.assertFalse(lot_dir_exists_after_failure)
+        self.assertIsNotNone(trace_after_failure)
+        self.assertEqual(json.loads(trace_after_failure["trace_json"])["purge"]["status"], "started")
+        self.assertGreater(rows_after_failure["etapes"], 0)
+        self.assertEqual(resumed_outcome.purge_status, "purged")
+        self.assertEqual(lot_after_resume["status"], "purge")
+        self.assertFalse(lot_dir_exists_after_resume)
+        self.assertEqual(rows_after_resume, {
+            "etapes": 0,
+            "jobs": 0,
+            "artefacts": 0,
+            "evenements": 0,
+            "problemes": 0,
+        })
+        resumed_trace = json.loads(trace_after_resume["trace_json"])
+        self.assertEqual(resumed_trace["purge"]["status"], "completed")
+        self.assertEqual(resumed_trace["purge"]["files_deleted"], 1)
+        self.assertGreater(resumed_trace["purge"]["bytes_deleted"], 0)
 
     def test_retention_purge_only_removes_expired_deleted_lots(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

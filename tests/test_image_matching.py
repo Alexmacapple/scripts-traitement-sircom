@@ -53,6 +53,21 @@ def zip_bytes(entries: list[tuple[str, bytes]]) -> bytes:
     return output.getvalue()
 
 
+def zip_bytes_with_encrypted_flag(entries: list[tuple[str, bytes]]) -> bytes:
+    content = bytearray(zip_bytes(entries))
+    for signature, flags_offset in ((b"PK\x03\x04", 6), (b"PK\x01\x02", 8)):
+        start = 0
+        while True:
+            index = content.find(signature, start)
+            if index < 0:
+                break
+            offset = index + flags_offset
+            flags = int.from_bytes(content[offset : offset + 2], "little") | 0x1
+            content[offset : offset + 2] = flags.to_bytes(2, "little")
+            start = index + 4
+    return bytes(content)
+
+
 def image_zip_file(content: bytes) -> dict[str, tuple[str, bytes, str]]:
     return {"file": ("images.zip", content, "application/zip")}
 
@@ -137,7 +152,7 @@ def normalized_payload(rows: list[tuple[str, str]]) -> dict[str, Any]:
 def inspection_payload(names: list[str]) -> dict[str, Any]:
     return {
         "schema_version": 1,
-        "rules_version": "image-zip-inspection-v1",
+        "rules_version": "image-zip-inspection-v2",
         "inspectable": True,
         "image_count": len(names),
         "images": [
@@ -264,6 +279,28 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertEqual(binding["source_name"], None)
         self.assertEqual(binding["suggestions"][0]["name"], "produit-retouche.jpg")
 
+    def test_final_jpg_name_collision_blocks_matching(self) -> None:
+        matching = build_image_matching_payload(
+            normalized_payload([("A.B", "photo-a.jpg"), ("AB", "photo-b.jpg")]),
+            inspection_payload(["photo-a.jpg", "photo-b.jpg"]),
+            source_image_zip_artifact=source_artifact(),
+            source_normalization_artifact_id="artifact_normalized",
+            source_inspection_artifact_id="artifact_inspection",
+            indesign_image_root="/Users/victoria/Documents/export-jpg-resize",
+        )
+
+        rows = row_by_id(matching)
+        self.assertTrue(matching["blocking"])
+        self.assertEqual(matching["ambiguous_count"], 2)
+        self.assertEqual(rows["A.B"]["imageid"], "dossier-ab.jpg")
+        self.assertEqual(rows["AB"]["imageid"], "dossier-ab.jpg")
+        self.assertEqual(rows["A.B"]["status"], "ambiguous")
+        self.assertEqual(rows["AB"]["status"], "ambiguous")
+        self.assertEqual(rows["A.B"]["match_level"], "final_name_collision")
+        self.assertEqual(rows["AB"]["match_level"], "final_name_collision")
+        self.assertIsNone(rows["A.B"]["source_name"])
+        self.assertIsNone(rows["AB"]["source_name"])
+
     def test_tolerant_ambiguity_blocks_until_manual_resolution(self) -> None:
         unresolved = build_image_matching_payload(
             normalized_payload([("ID-A", "Photo A.jpg")]),
@@ -332,6 +369,33 @@ class ImageMatchingRulesTest(unittest.TestCase):
             binding["pathimg"],
             "/Users/victoria/Documents/export-jpg-resize/dossier-id4-a.jpg",
         )
+
+    def test_processed_zip_marks_encrypted_entry_as_conversion_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / "images.zip"
+            zip_path.write_bytes(
+                zip_bytes_with_encrypted_flag([("secret.PNG", image_bytes())])
+            )
+            matching = build_image_matching_payload(
+                normalized_payload([("ID-SECRET", "secret.png")]),
+                inspection_payload(["secret.PNG"]),
+                source_image_zip_artifact=source_artifact(),
+                source_normalization_artifact_id="artifact_normalized",
+                source_inspection_artifact_id="artifact_inspection",
+                indesign_image_root="/Users/victoria/Documents/export-jpg-resize",
+            )
+
+            processed = build_processed_images_zip(zip_path, matching)
+
+            with zipfile.ZipFile(BytesIO(processed)) as archive:
+                names = archive.namelist()
+
+        binding = matching["bindings"][0]
+        self.assertEqual(names, [f"{EXPORT_IMAGES_FOLDER}/"])
+        self.assertEqual(binding["status"], "conversion_failed")
+        self.assertEqual(binding["pathimg"], "")
+        self.assertEqual(binding["conversion_error"], "RuntimeError")
+        self.assertIsNone(binding["final_sha256"])
 
 
 class ImageMatchingApiTest(unittest.TestCase):

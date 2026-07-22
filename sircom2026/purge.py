@@ -122,25 +122,40 @@ def purge_lot(
             trace=serialize_purge_trace(existing_trace),
         )
 
-    trace_payload = build_purge_trace(repositories, lot=lot, lot_dir=lot_dir)
-    purged_at = utc_now()
-    trace_payload["purge"] = {
-        "status": "started",
-        "files_deleted": 0,
-        "bytes_deleted": 0,
-        "rows_deleted": {},
-    }
-    repositories.purge_traces.upsert(
-        lot_id_hash=trace_hash,
-        lot_created_at=lot["created_at"],
-        lot_deleted_at=lot["deleted_at"],
-        purged_at=purged_at,
-        final_status=lot["status"],
-        trace=trace_payload,
-        trace_schema_version=PURGE_TRACE_SCHEMA_VERSION,
-    )
+    if existing_trace and _trace_purge_status(existing_trace) == "started":
+        trace_payload = json_dict(existing_trace["trace_json"])
+        purged_at = existing_trace["purged_at"]
+    else:
+        trace_payload = build_purge_trace(repositories, lot=lot, lot_dir=lot_dir)
+        purged_at = utc_now()
+        trace_payload["purge"] = {
+            "status": "started",
+            "files_deleted": 0,
+            "bytes_deleted": 0,
+            "rows_deleted": {},
+        }
+        repositories.purge_traces.upsert(
+            lot_id_hash=trace_hash,
+            lot_created_at=lot["created_at"],
+            lot_deleted_at=lot["deleted_at"],
+            purged_at=purged_at,
+            final_status=lot["status"],
+            trace=trace_payload,
+            trace_schema_version=PURGE_TRACE_SCHEMA_VERSION,
+        )
 
+    # The file deletion cannot roll back. Commit the recoverable "started" trace
+    # and the deleted status before touching the filesystem.
+    repositories.connection.commit()
+    lot_dir_exists_before_delete = lot_dir.exists()
     deleted_usage = remove_lot_directory(lot_dir)
+    if (
+        existing_trace
+        and not lot_dir_exists_before_delete
+        and deleted_usage.files_count == 0
+        and deleted_usage.bytes_count == 0
+    ):
+        deleted_usage = _usage_from_trace(trace_payload)
     rows_deleted: dict[str, int] = {}
     for table in PURGED_CHILD_TABLES:
         cursor = repositories.connection.execute(
@@ -367,6 +382,27 @@ def serialize_purge_trace(row: dict[str, Any] | None) -> dict[str, Any] | None:
         "trace_schema_version": row["trace_schema_version"],
         "trace": json_dict(row["trace_json"]),
     }
+
+
+def _trace_purge_status(row: dict[str, Any]) -> str | None:
+    trace = json_dict(row["trace_json"])
+    purge = trace.get("purge")
+    if not isinstance(purge, dict):
+        return None
+    status = purge.get("status")
+    return str(status) if status is not None else None
+
+
+def _usage_from_trace(trace_payload: dict[str, Any]) -> DirectoryUsage:
+    sizes = trace_payload.get("sizes")
+    counters = trace_payload.get("counters")
+    bytes_count = 0
+    files_count = 0
+    if isinstance(sizes, dict):
+        bytes_count = int(sizes.get("lot_dir_bytes") or 0)
+    if isinstance(counters, dict):
+        files_count = int(counters.get("files_count") or 0)
+    return DirectoryUsage(bytes_count=bytes_count, files_count=files_count)
 
 
 def lot_storage_dir(data_dir: Path, lot_id: str) -> Path:

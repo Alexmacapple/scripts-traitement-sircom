@@ -21,6 +21,7 @@ from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError, sha256
 from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import create_lot_with_steps
+from sircom2026.state import complete_step
 
 
 def make_settings(tmpdir: Path):
@@ -664,6 +665,104 @@ class ArtifactDownloadApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(artifact_after["status"], "obsolete")
         self.assertEqual(problem["code"], "SIRCOM_ARTIFACT_FILE_MISSING")
+
+    def test_session_persists_artifact_read_repairs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp))
+            database = Database(settings.sqlite_path)
+            database.migrate()
+            store = ArtifactStore(settings.data_dir)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot réparation lecture")
+                create_active_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="upload_excel",
+                    run_id="run_1",
+                )
+                artifact = store.put_temp_then_commit(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="upload_excel",
+                    run_id="run_1",
+                    kind="excel",
+                    role="source",
+                    filename="source.xlsx",
+                    content=b"source",
+                    lease_version=1,
+                )
+
+            store.path_for(artifact["relative_path"]).unlink()
+            with database.session() as repositories:
+                with self.assertRaises(ArtifactUnavailableError):
+                    store.open_for_read(
+                        repositories,
+                        lot_id=lot["id"],
+                        artifact_id=artifact["id"],
+                    )
+
+            with database.session() as repositories:
+                artifact_after = repositories.artifacts.get_required(artifact["id"])
+                problem = repositories.connection.execute(
+                    "SELECT code, status FROM problemes WHERE lot_id = ?",
+                    (lot["id"],),
+                ).fetchone()
+
+        self.assertEqual(artifact_after["status"], "obsolete")
+        self.assertIsNotNone(problem)
+        self.assertEqual(problem["code"], "SIRCOM_ARTIFACT_FILE_MISSING")
+        self.assertEqual(problem["status"], "open")
+
+    def test_artifact_read_repair_recomputes_lot_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp))
+            database = Database(settings.sqlite_path)
+            database.migrate()
+            store = ArtifactStore(settings.data_dir)
+            with database.transaction() as repositories:
+                lot = create_lot_with_steps(repositories, title="Lot réparation statut")
+                for step in repositories.steps.list_for_lot(lot["id"]):
+                    if step["step_key"] != "upload_excel":
+                        repositories.steps.update_status(step["id"], "ignore")
+                create_active_job(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="upload_excel",
+                    run_id="run_1",
+                )
+                artifact = store.put_temp_then_commit(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="upload_excel",
+                    run_id="run_1",
+                    kind="excel",
+                    role="source",
+                    filename="source.xlsx",
+                    content=b"source",
+                    lease_version=1,
+                )
+                complete_step(
+                    repositories,
+                    lot_id=lot["id"],
+                    step_key="upload_excel",
+                    run_id="run_1",
+                )
+                lot_before = repositories.lots.get_required(lot["id"])
+
+            store.path_for(artifact["relative_path"]).unlink()
+            with database.session() as repositories:
+                with self.assertRaises(ArtifactUnavailableError):
+                    store.open_for_read(
+                        repositories,
+                        lot_id=lot["id"],
+                        artifact_id=artifact["id"],
+                    )
+
+            with database.session() as repositories:
+                lot_after = repositories.lots.get_required(lot["id"])
+
+        self.assertEqual(lot_before["status"], "termine")
+        self.assertEqual(lot_after["status"], "termine_avec_alertes")
 
     def test_download_hidden_404_is_indistinguishable_for_non_current_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -341,6 +341,18 @@ def build_image_matching_payload(
         for source_name, count in Counter(resolutions.values()).items()
         if count > 1
     }
+    final_names_by_id: dict[str, str] = {}
+    for source_row in normalized_payload.get("rows", []):
+        if not isinstance(source_row, dict):
+            continue
+        id_dossier = str(source_row.get("id_dossier") or "").strip()
+        if id_dossier:
+            final_names_by_id[id_dossier] = image_id_for_dossier(id_dossier)
+    duplicate_final_names = {
+        final_name
+        for final_name, count in Counter(final_names_by_id.values()).items()
+        if count > 1
+    }
     source_columns = _source_image_columns(normalized_payload)
     source_zip_sha256 = str(source_image_zip_artifact.get("sha256") or "")
     rules_fingerprint = fingerprint_payload(
@@ -364,7 +376,7 @@ def build_image_matching_payload(
             continue
         values = source_row.get("values") if isinstance(source_row.get("values"), dict) else {}
         original_names = _source_image_values(values, source_columns)
-        final_name = image_id_for_dossier(id_dossier)
+        final_name = final_names_by_id[id_dossier]
         manual_source = resolutions.get(id_dossier)
         binding = _match_row_image(
             id_dossier=id_dossier,
@@ -372,6 +384,7 @@ def build_image_matching_payload(
             final_name=final_name,
             manual_source=manual_source,
             duplicate_manual_sources=duplicate_manual_sources,
+            duplicate_final_names=duplicate_final_names,
             image_inventory=image_inventory,
             source_artifact_id=str(source_image_zip_artifact["id"]),
             source_zip_sha256=source_zip_sha256,
@@ -430,7 +443,13 @@ def build_processed_images_zip(source_zip_path: Path, matching_payload: dict[str
                         continue
                     try:
                         final_content = _convert_source_image_to_jpeg(source, source_name)
-                    except (KeyError, OSError, UnidentifiedImageError, ValueError) as exc:
+                    except (
+                        KeyError,
+                        OSError,
+                        RuntimeError,
+                        UnidentifiedImageError,
+                        ValueError,
+                    ) as exc:
                         binding["status"] = "conversion_failed"
                         binding["pathimg"] = ""
                         binding["conversion_error"] = exc.__class__.__name__
@@ -720,6 +739,7 @@ def _match_row_image(
     final_name: str,
     manual_source: str | None,
     duplicate_manual_sources: set[str],
+    duplicate_final_names: set[str],
     image_inventory: dict[str, Any],
     source_artifact_id: str,
     source_zip_sha256: str,
@@ -745,6 +765,12 @@ def _match_row_image(
         "candidates": [],
         "suggestions": [],
     }
+    if final_name in duplicate_final_names:
+        return {
+            **base,
+            "status": "ambiguous",
+            "match_level": "final_name_collision",
+        }
     if manual_source:
         manual_match = _image_by_name(image_inventory, manual_source)
         if manual_source in duplicate_manual_sources or manual_match is None:

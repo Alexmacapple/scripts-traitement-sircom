@@ -19,14 +19,6 @@ from sircom2026.database import Database
 from sircom2026.worker_runner import run_worker_once
 
 
-REFERENCE_CSV_2025 = (
-    Path(__file__).resolve().parents[1]
-    / "livrables-miweb-2025"
-    / "livrables-miweb-1-2025"
-    / "9-final-sircom-indesign-utf16.csv"
-)
-
-
 def make_settings(tmpdir: Path):
     return load_settings(
         {
@@ -57,6 +49,21 @@ def create_csv_contract_workbook(path: Path) -> None:
     sheet.append(["ID-2", "", 'Texte "fin"'])
     workbook.save(path)
     workbook.close()
+
+
+def synthetic_reference_csv_2025_bytes() -> bytes:
+    return write_indesign_csv_bytes(
+        ["id_dossier", "imageid", "@pathimg", "b_region", "c_nom"],
+        [
+            [
+                "ID-1",
+                "dossier-id-1.jpg",
+                "/Users/victoria/Documents/export-jpg-resize/dossier-id-1.jpg",
+                "Bretagne",
+                "Produit",
+            ]
+        ],
+    )
 
 
 def mapping_submission(mapping: dict[str, Any]) -> dict[str, Any]:
@@ -181,7 +188,7 @@ class CsvContractTest(unittest.TestCase):
         )
 
         comparison = compare_csv_format_to_reference(
-            REFERENCE_CSV_2025.read_bytes(),
+            synthetic_reference_csv_2025_bytes(),
             candidate,
         )
 

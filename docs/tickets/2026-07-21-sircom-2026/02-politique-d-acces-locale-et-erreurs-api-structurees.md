@@ -38,6 +38,23 @@ Preuve attendue :
 
 - tests API montrant le refus d'un accès par politique.
 
+Complément rapport ShipGuard - 2026-07-22 :
+
+- Finding : `SG-001` / `r1-z02-001`, « Les mutations locales ne vérifient ni
+  origine ni jeton CSRF ».
+- Ticket concerné : ticket 02, car le risque porte sur la frontière
+  d'autorisation locale, pas sur un ticket applicatif aval.
+- Décision locale appliquée : les méthodes mutatrices `POST`, `PUT`, `PATCH` et
+  `DELETE` passent maintenant par un contrôle `Origin` / `Referer`
+  same-origin avant l'autorisation locale.
+- Preuves : le test ciblé refuse `POST /api/lots` avec `Origin:
+  https://example.invalid`, refuse `Referer: https://example.invalid/piege`,
+  accepte `Origin: http://testserver`, puis la suite locale passe avec
+  `174 tests`, `OK`, `2 skipped`.
+- Limite conservée : les requêtes sans `Origin` ni `Referer` restent acceptées
+  pour préserver les scripts locaux et clients API directs ; l'authentification
+  VPS réelle reste hors périmètre V1.
+
 ---
 
 Parent : [index des tickets Sircom 2026](../2026-07-21-tickets-implementation-sircom-2026.md)
