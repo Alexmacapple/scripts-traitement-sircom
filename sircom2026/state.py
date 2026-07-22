@@ -95,7 +95,7 @@ def transition_step(
         severity="alerte",
     ):
         raise StateTransitionError(
-            "Une etape avec alerte ouverte doit etre marquee termine_avec_alertes."
+            "Une étape avec alerte ouverte doit être marquée termine_avec_alertes."
         )
 
     updated_step = repositories.steps.update_status(step["id"], status, run_id=run_id)

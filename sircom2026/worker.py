@@ -437,7 +437,7 @@ class LocalWorker:
                 code="SIRCOM_WORKER_UNEXPECTED_ERROR",
                 title="Erreur technique du worker",
                 cause="Le traitement local s'est interrompu sur une erreur inattendue.",
-                action="Consulter le journal technique, corriger la cause puis relancer l'etape.",
+                action="Consulter le journal technique, corriger la cause puis relancer l'étape.",
                 technical={"error_code": error_code},
             )
             return True

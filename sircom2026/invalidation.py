@@ -300,12 +300,12 @@ def retry_step(
                 obsolete_artifacts_count=0,
                 canceled_jobs_count=0,
             )
-        raise RetryNotAllowedError("Cette cle d'idempotence a deja ete consommee.")
+        raise RetryNotAllowedError("Cette clé d'idempotence a déjà été consommée.")
 
     if step["status"] not in RETRYABLE_STEP_STATUSES:
-        raise RetryNotAllowedError("Cette etape ne peut pas etre relancee dans son etat courant.")
+        raise RetryNotAllowedError("Cette étape ne peut pas être relancée dans son état courant.")
     if step_key not in V1_WORKER_STEP_KEYS:
-        raise RetryNotAllowedError("Cette etape attend une action utilisateur, pas un worker.")
+        raise RetryNotAllowedError("Cette étape attend une action utilisateur, pas un worker.")
 
     input_fingerprint = step_input_fingerprint(
         repositories,
@@ -366,7 +366,7 @@ def _require_known_step(step_key: str) -> None:
 def _require_mutable_lot(repositories: Repositories, lot_id: str) -> dict[str, Any]:
     lot = repositories.lots.get_required(lot_id)
     if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
-        raise RetryNotAllowedError("Le lot annule ou supprime ne peut plus etre modifie.")
+        raise RetryNotAllowedError("Le lot annulé ou supprimé ne peut plus être modifié.")
     return lot
 
 
