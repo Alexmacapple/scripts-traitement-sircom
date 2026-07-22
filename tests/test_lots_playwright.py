@@ -10,6 +10,7 @@ import time
 import unittest
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -31,6 +32,7 @@ def make_settings(tmpdir: Path):
             "SIRCOM_DATA_DIR": str(tmpdir / "data"),
             "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
             "SIRCOM_DISK_FREE_MIN_MB": "0",
+            "SIRCOM_WORKER_ENABLED": "false",
         }
     )
 
@@ -186,7 +188,9 @@ class LotsPlaywrightTest(unittest.TestCase):
                     page.evaluate("document.activeElement && document.activeElement.id"),
                     "excel-upload-submit",
                 )
-                worker_result = run_worker_once(settings=server.settings)
+                worker_result = run_worker_once(
+                    settings=replace(server.settings, worker_enabled=True)
+                )
                 self.assertIn(worker_result.outcome, {"succeeded", "idle"})
                 page.goto(
                     f"{server.base_url}/lots/{lot_id}/excel?view=diagnostic_excel",
@@ -349,15 +353,13 @@ class LotsPlaywrightTest(unittest.TestCase):
                     ).is_visible()
                 )
 
-            with database.session() as repositories:
-                step = repositories.steps.get_by_lot_key(
-                    str(lot["id"]),
-                    "diagnostic_excel",
-                )
-                job = repositories.jobs.get_active_for_step(
-                    lot_id=str(lot["id"]),
-                    step_key="diagnostic_excel",
-                )
+            step, job = wait_for_step_and_job_state(
+                database,
+                lot_id=str(lot["id"]),
+                step_key="diagnostic_excel",
+                step_status="pret",
+                job_status="queued",
+            )
 
         self.assertIsNotNone(step)
         self.assertEqual(step["status"], "pret")
@@ -368,6 +370,43 @@ class LotsPlaywrightTest(unittest.TestCase):
 def assert_png_screenshot(test_case: unittest.TestCase, screenshot: bytes) -> None:
     test_case.assertTrue(screenshot.startswith(b"\x89PNG\r\n\x1a\n"))
     test_case.assertGreater(len(screenshot), 10_000)
+
+
+def wait_for_step_and_job_state(
+    database: Database,
+    *,
+    lot_id: str,
+    step_key: str,
+    step_status: str,
+    job_status: str,
+    timeout: float = 5,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    deadline = time.monotonic() + timeout
+    last_step: dict[str, Any] | None = None
+    last_job: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        with database.session() as repositories:
+            last_step = repositories.steps.get_by_lot_key(lot_id, step_key)
+            last_job = repositories.jobs.get_active_for_step(
+                lot_id=lot_id,
+                step_key=step_key,
+            )
+        if (
+            last_step is not None
+            and last_job is not None
+            and last_step["status"] == step_status
+            and last_job["status"] == job_status
+        ):
+            return last_step, last_job
+        time.sleep(0.1)
+
+    observed_step = None if last_step is None else last_step["status"]
+    observed_job = None if last_job is None else last_job["status"]
+    raise AssertionError(
+        f"Timed out waiting for {step_key}: "
+        f"step={step_status!r}, job={job_status!r}; "
+        f"observed step={observed_step!r}, job={observed_job!r}."
+    )
 
 
 def write_workbook(path: Path) -> None:
