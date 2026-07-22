@@ -36,11 +36,15 @@ class ShellHtmlParser(HTMLParser):
         self.elements_by_id: dict[str, HtmlElement] = {}
         self.asset_paths: list[str] = []
         self.anchor_refs: list[str] = []
+        self.buttons: list[tuple[dict[str, str], str]] = []
+        self._button_stack: list[tuple[dict[str, str], list[str]]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr_map = {name: value or "" for name, value in attrs}
         element = HtmlElement(tag=tag, attrs=attr_map)
         self.elements.append(element)
+        if tag == "button":
+            self._button_stack.append((attr_map, []))
 
         element_id = attr_map.get("id")
         if element_id:
@@ -55,6 +59,15 @@ class ShellHtmlParser(HTMLParser):
             path = attr_map.get(key, "")
             if path.startswith("/static/"):
                 self.asset_paths.append(path)
+
+    def handle_data(self, data: str) -> None:
+        if self._button_stack:
+            self._button_stack[-1][1].append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "button" and self._button_stack:
+            attrs, text_parts = self._button_stack.pop()
+            self.buttons.append((attrs, " ".join(text_parts).strip()))
 
 
 def make_settings(tmpdir: Path, **overrides: str):
@@ -301,21 +314,20 @@ class WebSocleTest(unittest.TestCase):
         self.assertIn('class="fr-header__logo"', html)
         self.assertIn('class="fr-logo"', html)
         self.assertIn("République<br>Française", html)
-        self.assertIn('id="header-menu-button"', html)
-        self.assertIn('aria-controls="header-menu"', html)
-        self.assertIn('aria-haspopup="dialog"', html)
-        self.assertIn(
-            '<div class="fr-header__menu fr-modal" id="header-menu" role="dialog" aria-labelledby="header-menu-button">',
-            html,
-        )
-        self.assertNotIn(
-            '<div class="fr-header__menu fr-modal" id="header-menu" aria-labelledby="header-menu-button">',
-            html,
-        )
-        self.assertNotIn('<nav class="fr-nav" role="navigation"', html)
-        self.assertIn('class="fr-btn--close fr-btn"', html)
+        self.assertNotIn('id="header-menu-button"', html)
+        self.assertNotIn('id="header-menu"', html)
+        self.assertNotIn('<nav class="fr-nav"', html)
+        self.assertNotIn('href="#navigation"', html)
+        self.assertIn('href="#footer"', html)
         self.assertIn('<main id="contenu"', html)
-        self.assertIn('<footer class="fr-footer" role="contentinfo">', html)
+        self.assertIn('<footer class="fr-footer" id="footer" role="contentinfo">', html)
+        self.assertIn('class="fr-footer__brand fr-enlarge-link"', html)
+        header_html = html.split("<main", 1)[0]
+        footer_html = html.split('<footer class="fr-footer" id="footer"', 1)[1]
+        self.assertNotIn('href="/docs">API</a>', header_html)
+        self.assertNotIn('href="/health">Santé</a>', header_html)
+        self.assertIn('href="/docs">API</a>', footer_html)
+        self.assertIn('href="/health">Santé</a>', footer_html)
         self.assertIn('class="fr-footer__bottom"', html)
         self.assertIn("Accessibilité : non auditée", html)
         self.assertIn("/static/dsfr/1.14.4/dsfr.min.css", html)
@@ -354,7 +366,13 @@ class WebSocleTest(unittest.TestCase):
         }
         for element in parser.elements:
             role = element.attrs.get("role", "")
-            if element.tag == "div" and "aria-labelledby" in element.attrs and role in disallowed_generic_roles:
+            classes = set(element.attrs.get("class", "").split())
+            if (
+                element.tag == "div"
+                and "aria-labelledby" in element.attrs
+                and "fr-header__menu" not in classes
+                and role in disallowed_generic_roles
+            ):
                 labelledby_violations.append(element.attrs)
         self.assertEqual(labelledby_violations, [])
 
@@ -375,18 +393,55 @@ class WebSocleTest(unittest.TestCase):
         self.assertEqual(missing_labelledby, [])
         self.assertEqual(missing_anchors, [])
 
-        menu_button = parser.elements_by_id["header-menu-button"]
-        header_menu = parser.elements_by_id["header-menu"]
-        self.assertEqual(menu_button.attrs["aria-haspopup"], "dialog")
-        self.assertEqual(menu_button.attrs["aria-controls"], "header-menu")
-        self.assertEqual(header_menu.attrs["role"], "dialog")
-
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
             missing_assets = [
                 path for path in parser.asset_paths if client.get(path).status_code != 200
             ]
         self.assertEqual(missing_assets, [])
+
+    def test_lot_step_buttons_have_visible_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+            lot_id = client.post("/api/lots", json={"title": "Lot boutons"}).json()["lot"]["id"]
+
+            response = client.get(f"/?lot_id={lot_id}")
+
+        self.assertEqual(response.status_code, 200)
+        parser = ShellHtmlParser()
+        parser.feed(response.text)
+        unlabeled_buttons = [
+            attrs
+            for attrs, text in parser.buttons
+            if not re.sub(r"\s+", " ", text).strip()
+        ]
+        self.assertEqual(unlabeled_buttons, [])
+
+    def test_footer_information_links_return_dsfr_pages(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            responses = {
+                path: client.get(path)
+                for path in (
+                    "/plan-du-site",
+                    "/accessibilite",
+                    "/mentions-legales",
+                    "/donnees-personnelles",
+                    "/gestion-cookies",
+                )
+            }
+
+        for path, response in responses.items():
+            with self.subTest(path=path):
+                self.assertEqual(response.status_code, 200)
+                self.assertIn('<html lang="fr">', response.text)
+                self.assertIn('<header class="fr-header" role="banner">', response.text)
+                self.assertIn('<footer class="fr-footer" id="footer" role="contentinfo">', response.text)
+                self.assertIn('href="/docs">API</a>', response.text)
+                self.assertIn('href="/health">Santé</a>', response.text)
+                self.assertNotIn('href="#"', response.text)
+                self.assertNotIn("conforme RGAA", response.text)
 
     def test_local_dsfr_static_assets_are_served(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

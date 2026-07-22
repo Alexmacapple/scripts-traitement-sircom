@@ -80,7 +80,7 @@ class ImageZipUploadApiTest(unittest.TestCase):
             worker_result = run_worker_once(settings=settings)
             status_response = client.get(f"/api/lots/{lot_id}/images/status")
             lot_response = client.get(f"/api/lots/{lot_id}")
-            ui_response = client.get(f"/?lot_id={lot_id}")
+            ui_response = client.get(f"/?lot_id={lot_id}&view=inspection_images")
 
         self.assertEqual(response.status_code, 202)
         self.assertEqual(artifact["kind"], "zip")
@@ -254,7 +254,7 @@ class ImageZipUploadApiTest(unittest.TestCase):
                 "id"
             ]
 
-            response = client.get(f"/?lot_id={lot_id}")
+            response = client.get(f"/?lot_id={lot_id}&view=upload_images")
 
         html = response.text
         self.assertEqual(response.status_code, 200)

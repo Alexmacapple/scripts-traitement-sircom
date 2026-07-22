@@ -11,6 +11,7 @@ const csvPreviewValidateButtons = document.querySelectorAll("[data-csv-preview-v
 const packageGenerateButtons = document.querySelectorAll("[data-package-generate-lot-id]");
 const retryButtons = document.querySelectorAll("[data-retry-step-key]");
 const imageResolutionForms = document.querySelectorAll("[data-image-resolution-form]");
+const postSubmitFocusKey = "sircom2026.postSubmitFocus";
 let createLotInFlight = false;
 let createLotIdempotencyKey = null;
 let excelUploadInFlight = false;
@@ -30,7 +31,6 @@ function showError(title, cause, action) {
   setStructuredLine(causeElement, "Cause :", cause);
   setStructuredLine(actionElement, "Action attendue :", action);
   messageBox.hidden = false;
-  messageBox.focus({ preventScroll: false });
 }
 
 function setStructuredLine(element, label, text) {
@@ -57,15 +57,159 @@ function nextIdempotencyKey() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function setButtonBusy(button, busy, busyText) {
+  if (!button) return;
+  if (!button.dataset.defaultText) {
+    button.dataset.defaultText = button.textContent.trim();
+  }
+  if (busy) {
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+    button.setAttribute("aria-busy", "true");
+    if (busyText) {
+      button.textContent = busyText;
+    }
+    return;
+  }
+  button.disabled = false;
+  button.removeAttribute("aria-disabled");
+  button.removeAttribute("aria-busy");
+  button.textContent = button.dataset.defaultText;
+}
+
+function getSessionStorage() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function rememberPostSubmitFocus(targetId, fallbackId) {
+  const storage = getSessionStorage();
+  if (!targetId || !storage) return;
+  try {
+    storage.setItem(
+      postSubmitFocusKey,
+      JSON.stringify({ targetId, fallbackId: fallbackId || "", scrollY: window.scrollY || 0 })
+    );
+  } catch {
+    // Session storage is optional; upload still succeeds without focus restoration.
+  }
+}
+
+function rememberActionFocus(element, fallbackId) {
+  if (!element && !fallbackId) return;
+  if (element && !element.id) {
+    element.id = `sircom-action-${nextIdempotencyKey()}`;
+  }
+  rememberPostSubmitFocus(element ? element.id : fallbackId, fallbackId);
+}
+
+function currentViewKey() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("view") || "";
+}
+
+function lotUrl(lotId, options = {}) {
+  const params = new URLSearchParams();
+  params.set("lot_id", lotId);
+  const view = options.view || currentViewKey();
+  if (view) {
+    params.set("view", view);
+  }
+  if (options.uploaded) {
+    params.set("uploaded", options.uploaded);
+  }
+  return `/?${params.toString()}`;
+}
+
+function restorePostSubmitFocus() {
+  const storage = getSessionStorage();
+  if (!storage) return;
+  let payload = null;
+  try {
+    payload = JSON.parse(storage.getItem(postSubmitFocusKey) || "null");
+    storage.removeItem(postSubmitFocusKey);
+  } catch {
+    storage.removeItem(postSubmitFocusKey);
+    return;
+  }
+  if (!payload || !payload.targetId) return;
+
+  window.requestAnimationFrame(() => {
+    if (Number.isFinite(payload.scrollY)) {
+      window.scrollTo(0, payload.scrollY);
+    }
+    const target = document.getElementById(payload.targetId) ||
+      (payload.fallbackId ? document.getElementById(payload.fallbackId) : null);
+    if (target) {
+      target.focus({ preventScroll: true });
+    }
+  });
+}
+
+function formatFileSize(size) {
+  if (!Number.isFinite(size) || size <= 0) return "";
+  if (size < 1024 * 1024) {
+    return `${Math.round(size / 1024)} Ko`;
+  }
+  return `${(size / 1024 / 1024).toFixed(1)} Mo`;
+}
+
+function initializeUploadSelection(form, options) {
+  if (!form) return;
+  const fileInput = form.querySelector(options.inputSelector);
+  const submitButton = form.querySelector(options.buttonSelector);
+  const selectedMessage = form.querySelector(options.messageSelector);
+  if (!fileInput || !submitButton || !selectedMessage) return;
+
+  const updateSelectedFile = () => {
+    const file = fileInput.files && fileInput.files.length ? fileInput.files[0] : null;
+    submitButton.dataset.uploadReady = file ? "true" : "false";
+    submitButton.removeAttribute("aria-disabled");
+    if (!file) {
+      selectedMessage.textContent = "Aucun fichier sélectionné.";
+      return;
+    }
+    const size = formatFileSize(file.size);
+    selectedMessage.textContent = [
+      `Fichier sélectionné : ${file.name}.`,
+      size ? `Taille : ${size}.` : "",
+      `Cliquer sur « ${submitButton.textContent.trim()} » pour lancer l'upload.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  };
+
+  fileInput.addEventListener("change", updateSelectedFile);
+  updateSelectedFile();
+}
+
+restorePostSubmitFocus();
+
+initializeUploadSelection(excelUploadForm, {
+  inputSelector: "#excel-file",
+  buttonSelector: '[data-upload-submit="excel"]',
+  messageSelector: '[data-file-selected-message="excel"]',
+});
+initializeUploadSelection(imageUploadForm, {
+  inputSelector: "#image-zip-file",
+  buttonSelector: '[data-upload-submit="images"]',
+  messageSelector: '[data-file-selected-message="images"]',
+});
+
 if (createLotForm) {
   createLotForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (createLotInFlight) return;
 
+    const submitButton = event.submitter || createLotForm.querySelector('button[type="submit"]');
     const formData = new FormData(createLotForm);
     const title = String(formData.get("title") || "").trim();
     createLotInFlight = true;
     createLotIdempotencyKey = createLotIdempotencyKey || nextIdempotencyKey();
+    setButtonBusy(submitButton, true, "Création en cours");
 
     try {
       const response = await fetch("/api/lots", {
@@ -81,6 +225,7 @@ if (createLotForm) {
     } catch (error) {
       createLotInFlight = false;
       createLotIdempotencyKey = null;
+      setButtonBusy(submitButton, false);
       showError(
         "Creation impossible",
         error.message,
@@ -95,6 +240,7 @@ if (deleteLotButton) {
     const lotId = deleteLotButton.dataset.lotId;
     if (!lotId) return;
 
+    setButtonBusy(deleteLotButton, true, "Suppression en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}`, {
         method: "DELETE",
@@ -102,6 +248,7 @@ if (deleteLotButton) {
       await parseJsonResponse(response);
       window.location.assign("/");
     } catch (error) {
+      setButtonBusy(deleteLotButton, false);
       showError(
         "Suppression impossible",
         error.message,
@@ -116,6 +263,7 @@ if (excelUploadForm) {
     event.preventDefault();
     if (excelUploadInFlight) return;
 
+    const submitButton = event.submitter || excelUploadForm.querySelector('button[type="submit"]');
     const lotId = excelUploadForm.dataset.excelUploadLotId;
     const fileInput = excelUploadForm.querySelector("#excel-file");
     const file = fileInput && fileInput.files ? fileInput.files[0] : null;
@@ -129,6 +277,7 @@ if (excelUploadForm) {
     }
 
     excelUploadInFlight = true;
+    setButtonBusy(submitButton, true, "Dépôt en cours");
     const formData = new FormData();
     formData.append("file", file);
 
@@ -141,9 +290,11 @@ if (excelUploadForm) {
         body: formData,
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(submitButton, "excel-upload-feedback");
+      window.location.assign(lotUrl(lotId, { view: "upload_excel", uploaded: "excel" }));
     } catch (error) {
       excelUploadInFlight = false;
+      setButtonBusy(submitButton, false);
       showError(
         "Dépôt impossible",
         error.message,
@@ -158,6 +309,7 @@ if (imageUploadForm) {
     event.preventDefault();
     if (imageUploadInFlight) return;
 
+    const submitButton = event.submitter || imageUploadForm.querySelector('button[type="submit"]');
     const lotId = imageUploadForm.dataset.imageUploadLotId;
     const fileInput = imageUploadForm.querySelector("#image-zip-file");
     const file = fileInput && fileInput.files ? fileInput.files[0] : null;
@@ -171,6 +323,7 @@ if (imageUploadForm) {
     }
 
     imageUploadInFlight = true;
+    setButtonBusy(submitButton, true, "Dépôt en cours");
     const formData = new FormData();
     formData.append("file", file);
 
@@ -183,9 +336,11 @@ if (imageUploadForm) {
         body: formData,
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(submitButton, "image-upload-feedback");
+      window.location.assign(lotUrl(lotId, { view: "upload_images", uploaded: "images" }));
     } catch (error) {
       imageUploadInFlight = false;
+      setButtonBusy(submitButton, false);
       showError(
         "Dépôt zip impossible",
         error.message,
@@ -218,13 +373,18 @@ function collectMappingSubmission() {
   };
 }
 
-async function submitMapping(action) {
+async function submitMapping(action, button) {
   if (!mappingForm || mappingInFlight) return;
   const lotId = mappingForm.dataset.mappingLotId;
   const submission = collectMappingSubmission();
   if (!lotId || !submission) return;
 
   mappingInFlight = true;
+  setButtonBusy(
+    button,
+    true,
+    action === "draft" ? "Sauvegarde en cours" : "Validation en cours"
+  );
   const path = action === "draft" ? "draft" : "validate";
   try {
     const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/mapping/${path}`, {
@@ -236,9 +396,11 @@ async function submitMapping(action) {
       body: JSON.stringify(submission),
     });
     await parseJsonResponse(response);
-    window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+    rememberActionFocus(button, "mapping-step-title");
+    window.location.assign(lotUrl(lotId, { view: "mapping" }));
   } catch (error) {
     mappingInFlight = false;
+    setButtonBusy(button, false);
     showError(
       action === "draft" ? "Brouillon impossible" : "Validation impossible",
       error.message,
@@ -250,13 +412,14 @@ async function submitMapping(action) {
 if (mappingForm) {
   mappingForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    submitMapping("validate");
+    const submitButton = event.submitter || mappingForm.querySelector('[data-mapping-action="validate"]');
+    submitMapping("validate", submitButton);
   });
 
   const draftButton = mappingForm.querySelector('[data-mapping-action="draft"]');
   if (draftButton) {
     draftButton.addEventListener("click", () => {
-      submitMapping("draft");
+      submitMapping("draft", draftButton);
     });
   }
 }
@@ -264,11 +427,13 @@ if (mappingForm) {
 if (mappingProfileForm) {
   mappingProfileForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = event.submitter || mappingProfileForm.querySelector('button[type="submit"]');
     const lotId = mappingProfileForm.dataset.mappingProfileLotId;
     if (!lotId) return;
     const formData = new FormData(mappingProfileForm);
     const name = String(formData.get("name") || "").trim();
 
+    setButtonBusy(submitButton, true, "Sauvegarde en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/mapping/profile`, {
         method: "POST",
@@ -278,8 +443,10 @@ if (mappingProfileForm) {
         body: JSON.stringify({ name: name || null }),
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(submitButton, "mapping-profile-name");
+      window.location.assign(lotUrl(lotId, { view: "mapping" }));
     } catch (error) {
+      setButtonBusy(submitButton, false);
       showError(
         "Profil impossible",
         error.message,
@@ -296,6 +463,7 @@ applyMappingProfileButtons.forEach((button) => {
     if (!lotId || !profileId || mappingInFlight) return;
 
     mappingInFlight = true;
+    setButtonBusy(button, true, "Chargement en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/mapping/profile-draft`, {
         method: "POST",
@@ -306,9 +474,11 @@ applyMappingProfileButtons.forEach((button) => {
         body: JSON.stringify({ profile_id: profileId }),
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(button, "mapping-step-title");
+      window.location.assign(lotUrl(lotId, { view: "mapping" }));
     } catch (error) {
       mappingInFlight = false;
+      setButtonBusy(button, false);
       showError(
         "Profil impossible",
         error.message,
@@ -325,6 +495,7 @@ sortDecisionButtons.forEach((button) => {
     if (!lotId || !decision || sortInFlight) return;
 
     sortInFlight = true;
+    setButtonBusy(button, true, "Décision en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/tri/validate`, {
         method: "POST",
@@ -335,9 +506,11 @@ sortDecisionButtons.forEach((button) => {
         body: JSON.stringify({ decision }),
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(button, "sort-title");
+      window.location.assign(lotUrl(lotId, { view: "tri_region_departement" }));
     } catch (error) {
       sortInFlight = false;
+      setButtonBusy(button, false);
       showError(
         "Tri impossible",
         error.message,
@@ -353,6 +526,7 @@ csvPreviewValidateButtons.forEach((button) => {
     if (!lotId || csvPreviewInFlight) return;
 
     csvPreviewInFlight = true;
+    setButtonBusy(button, true, "Validation en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/csv/preview/validate`, {
         method: "POST",
@@ -361,9 +535,11 @@ csvPreviewValidateButtons.forEach((button) => {
         },
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(button, "csv-preview-title");
+      window.location.assign(lotUrl(lotId, { view: "previsualisation_csv" }));
     } catch (error) {
       csvPreviewInFlight = false;
+      setButtonBusy(button, false);
       showError(
         "Validation CSV impossible",
         error.message,
@@ -378,6 +554,7 @@ imageResolutionForms.forEach((form) => {
     event.preventDefault();
     if (imageResolutionInFlight) return;
 
+    const submitButton = event.submitter || form.querySelector('button[type="submit"]');
     const lotId = form.dataset.imageResolutionLotId;
     const idDossier = form.dataset.imageResolutionIdDossier;
     const sourceSelect = form.querySelector('select[name="source_name"]');
@@ -385,6 +562,7 @@ imageResolutionForms.forEach((form) => {
     if (!lotId || !idDossier || !sourceName) return;
 
     imageResolutionInFlight = true;
+    setButtonBusy(submitButton, true, "Validation en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/images/resolutions`, {
         method: "POST",
@@ -397,9 +575,11 @@ imageResolutionForms.forEach((form) => {
         }),
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(submitButton, "image-matching-title");
+      window.location.assign(lotUrl(lotId, { view: "matching_images" }));
     } catch (error) {
       imageResolutionInFlight = false;
+      setButtonBusy(submitButton, false);
       showError(
         "Résolution image impossible",
         error.message,
@@ -416,7 +596,7 @@ packageGenerateButtons.forEach((button) => {
     if (!lotId || packageInFlight) return;
 
     packageInFlight = true;
-    button.disabled = true;
+    setButtonBusy(button, true, "Génération en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/package`, {
         method: "POST",
@@ -427,10 +607,11 @@ packageGenerateButtons.forEach((button) => {
         body: JSON.stringify({ accept_warnings: acceptWarnings }),
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(button, "package-title");
+      window.location.assign(lotUrl(lotId, { view: "package_final" }));
     } catch (error) {
       packageInFlight = false;
-      button.disabled = false;
+      setButtonBusy(button, false);
       showError(
         "Package impossible",
         error.message,
@@ -446,7 +627,7 @@ retryButtons.forEach((button) => {
     const stepKey = button.dataset.retryStepKey;
     if (!lotId || !stepKey || button.disabled) return;
 
-    button.disabled = true;
+    setButtonBusy(button, true, "Relance en cours");
     try {
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/retry`, {
         method: "POST",
@@ -457,9 +638,10 @@ retryButtons.forEach((button) => {
         body: JSON.stringify({ step_key: stepKey }),
       });
       await parseJsonResponse(response);
-      window.location.assign(`/?lot_id=${encodeURIComponent(lotId)}`);
+      rememberActionFocus(button, "timeline-title");
+      window.location.assign(lotUrl(lotId, { view: stepKey }));
     } catch (error) {
-      button.disabled = false;
+      setButtonBusy(button, false);
       showError(
         "Relance impossible",
         error.message,

@@ -230,15 +230,29 @@ class LotsUiTest(unittest.TestCase):
 
         html = response.text
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Créer un lot", html)
+        self.assertIn("Créer ou reprendre un lot", html)
         self.assertIn('label class="fr-label" for="lot-title"', html)
         self.assertIn('id="create-lot-form"', html)
         self.assertIn('href="/?lot_id=', html)
         self.assertIn("Lot UI", html)
-        self.assertIn("Timeline", html)
+        self.assertIn("Étape 1 sur 13", html)
+        self.assertIn("À faire maintenant", html)
+        self.assertIn("Ce qui se passe sur cette étape", html)
+        self.assertIn("Action utilisateur", html)
+        self.assertIn("Traitement local", html)
+        self.assertIn("Résultat attendu", html)
+        self.assertIn("Sélectionner l&#39;Excel", html)
+        self.assertIn("Historique technique des étapes", html)
+        self.assertIn("Workflow d'orchestration", html)
         self.assertIn("Déposer l&#39;Excel", html)
+        self.assertIn("Fichier Excel source", html)
+        self.assertIn("Aucun Excel source uploadé", html)
+        self.assertIn("Uploader l'Excel source", html)
+        self.assertIn("view=upload_excel", html)
+        self.assertIn("view=upload_images", html)
         self.assertIn("Préparer le package final", html)
         self.assertIn('id="delete-lot-button"', html)
+        self.assertIn("/static/sircom.css", html)
         self.assertIn("/static/app.js", html)
         self.assertNotIn('href="#"', html)
         self.assertNotIn(str(Path(tmp)), html)
@@ -258,7 +272,7 @@ class LotsUiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Lot ancien rendu", response.text)
-        self.assertIn("Timeline", response.text)
+        self.assertIn("Historique technique des étapes", response.text)
         self.assertNotIn("Diagnostic Excel", response.text)
 
     def test_home_ui_hides_delete_for_deleted_lot_and_structures_errors(self) -> None:
@@ -315,7 +329,7 @@ class LotsUiTest(unittest.TestCase):
                     run_id="run_mapping_1",
                 )
 
-            response = client.get(f"/?lot_id={lot_id}")
+            response = client.get(f"/?lot_id={lot_id}&view=diagnostic_excel")
 
         html = response.text
         self.assertEqual(response.status_code, 200)
@@ -328,7 +342,8 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn("Onglet Produits, Colonne C", html)
         self.assertIn("Action attendue :", html)
         self.assertIn("Afficher la colonne, puis relancer le diagnostic.", html)
-        self.assertIn("<summary>Détails techniques</summary>", html)
+        self.assertIn("Détails techniques", html)
+        self.assertIn("diagnostic-tech-", html)
         self.assertIn("hidden_columns", html)
         self.assertNotIn("relative_path", html)
         self.assertNotIn("12345678900000", html)
@@ -352,12 +367,12 @@ class LotsUiTest(unittest.TestCase):
                 files=excel_file(fixtures["valid_multi_tabs"]),
                 headers={"X-Idempotency-Key": "ui-diagnostic-pending"},
             )
-            response = client.get(f"/?lot_id={lot_id}")
+            response = client.get(f"/?lot_id={lot_id}&view=diagnostic_excel")
 
         html = response.text
         self.assertEqual(upload.status_code, 202)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Diagnostic Excel", html)
+        self.assertIn("Vérifier l&#39;Excel", html)
         self.assertIn("Diagnostic Excel en attente", html)
         self.assertIn("Le fichier Excel est déposé et le diagnostic est prêt à être lancé.", html)
         self.assertIn("Attendre la fin du traitement, puis actualiser la page.", html)
@@ -380,7 +395,7 @@ class LotsUiTest(unittest.TestCase):
                 headers={"X-Idempotency-Key": "ui-diagnostic-refused"},
             )
             worker_result = run_worker_once(settings=settings)
-            response = client.get(f"/?lot_id={lot_id}")
+            response = client.get(f"/?lot_id={lot_id}&view=diagnostic_excel")
 
         html = response.text
         self.assertEqual(upload.status_code, 202)
@@ -418,7 +433,7 @@ class LotsUiTest(unittest.TestCase):
                 headers={"X-Idempotency-Key": "ui-diagnostic-alerts"},
             )
             worker_result = run_worker_once(settings=settings)
-            response = client.get(f"/?lot_id={lot_id}")
+            response = client.get(f"/?lot_id={lot_id}&view=diagnostic_excel")
 
         html = response.text
         self.assertEqual(upload.status_code, 202)

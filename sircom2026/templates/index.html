@@ -9,6 +9,7 @@
     <link rel="shortcut icon" href="{{ dsfr_assets_path }}/favicon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="{{ dsfr_assets_path }}/dsfr.min.css">
     <link rel="stylesheet" href="{{ dsfr_assets_path }}/utility/icons/icons.min.css">
+    <link rel="stylesheet" href="/static/sircom.css">
   </head>
   <body>
     <div class="fr-skiplinks">
@@ -17,76 +18,37 @@
           <li>
             <a class="fr-link" href="#contenu">Accéder au contenu</a>
           </li>
+          {% if selected_lot %}
+            <li>
+              <a class="fr-link" href="#steps-menu-title">Accéder aux étapes du lot</a>
+            </li>
+          {% endif %}
+          <li>
+            <a class="fr-link" href="#footer">Accéder au pied de page</a>
+          </li>
         </ul>
       </nav>
     </div>
 
-    <header class="fr-header" role="banner">
-      <div class="fr-header__body">
-        <div class="fr-container">
-          <div class="fr-header__body-row">
-            <div class="fr-header__brand fr-enlarge-link">
-              <div class="fr-header__brand-top">
-                <div class="fr-header__logo">
-                  <p class="fr-logo">
-                    République<br>Française
-                  </p>
-                </div>
-                <div class="fr-header__navbar">
-                  <button
-                    id="header-menu-button"
-                    class="fr-btn--menu fr-btn"
-                    data-fr-opened="false"
-                    aria-controls="header-menu"
-                    aria-haspopup="dialog"
-                    title="Menu"
-                    type="button"
-                  >
-                    Menu
-                  </button>
-                </div>
-              </div>
-              <div class="fr-header__service">
-                <a href="/" title="Accueil - {{ app_name }}">{{ app_name }}</a>
-                <p class="fr-header__service-tagline">Interface locale de préparation Sircom</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="fr-header__menu fr-modal" id="header-menu" role="dialog" aria-labelledby="header-menu-button">
-        <div class="fr-container">
-          <button class="fr-btn--close fr-btn" aria-controls="header-menu" title="Fermer" type="button">
-            Fermer
-          </button>
-          <nav class="fr-nav" aria-label="Navigation principale">
-            <ul class="fr-nav__list">
-              <li class="fr-nav__item">
-                <a class="fr-nav__link" href="/" aria-current="page">Accueil</a>
-              </li>
-              <li class="fr-nav__item">
-                <a class="fr-nav__link" href="/docs">API</a>
-              </li>
-              <li class="fr-nav__item">
-                <a class="fr-nav__link" href="/health">Santé</a>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </header>
+    {% include "partials/header.html" %}
 
     <main id="contenu" tabindex="-1">
       <div class="fr-container fr-py-8v">
-        <div class="fr-grid-row fr-grid-row--gutters">
-          <div class="fr-col-12 fr-col-lg-7">
-            <h1>{{ app_name }}</h1>
-            <p class="fr-text--lg">Socle applicatif local.</p>
+        <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+          <div class="fr-col-12 fr-col-lg-8">
+            <p class="fr-badge fr-badge--sm fr-mb-2v">Application locale</p>
+            <h1 class="fr-mb-2v">Préparation Sircom 2026</h1>
+            <p class="fr-text--lead fr-mb-0">
+              Piloter les lots, contrôler les fichiers sources et produire les exports
+              compatibles InDesign.
+            </p>
           </div>
-          <div class="fr-col-12 fr-col-lg-5">
+          <div class="fr-col-12 fr-col-lg-4">
             <div class="fr-callout fr-icon-info-line">
-              <h2 class="fr-callout__title">État</h2>
-              <p class="fr-callout__text">Version {{ app_version }}.</p>
+              <h2 class="fr-callout__title">Service local</h2>
+              <p class="fr-callout__text">
+                Version {{ app_version }}. Données stockées sur ce poste.
+              </p>
             </div>
           </div>
         </div>
@@ -111,32 +73,43 @@
           </p>
         </div>
 
-        <section class="fr-mt-6v" aria-labelledby="create-lot-title">
-          <h2 id="create-lot-title">Créer un lot</h2>
-          <form id="create-lot-form" class="fr-grid-row fr-grid-row--gutters">
-            <div class="fr-col-12 fr-col-md-8">
-              <div class="fr-input-group">
-                <label class="fr-label" for="lot-title">
-                  Nom du lot
-                  <span class="fr-hint-text">Optionnel</span>
-                </label>
-                <input class="fr-input" id="lot-title" name="title" type="text" maxlength="120">
+        <section class="fr-mt-8v" aria-labelledby="create-lot-title">
+          <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+            <div class="fr-col-12 fr-col-lg-5">
+              <h2 id="create-lot-title">Créer ou reprendre un lot</h2>
+              <p class="fr-text--sm fr-mb-0">
+                Un lot regroupe l'Excel, les images, les validations et le package final.
+              </p>
+            </div>
+            <form id="create-lot-form" class="fr-col-12 fr-col-lg-7 fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+              <div class="fr-col-12 fr-col-md-8">
+                <div class="fr-input-group">
+                  <label class="fr-label" for="lot-title">
+                    Nom du lot (optionnel)
+                    <span class="fr-hint-text">Exemple : sélection Made in France 2026.</span>
+                  </label>
+                  <input class="fr-input" id="lot-title" name="title" type="text" maxlength="120">
+                </div>
               </div>
-            </div>
-            <div class="fr-col-12 fr-col-md-4 fr-col--middle">
-              <button class="fr-btn fr-icon-add-line fr-btn--icon-left" type="submit">
-                Créer
-              </button>
-            </div>
-          </form>
+              <div class="fr-col-12 fr-col-md-4">
+                <ul class="fr-btns-group fr-btns-group--inline-md">
+                  <li>
+                    <button class="fr-btn fr-icon-add-line fr-btn--icon-left" type="submit">
+                      Créer le lot
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </form>
+          </div>
         </section>
 
-        {% if storage %}
-          <section class="fr-mt-6v" aria-labelledby="storage-title">
-            <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
-              <div class="fr-col">
-                <h2 id="storage-title">Stockage local</h2>
-              </div>
+        <section class="fr-mt-8v" aria-labelledby="overview-title">
+          <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+            <div class="fr-col">
+              <h2 id="overview-title">Vue d'ensemble</h2>
+            </div>
+            {% if storage %}
               <div class="fr-col-auto">
                 {% if storage.data_dir.free_below_threshold %}
                   <p class="fr-badge fr-badge--error fr-badge--sm">Espace faible</p>
@@ -144,80 +117,142 @@
                   <p class="fr-badge fr-badge--success fr-badge--sm">Espace disponible</p>
                 {% endif %}
               </div>
-            </div>
-            <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
-              <div class="fr-col-6 fr-col-md-3">
-                <dt>Données</dt>
-                <dd>{{ storage.data_dir.total_label }}</dd>
-              </div>
-              <div class="fr-col-6 fr-col-md-3">
-                <dt>Fichiers</dt>
-                <dd>{{ storage.data_dir.files_count }}</dd>
-              </div>
-              <div class="fr-col-6 fr-col-md-3">
-                <dt>Libre</dt>
-                <dd>{{ storage.data_dir.free_mb }} Mo</dd>
-              </div>
-              <div class="fr-col-6 fr-col-md-3">
-                <dt>Seuil</dt>
-                <dd>{{ storage.data_dir.required_free_mb }} Mo</dd>
-              </div>
-              <div class="fr-col-6 fr-col-md-3">
-                <dt>Rétention</dt>
-                <dd>{{ storage.retention.days }} jours</dd>
-              </div>
-              <div class="fr-col-6 fr-col-md-3">
-                <dt>Purge</dt>
-                <dd>{{ storage.deleted_pending_purge_count }} en attente</dd>
-              </div>
-            </dl>
-          </section>
-        {% endif %}
+            {% endif %}
+          </div>
 
-        <div class="fr-grid-row fr-grid-row--gutters fr-mt-6v">
-          <section class="fr-col-12 fr-col-lg-5" aria-labelledby="lots-title">
-            <h2 id="lots-title">Lots</h2>
-            {% if lots %}
-              <div class="fr-table fr-table--bordered">
-                <div class="fr-table__wrapper">
-                  <div class="fr-table__container">
-                    <div class="fr-table__content">
-                      <table>
-                        <caption>Lots actifs</caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">Nom</th>
-                            <th scope="col">Statut</th>
-                            <th scope="col">Stockage</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {% for lot in lots %}
-                            <tr>
-                              <td>
-                                <a href="/?lot_id={{ lot.id }}">{{ lot.title or lot.id }}</a>
-                              </td>
-                              <td>
-                                <span class="fr-badge fr-badge--sm">{{ lot.status_label }}</span>
-                              </td>
-                              <td>
-                                {{ lot.storage.size_label if lot.storage else "0 o" }}
-                              </td>
-                            </tr>
-                          {% endfor %}
-                        </tbody>
-                      </table>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-3">
+              <div class="fr-card fr-card--grey">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">Lots actifs</h3>
+                    <p class="fr-card__desc">{{ lots | length }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% if storage %}
+              <div class="fr-col-12 fr-col-md-6 fr-col-lg-3">
+                <div class="fr-card fr-card--grey">
+                  <div class="fr-card__body">
+                    <div class="fr-card__content">
+                      <h3 class="fr-card__title">Données locales</h3>
+                      <p class="fr-card__desc">{{ storage.data_dir.total_label }}</p>
+                      <div class="fr-card__end">
+                        <p class="fr-card__detail">{{ storage.data_dir.files_count }} fichiers</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+              <div class="fr-col-12 fr-col-md-6 fr-col-lg-3">
+                <div class="fr-card fr-card--grey">
+                  <div class="fr-card__body">
+                    <div class="fr-card__content">
+                      <h3 class="fr-card__title">Espace libre</h3>
+                      <p class="fr-card__desc">{{ storage.data_dir.free_mb }} Mo</p>
+                      <div class="fr-card__end">
+                        <p class="fr-card__detail">Seuil : {{ storage.data_dir.required_free_mb }} Mo</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="fr-col-12 fr-col-md-6 fr-col-lg-3">
+                <div class="fr-card fr-card--grey">
+                  <div class="fr-card__body">
+                    <div class="fr-card__content">
+                      <h3 class="fr-card__title">Rétention</h3>
+                      <p class="fr-card__desc">{{ storage.retention.days }} jours</p>
+                      <div class="fr-card__end">
+                        <p class="fr-card__detail">{{ storage.deleted_pending_purge_count }} purge en attente</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </section>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mt-8v">
+          <section class="fr-col-12" id="lots-panel" aria-labelledby="lots-title">
+            <h2 id="lots-title">Lots</h2>
+            {% if lots %}
+              <ul class="fr-grid-row fr-grid-row--gutters fr-raw-list">
+                {% for lot in lots %}
+                  {% set is_current_lot = selected_lot and selected_lot.id == lot.id %}
+                  <li class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+                    <div class="fr-card fr-enlarge-link{% if is_current_lot %} fr-card--grey{% endif %}">
+                      <div class="fr-card__body">
+                        <div class="fr-card__content">
+                          <h3 class="fr-card__title">
+                            <a href="/?lot_id={{ lot.id }}">{{ lot.title or lot.id }}</a>
+                          </h3>
+                          <p class="fr-card__desc">
+                            {{ lot.storage.size_label if lot.storage else "0 o" }}
+                          </p>
+                          <div class="fr-card__start">
+                            <ul class="fr-badges-group">
+                              <li>
+                                <p class="fr-badge fr-badge--sm">{{ lot.status_label }}</p>
+                              </li>
+                              {% if is_current_lot %}
+                                <li>
+                                  <p class="fr-badge fr-badge--info fr-badge--sm">Sélectionné</p>
+                                </li>
+                              {% endif %}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
             {% else %}
-              <p>Aucun lot actif.</p>
+              <div class="fr-callout fr-icon-info-line">
+                <h3 class="fr-callout__title">Aucun lot actif</h3>
+                <p class="fr-callout__text">
+                  Créer un premier lot pour déposer l'Excel et les images.
+                </p>
+              </div>
             {% endif %}
           </section>
 
-          <section class="fr-col-12 fr-col-lg-7" aria-labelledby="lot-detail-title">
+          <section class="fr-col-12" id="lot-detail" aria-labelledby="lot-detail-title">
             {% if selected_lot %}
+              {% set lot_ui = selected_lot.ui if selected_lot.ui is defined else none %}
+              {% set lot_sources = selected_lot.sources if selected_lot.sources is defined else none %}
+              {% set lot_is_closed = selected_lot.status in ["supprime", "purge", "annule"] %}
+              {% set uploaded_kind = upload_confirmation.kind if upload_confirmation else none %}
+              {% set active_view = lot_ui.active_view_key if lot_ui and lot_ui.active_view_key is defined else none %}
+              {% set active_step = lot_ui.active_step if lot_ui and lot_ui.active_step is defined else none %}
+              <nav role="navigation" class="fr-breadcrumb fr-mb-4v" aria-label="vous êtes ici :">
+                <button class="fr-breadcrumb__button" aria-expanded="false" aria-controls="breadcrumb-lot">
+                  Voir le fil d'Ariane
+                </button>
+                <div class="fr-collapse" id="breadcrumb-lot">
+                  <ol class="fr-breadcrumb__list">
+                    <li>
+                      <a class="fr-breadcrumb__link" href="/">Accueil</a>
+                    </li>
+                    <li>
+                      <a class="fr-breadcrumb__link" href="#lots-title">Lots</a>
+                    </li>
+                    <li>
+                      <a class="fr-breadcrumb__link" href="#lot-detail-title">
+                        {{ selected_lot.title or selected_lot.id }}
+                      </a>
+                    </li>
+                    <li>
+                      <a class="fr-breadcrumb__link" aria-current="page">
+                        {{ lot_ui.breadcrumb_label if lot_ui else selected_lot.status_label }}
+                      </a>
+                    </li>
+                  </ol>
+                </div>
+              </nav>
               <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
                 <div class="fr-col">
                   <h2 id="lot-detail-title">{{ selected_lot.title or selected_lot.id }}</h2>
@@ -227,117 +262,493 @@
                 </div>
                 {% if selected_lot.actions.can_delete %}
                   <div class="fr-col-auto">
-                    <button
-                      class="fr-btn fr-btn--secondary fr-icon-delete-bin-line fr-btn--icon-left"
-                      id="delete-lot-button"
-                      type="button"
-                      data-lot-id="{{ selected_lot.id }}"
-                    >
-                      Supprimer
-                    </button>
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--right">
+                      <li>
+                        <button
+                          class="fr-btn fr-btn--secondary fr-icon-delete-bin-line fr-btn--icon-left"
+                          id="delete-lot-button"
+                          type="button"
+                          data-lot-id="{{ selected_lot.id }}"
+                        >
+                          Supprimer
+                        </button>
+                      </li>
+                    </ul>
                   </div>
                 {% endif %}
               </div>
 
-              <dl class="fr-grid-row fr-grid-row--gutters fr-mt-3v">
-                <div class="fr-col-6 fr-col-md-3">
-                  <dt>Étapes</dt>
-                  <dd>
-                    {{ selected_lot.counters.steps_done }} /
-                    {{ selected_lot.counters.steps_total }}
-                  </dd>
-                </div>
-                <div class="fr-col-6 fr-col-md-3">
-                  <dt>Artefacts</dt>
-                  <dd>{{ selected_lot.counters.artifacts_count }}</dd>
-                </div>
-                <div class="fr-col-6 fr-col-md-3">
-                  <dt>Stockage</dt>
-                  <dd>
-                    {{ selected_lot.storage.size_label if selected_lot.storage else "0 o" }}
-                  </dd>
-                </div>
-                <div class="fr-col-6 fr-col-md-3">
-                  <dt>Problèmes</dt>
-                  <dd>{{ selected_lot.counters.problems_open_count }}</dd>
-                </div>
-                <div class="fr-col-6 fr-col-md-3">
-                  <dt>Créé</dt>
-                  <dd>{{ selected_lot.created_at }}</dd>
-                </div>
-              </dl>
-
-              {% if selected_lot.status not in ["supprime", "purge", "annule"] %}
-                <section class="fr-mt-5v" aria-labelledby="excel-upload-title">
-                  {% set excel_max_mb = limits.excel.max_mb if limits is defined else 50 %}
-                  <h3 id="excel-upload-title">Déposer l'Excel</h3>
-                  <form
-                    id="excel-upload-form"
-                    data-excel-upload-lot-id="{{ selected_lot.id }}"
-                    enctype="multipart/form-data"
-                  >
-                    <div class="fr-upload-group">
-                      <label class="fr-label" for="excel-file">
-                        Fichier Excel
-                        <span class="fr-hint-text">
-                          Formats acceptés : .xlsx, .xlsm. Taille maximale :
-                          {{ excel_max_mb }} Mo.
-                        </span>
-                      </label>
-                      <input
-                        class="fr-upload"
-                        id="excel-file"
-                        name="file"
-                        type="file"
-                        accept=".xlsx,.xlsm"
-                      >
-                    </div>
-                    <button class="fr-btn fr-icon-upload-line fr-btn--icon-left" type="submit">
-                      Déposer l'Excel
-                    </button>
-                  </form>
+              {% if lot_is_closed %}
+                <section class="fr-mt-4v" aria-labelledby="closed-lot-title">
+                  <div class="fr-alert fr-alert--warning" role="alert">
+                    <h3 class="fr-alert__title" id="closed-lot-title">Upload impossible : lot purgé</h3>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      ce lot a été supprimé ou purgé. Il reste consultable, mais il n'accepte plus de dépôt Excel ni de zip images.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      créer un nouveau lot ou sélectionner un lot actif dans la liste.
+                    </p>
+                  </div>
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v">
+                    <li>
+                      <a class="fr-btn fr-icon-add-line fr-btn--icon-left" href="#lot-title">
+                        Créer un nouveau lot
+                      </a>
+                    </li>
+                    <li>
+                      <a class="fr-btn fr-btn--secondary fr-icon-list-unordered fr-btn--icon-left" href="#lots-title">
+                        Voir les lots actifs
+                      </a>
+                    </li>
+                  </ul>
                 </section>
               {% endif %}
 
-              {% if selected_lot.status not in ["supprime", "purge", "annule"] %}
-                <section class="fr-mt-5v" aria-labelledby="image-upload-title">
-                  {% set zip_max_mb = limits.zip.max_mb if limits is defined else 1024 %}
-                  {% set unzipped_max_mb = limits.zip.max_unzipped_mb if limits is defined else 3072 %}
-                  {% set image_max_count = limits.images.max_count if limits is defined else 1500 %}
-                  {% set image_max_mb = limits.images.max_mb if limits is defined else 50 %}
-                  <h3 id="image-upload-title">Déposer le zip images</h3>
-                  <form
-                    id="image-upload-form"
-                    data-image-upload-lot-id="{{ selected_lot.id }}"
-                    enctype="multipart/form-data"
+              {% if lot_ui and lot_ui.steps_total and not lot_is_closed %}
+                {% set primary_action = lot_ui.primary_action if lot_ui.primary_action is defined else none %}
+                <section class="fr-mt-4v" aria-labelledby="now-title">
+                  <div class="fr-callout fr-icon-info-line">
+                    <h3 class="fr-callout__title" id="now-title">Maintenant</h3>
+                    <p class="fr-callout__text">
+                      {% if lot_ui.completed %}
+                        Le traitement du lot est terminé.
+                      {% elif lot_ui.current_step %}
+                        {{ lot_ui.current_step.label }} :
+                        {{ lot_ui.current_step.ui_status_label if lot_ui.current_step.ui_status_label is defined else lot_ui.current_step.status_label }}.
+                      {% else %}
+                        {{ selected_lot.status_label }}.
+                      {% endif %}
+                    </p>
+                    {% if primary_action %}
+                      <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
+                        <li>
+                          <a class="fr-btn {{ primary_action.icon_class }} fr-btn--icon-left" href="{{ primary_action.href }}">
+                            {{ primary_action.label }}
+                          </a>
+                        </li>
+                      </ul>
+                      <p class="fr-text--sm fr-mb-0">{{ primary_action.hint }}</p>
+                    {% endif %}
+                  </div>
+                </section>
+
+                <div class="fr-stepper fr-mt-4v">
+                  <h3 class="fr-stepper__title">
+                    <span class="fr-stepper__state">
+                      {% if lot_ui.completed %}
+                        {{ lot_ui.steps_total }} étapes terminées
+                      {% else %}
+                        Étape {{ lot_ui.current_step_number }} sur {{ lot_ui.steps_total }}
+                      {% endif %}
+                    </span>
+                    {% if lot_ui.completed %}
+                      Traitement terminé
+                    {% elif lot_ui.current_step %}
+                      {{ lot_ui.current_step.label }}
+                    {% else %}
+                      {{ selected_lot.status_label }}
+                    {% endif %}
+                  </h3>
+                  <div
+                    class="fr-stepper__steps"
+                    data-fr-current-step="{{ lot_ui.current_step_number }}"
+                    data-fr-steps="{{ lot_ui.steps_total }}"
+                  ></div>
+                  {% if lot_ui.next_step and not lot_ui.completed %}
+                    <p class="fr-stepper__details">
+                      <span class="fr-text--bold">Étape suivante :</span>
+                      {{ lot_ui.next_step.label }}
+                    </p>
+                  {% endif %}
+                </div>
+                {% if lot_ui.completed %}
+                  <div
+                    class="fr-alert fr-alert--{{ 'warning' if selected_lot.status == 'termine_avec_alertes' else 'success' }} fr-mt-3v"
+                    role="status"
                   >
-                    <div class="fr-upload-group">
-                      <label class="fr-label" for="image-zip-file">
-                        Zip images
-                        <span class="fr-hint-text">
-                          Format accepté : .zip. Taille maximale :
-                          {{ zip_max_mb }} Mo. Images attendues à la racine ;
-                          {{ image_max_count }} images maximum, {{ image_max_mb }} Mo par image,
-                          {{ unzipped_max_mb }} Mo après décompression.
-                        </span>
-                      </label>
-                      <input
-                        class="fr-upload"
-                        id="image-zip-file"
-                        name="file"
-                        type="file"
-                        accept=".zip"
+                    <h4 class="fr-alert__title">{{ selected_lot.status_label }}</h4>
+                    <p class="fr-mb-0">
+                      Les étapes du lot sont terminées. Les livrables disponibles restent accessibles dans les sections dédiées.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status == "pret" %}
+                  <div class="fr-alert fr-alert--info fr-mt-3v" role="status">
+                    <h4 class="fr-alert__title">Traitement automatique en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>À faire maintenant :</strong>
+                      laisser le traitement local avancer sur {{ lot_ui.current_step.label }}.
+                    </p>
+                    <p class="fr-mb-0">
+                      Actualiser la page quand le statut change ou après la fin du traitement.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status == "en_cours" %}
+                  <div class="fr-alert fr-alert--info fr-mt-3v" role="status">
+                    <h4 class="fr-alert__title">Traitement automatique en cours</h4>
+                    <p class="fr-mb-0">
+                      Aucune saisie n'est attendue pour le moment.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status == "action_requise" %}
+                  <div class="fr-alert fr-alert--warning fr-mt-3v" role="alert">
+                    <h4 class="fr-alert__title">Action utilisateur attendue</h4>
+                    <p class="fr-mb-0">
+                      Ouvrir l'étape {{ lot_ui.current_step.label }} et valider les choix demandés.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status in ["non_demarre", "invalide"] %}
+                  <div class="fr-alert fr-alert--info fr-mt-3v" role="status">
+                    <h4 class="fr-alert__title">À faire maintenant</h4>
+                    <p class="fr-mb-0">
+                      {{ lot_ui.current_step.label }}.
+                    </p>
+                  </div>
+                {% elif lot_ui.current_step.status in ["bloque", "echoue"] %}
+                  <div class="fr-alert fr-alert--error fr-mt-3v" role="alert">
+                    <h4 class="fr-alert__title">Étape à corriger</h4>
+                    <p class="fr-mb-0">
+                      Consulter les problèmes du lot, corriger la cause puis relancer le traitement concerné.
+                    </p>
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              <div class="fr-grid-row fr-grid-row--gutters fr-mt-5v">
+                <aside class="fr-col-12 fr-col-lg-4">
+                  <nav class="fr-sidemenu" aria-labelledby="steps-menu-title">
+                    <div class="fr-sidemenu__inner">
+                      <button
+                        class="fr-sidemenu__btn"
+                        aria-controls="steps-menu-list"
+                        aria-expanded="false"
+                        type="button"
                       >
+                        Étapes du traitement
+                      </button>
+                      <div class="fr-collapse" id="steps-menu-list">
+                        <div class="fr-sidemenu__title" id="steps-menu-title">
+                          Workflow d'orchestration
+                        </div>
+                        <ul class="fr-sidemenu__list">
+                          {% for step in lot_ui.step_navigation %}
+                            <li class="fr-sidemenu__item">
+                              <a
+                                class="fr-sidemenu__link"
+                                href="{{ step.href }}"
+                                {% if step.is_active_view %}aria-current="page"{% endif %}
+                              >
+                                {{ step.number }}. {{ step.label }} - {{ step.ui_status_label }}
+                              </a>
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      </div>
                     </div>
-                    <button class="fr-btn fr-icon-upload-line fr-btn--icon-left" type="submit">
-                      Déposer le zip images
-                    </button>
-                  </form>
+                  </nav>
+                </aside>
+
+                <section class="fr-col-12 fr-col-lg-8" id="lot-workspace" aria-labelledby="lot-workspace-title">
+                  <p class="fr-badge fr-badge--{{ active_step.ui_badge_class if active_step else 'info' }} fr-badge--sm fr-mb-2v">
+                    Étape {{ active_step.number if active_step else lot_ui.current_step_number }} sur {{ lot_ui.steps_total }} - {{ active_step.ui_status_label if active_step else selected_lot.status_label }}
+                  </p>
+                  <h3 id="lot-workspace-title">{{ active_step.label if active_step else "Où en est le lot ?" }}</h3>
+                  <p class="fr-text--lead">
+                    {{ active_step.ui_description if active_step else "Suivre l'état du lot et reprendre le traitement." }}
+                  </p>
+                  {% if active_step and active_step.ui_guidance %}
+                    <div class="fr-callout fr-icon-info-line fr-mt-3v">
+                      <h4 class="fr-callout__title">Ce qui se passe sur cette étape</h4>
+                      <dl class="fr-grid-row fr-grid-row--gutters fr-mb-0">
+                        <div class="fr-col-12 fr-col-md-4">
+                          <dt class="fr-text--bold">Action utilisateur</dt>
+                          <dd class="fr-mb-0">{{ active_step.ui_guidance.user_action }}</dd>
+                        </div>
+                        <div class="fr-col-12 fr-col-md-4">
+                          <dt class="fr-text--bold">Traitement local</dt>
+                          <dd class="fr-mb-0">{{ active_step.ui_guidance.system_action }}</dd>
+                        </div>
+                        <div class="fr-col-12 fr-col-md-4">
+                          <dt class="fr-text--bold">Résultat attendu</dt>
+                          <dd class="fr-mb-0">{{ active_step.ui_guidance.result }}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  {% endif %}
+                  <div class="fr-grid-row fr-grid-row--gutters">
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Parcours</h4>
+                            <p class="fr-card__desc">
+                              {% if lot_ui.completed %}
+                                Terminé
+                              {% elif lot_ui.current_step %}
+                                {{ lot_ui.current_step.label }}
+                              {% else %}
+                                {{ selected_lot.counters.steps_done }} /
+                                {{ selected_lot.counters.steps_total }} terminées
+                              {% endif %}
+                            </p>
+                            <div class="fr-card__end">
+                              <p class="fr-card__detail">
+                                {{ selected_lot.counters.steps_done }} /
+                                {{ selected_lot.counters.steps_total }} étapes techniques terminées
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Artefacts</h4>
+                            <p class="fr-card__desc">{{ selected_lot.counters.artifacts_count }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Stockage</h4>
+                            <p class="fr-card__desc">
+                              {{ selected_lot.storage.size_label if selected_lot.storage else "0 o" }}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="fr-col-12 fr-col-md-6">
+                      <div class="fr-card fr-card--grey">
+                        <div class="fr-card__body">
+                          <div class="fr-card__content">
+                            <h4 class="fr-card__title">Problèmes ouverts</h4>
+                            <p class="fr-card__desc">{{ selected_lot.counters.problems_open_count }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-4v sircom-action-group" aria-label="Navigation entre étapes">
+                    {% if lot_ui.previous_view_step %}
+                      <li>
+                        <a class="fr-btn fr-btn--secondary fr-icon-arrow-left-line fr-btn--icon-left" href="{{ lot_ui.previous_view_step.href }}">
+                          Étape précédente : {{ lot_ui.previous_view_step.label }}
+                        </a>
+                      </li>
+                    {% endif %}
+                    {% if lot_ui.next_view_step %}
+                      <li>
+                        <a class="fr-btn fr-btn--secondary fr-icon-arrow-right-line fr-btn--icon-left" href="{{ lot_ui.next_view_step.href }}">
+                          Étape suivante : {{ lot_ui.next_view_step.label }}
+                        </a>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </section>
+              </div>
+
+              {% if active_view in ["upload_excel", "upload_images"] %}
+              <section class="fr-mt-5v" id="lot-actions" aria-labelledby="lot-actions-title">
+                {% set excel_max_mb = limits.excel.max_mb if limits is defined else 50 %}
+                {% set zip_max_mb = limits.zip.max_mb if limits is defined else 1024 %}
+                {% set unzipped_max_mb = limits.zip.max_unzipped_mb if limits is defined else 3072 %}
+                {% set image_max_count = limits.images.max_count if limits is defined else 1500 %}
+                {% set image_max_mb = limits.images.max_mb if limits is defined else 50 %}
+                <h3 id="lot-actions-title">{{ active_step.label if active_step else "Déposer une source" }}</h3>
+                {% if selected_lot.status not in ["supprime", "purge", "annule"] %}
+                  <p class="fr-text--sm">
+                    {% if active_view == "upload_excel" %}
+                      Sélectionner le fichier Excel, vérifier le nom affiché, puis lancer explicitement l'upload.
+                    {% else %}
+                      Sélectionner le zip images, vérifier le nom affiché, puis lancer explicitement l'upload.
+                    {% endif %}
+                  </p>
+                  <div class="fr-grid-row fr-grid-row--gutters">
+                    {% if active_view == "upload_excel" %}
+                    <div class="fr-col-12">
+                      <h4 class="fr-h6 fr-mb-2v">Déposer l'Excel source</h4>
+                      {% set excel_uploaded = lot_sources and lot_sources.excel.uploaded %}
+                      {% if excel_uploaded %}
+                        <div
+                          class="fr-alert fr-alert--success fr-alert--sm fr-mb-3v"
+                          id="excel-upload-feedback"
+                          role="status"
+                          tabindex="-1"
+                        >
+                          <p class="fr-alert__title">
+                            {{ "Votre document a bien été uploadé" if uploaded_kind == "excel" else "Excel source uploadé" }}
+                          </p>
+                          <p class="fr-mb-0">
+                            Le fichier est reçu. Suivre le diagnostic Excel avant de valider le mapping.
+                          </p>
+                        </div>
+                      {% else %}
+                        <p class="fr-hint-text fr-mb-3v" id="excel-upload-feedback" tabindex="-1">
+                          Aucun Excel source uploadé pour ce lot.
+                        </p>
+                      {% endif %}
+                      <form
+                        id="excel-upload-form"
+                        data-excel-upload-lot-id="{{ selected_lot.id }}"
+                        enctype="multipart/form-data"
+                      >
+                        <div class="fr-upload-group">
+                          <label class="fr-label" for="excel-file">
+                            Fichier Excel source
+                            <span class="fr-hint-text" id="excel-file-hint">
+                              Formats acceptés : .xlsx, .xlsm. Taille maximale :
+                              {{ excel_max_mb }} Mo.
+                            </span>
+                          </label>
+                          <input
+                            class="fr-upload"
+                            id="excel-file"
+                            name="file"
+                            type="file"
+                            accept=".xlsx,.xlsm"
+                            aria-describedby="excel-file-hint excel-upload-feedback excel-file-selected-message"
+                          >
+                          <p
+                            class="fr-hint-text fr-mt-2v"
+                            id="excel-file-selected-message"
+                            aria-live="polite"
+                            data-file-selected-message="excel"
+                          >
+                            Aucun fichier sélectionné.
+                          </p>
+                        </div>
+                        <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
+                          <li>
+                            <button
+                              class="fr-btn fr-icon-upload-line fr-btn--icon-left"
+                              id="excel-upload-submit"
+                              type="submit"
+                              data-upload-submit="excel"
+                            >
+                              Uploader l'Excel source
+                            </button>
+                          </li>
+                        </ul>
+                      </form>
+                    </div>
+                    {% endif %}
+                    {% if active_view == "upload_images" %}
+                    <div class="fr-col-12">
+                      <h4 class="fr-h6 fr-mb-2v">Déposer le zip images produit</h4>
+                      {% set images_uploaded = lot_sources and lot_sources.images.uploaded %}
+                      {% if images_uploaded %}
+                        <div
+                          class="fr-alert fr-alert--success fr-alert--sm fr-mb-3v"
+                          id="image-upload-feedback"
+                          role="status"
+                          tabindex="-1"
+                        >
+                          <p class="fr-alert__title">
+                            {{ "Votre document a bien été uploadé" if uploaded_kind == "images" else "Zip images uploadé" }}
+                          </p>
+                          <p class="fr-mb-0">
+                            Le zip est reçu. Suivre l'inspection images avant de récupérer les livrables.
+                          </p>
+                        </div>
+                      {% else %}
+                        <p class="fr-hint-text fr-mb-3v" id="image-upload-feedback" tabindex="-1">
+                          Aucun zip images produit uploadé pour ce lot.
+                        </p>
+                      {% endif %}
+                      <form
+                        id="image-upload-form"
+                        data-image-upload-lot-id="{{ selected_lot.id }}"
+                        enctype="multipart/form-data"
+                      >
+                        <div class="fr-upload-group">
+                          <label class="fr-label" for="image-zip-file">
+                            Zip images produit
+                            <span class="fr-hint-text" id="image-zip-file-hint">
+                              Format accepté : .zip. Taille maximale :
+                              {{ zip_max_mb }} Mo. Images attendues à la racine ;
+                              {{ image_max_count }} images maximum, {{ image_max_mb }} Mo par image,
+                              {{ unzipped_max_mb }} Mo après décompression.
+                            </span>
+                          </label>
+                          <input
+                            class="fr-upload"
+                            id="image-zip-file"
+                            name="file"
+                            type="file"
+                            accept=".zip"
+                            aria-describedby="image-zip-file-hint image-upload-feedback image-zip-file-selected-message"
+                          >
+                          <p
+                            class="fr-hint-text fr-mt-2v"
+                            id="image-zip-file-selected-message"
+                            aria-live="polite"
+                            data-file-selected-message="images"
+                          >
+                            Aucun fichier sélectionné.
+                          </p>
+                        </div>
+                        <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
+                          <li>
+                            <button
+                              class="fr-btn fr-icon-upload-line fr-btn--icon-left"
+                              id="image-upload-submit"
+                              type="submit"
+                              data-upload-submit="images"
+                            >
+                              Uploader le zip images produit
+                            </button>
+                          </li>
+                        </ul>
+                      </form>
+                    </div>
+                    {% endif %}
+                  </div>
+                {% else %}
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Sources non modifiables</h4>
+                    <p class="fr-mb-0">
+                      Le lot n'accepte plus de nouveaux dépôts.
+                    </p>
+                  </div>
+                {% endif %}
+              </section>
+              {% endif %}
+
+              {% if active_view in ["inspection_images", "matching_images"] and lot_ui and lot_ui.image_workflow_steps %}
+                <section class="fr-mt-5v" aria-labelledby="image-workflow-title">
+                  <h3 id="image-workflow-title">{{ active_step.label if active_step else "Traiter les images" }}</h3>
+                  {% if lot_ui.image_workflow_started %}
+                    <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                      <h4 class="fr-alert__title">Étape orchestrée par le worker</h4>
+                      <p class="fr-mb-1v">
+                        <strong>État :</strong>
+                        {{ active_step.ui_status_label if active_step else selected_lot.status_label }}.
+                      </p>
+                      <p class="fr-mb-0">
+                        Les détails utiles de cette étape sont affichés ci-dessous quand ils sont disponibles.
+                      </p>
+                    </div>
+                  {% else %}
+                    <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                      <h4 class="fr-alert__title">Images à venir</h4>
+                      <p class="fr-mb-0">
+                        Déposer le zip images produit quand les sources sont prêtes.
+                      </p>
+                    </div>
+                  {% endif %}
                 </section>
               {% endif %}
 
               {% set image_inspection = selected_lot.image_inspection if selected_lot.image_inspection is defined else none %}
-              {% if image_inspection %}
+              {% if active_view == "inspection_images" and image_inspection %}
                 <section class="fr-mt-5v" aria-labelledby="image-inspection-title">
                   <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
                     <div class="fr-col">
@@ -376,7 +787,7 @@
                   </dl>
 
                   {% if image_inspection.images %}
-                    <div class="fr-table fr-table--bordered fr-mt-3v">
+                    <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll">
                       <div class="fr-table__wrapper">
                         <div class="fr-table__container">
                           <div class="fr-table__content">
@@ -410,7 +821,7 @@
               {% endif %}
 
               {% set image_matching_payload = selected_lot.image_matching if selected_lot.image_matching is defined else none %}
-              {% if image_matching_payload %}
+              {% if active_view == "matching_images" and image_matching_payload %}
                 {% set image_matching = image_matching_payload.matching %}
                 <section class="fr-mt-5v" aria-labelledby="image-matching-title">
                   <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
@@ -456,18 +867,20 @@
                   </dl>
 
                   {% if image_matching_payload.processed_images_artifact %}
-                    <p class="fr-mt-3v">
-                      <a
-                        class="fr-btn fr-btn--secondary fr-icon-download-line fr-btn--icon-left"
-                        href="{{ image_matching_payload.processed_images_artifact.download_url }}"
-                      >
-                        Télécharger les images traitées
-                      </a>
-                    </p>
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
+                      <li>
+                        <a
+                          class="fr-btn fr-btn--secondary fr-icon-download-line fr-btn--icon-left"
+                          href="{{ image_matching_payload.processed_images_artifact.download_url }}"
+                        >
+                          Télécharger les images traitées
+                        </a>
+                      </li>
+                    </ul>
                   {% endif %}
 
                   {% if image_matching.bindings %}
-                    <div class="fr-table fr-table--bordered fr-mt-3v">
+                    <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll">
                       <div class="fr-table__wrapper">
                         <div class="fr-table__container">
                           <div class="fr-table__content">
@@ -501,8 +914,8 @@
                                             data-image-resolution-id-dossier="{{ binding.id_dossier }}"
                                           >
                                             <div class="fr-select-group fr-mb-2v">
-                                              <label class="fr-label fr-sr-only" for="image-resolution-{{ loop.index }}">
-                                                Image source
+                                              <label class="fr-label" for="image-resolution-{{ loop.index }}">
+                                                Image source à associer
                                               </label>
                                               <select class="fr-select" id="image-resolution-{{ loop.index }}" name="source_name">
                                                 {% for choice in choices %}
@@ -510,8 +923,8 @@
                                                 {% endfor %}
                                               </select>
                                             </div>
-                                            <button class="fr-btn fr-btn--sm" type="submit">
-                                              Valider
+                                            <button class="fr-btn fr-btn--sm fr-icon-check-line fr-btn--icon-left" id="image-resolution-submit-{{ loop.index }}" type="submit">
+                                              Valider cette image
                                             </button>
                                           </form>
                                         {% else %}
@@ -532,11 +945,11 @@
               {% endif %}
 
               {% set excel_diagnostic = selected_lot.excel_diagnostic if selected_lot.excel_diagnostic is defined else none %}
-              {% if excel_diagnostic %}
+              {% if active_view == "diagnostic_excel" and excel_diagnostic %}
                 <section class="fr-mt-5v" aria-labelledby="excel-diagnostic-title">
                   <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
                     <div class="fr-col">
-                      <h3 id="excel-diagnostic-title">Diagnostic Excel</h3>
+                      <h3 id="excel-diagnostic-title">Vérifier l'Excel</h3>
                     </div>
                     <div class="fr-col-auto">
                       <p class="fr-badge fr-badge--{{ excel_diagnostic.badge_class }} fr-badge--sm">
@@ -633,17 +1046,32 @@
                     {% endfor %}
                   {% endif %}
                 </section>
+              {% elif active_view == "diagnostic_excel" %}
+                <section class="fr-mt-5v" aria-labelledby="excel-diagnostic-title">
+                  <h3 id="excel-diagnostic-title">Vérifier l'Excel</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Diagnostic Excel en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      aucun résultat de diagnostic n'est encore disponible pour ce lot.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      déposer l'Excel source puis attendre la fin du traitement local.
+                    </p>
+                  </div>
+                </section>
               {% endif %}
 
               {% set mapping_payload = selected_lot.mapping if selected_lot.mapping is defined else none %}
               {% set mapping_error = selected_lot.mapping_error if selected_lot.mapping_error is defined else none %}
-              {% if mapping_payload %}
+              {% if active_view == "mapping" and mapping_payload %}
                 {% set mapping = mapping_payload.mapping %}
                 {% set profiles = mapping_payload.profiles %}
-                <section class="fr-mt-5v" aria-labelledby="mapping-title">
+                <section class="fr-mt-5v" aria-labelledby="mapping-step-title">
                   <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
                     <div class="fr-col">
-                      <h3 id="mapping-title">Mapping</h3>
+                      <h3 id="mapping-step-title">Choisir les colonnes</h3>
                     </div>
                     <div class="fr-col-auto">
                       <p class="fr-badge fr-badge--sm">
@@ -653,23 +1081,44 @@
                   </div>
 
                   <div class="fr-alert fr-alert--info fr-mt-2v" role="alert">
-                    <h4 class="fr-alert__title">Validation humaine attendue</h4>
+                    <h4 class="fr-alert__title">Décision à prendre sur le mapping</h4>
                     <p class="fr-mb-1v">
-                      Vérifier les colonnes exportées, les rôles et les noms CSV avant de lancer la fusion.
+                      Colonnes proposées : {{ mapping.columns | length }}.
+                      Vérifier les colonnes exportées, les rôles et les noms CSV.
                     </p>
                     <p class="fr-mb-0">
                       Le mapping conserve la provenance onglet, lettre et nom original sans afficher les valeurs métier.
                     </p>
                   </div>
 
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
+                    <li>
+                      <button
+                        class="fr-btn fr-icon-check-line fr-btn--icon-left"
+                        id="mapping-validate-top"
+                        form="mapping-form"
+                        type="submit"
+                        data-mapping-action="validate"
+                      >
+                        Valider le mapping
+                      </button>
+                    </li>
+                    <li>
+                      <a class="fr-btn fr-btn--secondary fr-icon-arrow-down-line fr-btn--icon-left" href="#mapping-columns-title">
+                        Vérifier les colonnes
+                      </a>
+                    </li>
+                  </ul>
+
                   {% if profiles.compatible %}
                     <section class="fr-mt-4v" aria-labelledby="mapping-compatible-profiles-title">
                       <h4 id="mapping-compatible-profiles-title">Profils compatibles</h4>
-                      <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--sm">
+                      <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--sm sircom-action-group">
                         {% for profile in profiles.compatible %}
                           <li>
                             <button
                               class="fr-btn fr-btn--secondary fr-icon-download-line fr-btn--icon-left"
+                              id="mapping-profile-{{ loop.index }}"
                               type="button"
                               data-apply-mapping-profile-id="{{ profile.id }}"
                               data-apply-mapping-lot-id="{{ selected_lot.id }}"
@@ -702,7 +1151,8 @@
                     data-mapping-lot-id="{{ selected_lot.id }}"
                     data-mapping-structural-fingerprint="{{ mapping.structural_fingerprint }}"
                   >
-                    <div class="fr-table fr-table--bordered">
+                    <h4 id="mapping-columns-title" class="fr-h6">Colonnes du mapping</h4>
+                    <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed sircom-table-no-scroll">
                       <div class="fr-table__wrapper">
                         <div class="fr-table__container">
                           <div class="fr-table__content">
@@ -711,10 +1161,8 @@
                               <thead>
                                 <tr>
                                   <th scope="col">Exporter</th>
-                                  <th scope="col">Provenance</th>
-                                  <th scope="col">Nom original</th>
-                                  <th scope="col">Rôle</th>
-                                  <th scope="col">Nom CSV</th>
+                                  <th scope="col">Colonne source</th>
+                                  <th scope="col">Paramètres CSV</th>
                                   <th scope="col">Position</th>
                                 </tr>
                               </thead>
@@ -739,47 +1187,53 @@
                                         </label>
                                       </div>
                                     </td>
-                                    <td>
+                                    <th scope="row">
                                       {% if column.system %}
-                                        <span class="fr-badge fr-badge--sm">Système</span>
+                                        <p class="fr-badge fr-badge--sm fr-mb-1v">Système</p>
                                       {% else %}
-                                        {{ column.source_sheet }} {{ column.source_column_letter }}
+                                        <p class="fr-badge fr-badge--info fr-badge--sm fr-mb-1v">
+                                          {{ column.source_sheet }} {{ column.source_column_letter }}
+                                        </p>
                                       {% endif %}
-                                    </td>
-                                    <td>{{ column.source_header }}</td>
+                                      <p class="fr-mb-0">{{ column.source_header }}</p>
+                                    </th>
                                     <td>
-                                      <div class="fr-select-group">
-                                        <label class="fr-label fr-sr-only" for="mapping-role-{{ loop.index }}">
-                                          Rôle logique
-                                        </label>
-                                        <select
-                                          class="fr-select"
-                                          id="mapping-role-{{ loop.index }}"
-                                          data-mapping-role
-                                          {% if column.locked %}disabled aria-disabled="true"{% endif %}
-                                        >
-                                          {% for role in ["texte", "date", "region", "departement", "nom_image_source", "siret", "telephone", "code_postal", "code_administratif"] %}
-                                            <option value="{{ role }}" {% if column.logical_role == role %}selected{% endif %}>{{ role }}</option>
-                                          {% endfor %}
-                                          {% if column.logical_role == "id_dossier" %}
-                                            <option value="id_dossier" selected>id_dossier</option>
-                                          {% endif %}
-                                        </select>
-                                      </div>
-                                    </td>
-                                    <td>
-                                      <div class="fr-input-group">
-                                        <label class="fr-label fr-sr-only" for="mapping-csv-name-{{ loop.index }}">
-                                          Nom CSV
-                                        </label>
-                                        <input
-                                          class="fr-input"
-                                          id="mapping-csv-name-{{ loop.index }}"
-                                          data-mapping-csv-name
-                                          type="text"
-                                          value="{{ column.csv_name }}"
-                                          {% if column.locked %}readonly{% endif %}
-                                        >
+                                      <div class="fr-grid-row fr-grid-row--gutters">
+                                        <div class="fr-col-12 fr-col-md-5">
+                                          <div class="fr-select-group">
+                                            <label class="fr-label" for="mapping-role-{{ loop.index }}">
+                                              Rôle logique
+                                            </label>
+                                            <select
+                                              class="fr-select"
+                                              id="mapping-role-{{ loop.index }}"
+                                              data-mapping-role
+                                              {% if column.locked %}disabled aria-disabled="true"{% endif %}
+                                            >
+                                              {% for role in ["texte", "date", "region", "departement", "nom_image_source", "siret", "telephone", "code_postal", "code_administratif"] %}
+                                                <option value="{{ role }}" {% if column.logical_role == role %}selected{% endif %}>{{ role }}</option>
+                                              {% endfor %}
+                                              {% if column.logical_role == "id_dossier" %}
+                                                <option value="id_dossier" selected>id_dossier</option>
+                                              {% endif %}
+                                            </select>
+                                          </div>
+                                        </div>
+                                        <div class="fr-col-12 fr-col-md-7">
+                                          <div class="fr-input-group">
+                                            <label class="fr-label" for="mapping-csv-name-{{ loop.index }}">
+                                              Nom CSV
+                                            </label>
+                                            <input
+                                              class="fr-input"
+                                              id="mapping-csv-name-{{ loop.index }}"
+                                              data-mapping-csv-name
+                                              type="text"
+                                              value="{{ column.csv_name }}"
+                                              {% if column.locked %}readonly{% endif %}
+                                            >
+                                          </div>
+                                        </div>
                                       </div>
                                     </td>
                                     <td>
@@ -798,14 +1252,14 @@
                       </div>
                     </div>
 
-                    <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v">
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
                       <li>
-                        <button class="fr-btn fr-icon-check-line fr-btn--icon-left" type="submit" data-mapping-action="validate">
+                        <button class="fr-btn fr-icon-check-line fr-btn--icon-left" id="mapping-validate-bottom" type="submit" data-mapping-action="validate">
                           Valider le mapping
                         </button>
                       </li>
                       <li>
-                        <button class="fr-btn fr-btn--secondary fr-icon-archive-line fr-btn--icon-left" type="button" data-mapping-action="draft">
+                        <button class="fr-btn fr-btn--secondary fr-icon-archive-line fr-btn--icon-left" id="mapping-draft" type="button" data-mapping-action="draft">
                           Sauvegarder le brouillon
                         </button>
                       </li>
@@ -827,17 +1281,21 @@
                           <input class="fr-input" id="mapping-profile-name" name="name" type="text" maxlength="120">
                         </div>
                       </div>
-                      <div class="fr-col-12 fr-col-md-4 fr-col--middle">
-                        <button class="fr-btn fr-btn--secondary fr-icon-archive-line fr-btn--icon-left" type="submit">
-                          Sauvegarder un profil
-                        </button>
+                      <div class="fr-col-12 fr-col-md-4">
+                        <ul class="fr-btns-group fr-btns-group--inline-md sircom-action-group">
+                          <li>
+                            <button class="fr-btn fr-btn--secondary fr-icon-archive-line fr-btn--icon-left" id="mapping-profile-save" type="submit">
+                              Sauvegarder un profil
+                            </button>
+                          </li>
+                        </ul>
                       </div>
                     </form>
                   {% endif %}
                 </section>
-              {% elif mapping_error %}
-                <section class="fr-mt-5v" aria-labelledby="mapping-unavailable-title">
-                  <h3 id="mapping-unavailable-title">Mapping</h3>
+              {% elif active_view == "mapping" and mapping_error %}
+                <section class="fr-mt-5v" aria-labelledby="mapping-step-title">
+                  <h3 id="mapping-step-title">Choisir les colonnes</h3>
                   <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
                     <h4 class="fr-alert__title">{{ mapping_error.title }}</h4>
                     <p class="fr-mb-1v">
@@ -851,10 +1309,37 @@
                     <p class="fr-text--xs fr-mb-0">Code {{ mapping_error.code }}.</p>
                   </div>
                 </section>
+              {% elif active_view == "mapping" %}
+                <section class="fr-mt-5v" aria-labelledby="mapping-step-title">
+                  <h3 id="mapping-step-title">Choisir les colonnes</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Mapping en attente</h4>
+                    <p class="fr-mb-0">
+                      Le mapping sera disponible après le diagnostic Excel.
+                    </p>
+                  </div>
+                </section>
+              {% endif %}
+
+              {% if active_view in ["fusion_multi_onglets", "normalisation_contenu", "verification_csv_indesign"] and active_step %}
+                <section class="fr-mt-5v" aria-labelledby="csv-workflow-title">
+                  <h3 id="csv-workflow-title">{{ active_step.label }}</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Étape orchestrée par le worker</h4>
+                    <p class="fr-mb-1v">
+                      <strong>État :</strong>
+                      {{ active_step.ui_status_label }}.
+                    </p>
+                    <p class="fr-mb-0">
+                      L'application lance cette étape quand les validations précédentes sont terminées.
+                      Aucune action utilisateur n'est attendue ici.
+                    </p>
+                  </div>
+                </section>
               {% endif %}
 
               {% set sort_payload = selected_lot.sort if selected_lot.sort is defined else none %}
-              {% if sort_payload %}
+              {% if active_view == "tri_region_departement" and sort_payload %}
                 {% set sort_proposal = sort_payload.proposal %}
                 {% set sort_decision = sort_payload.decision %}
                 <section class="fr-mt-5v" aria-labelledby="sort-title">
@@ -896,7 +1381,7 @@
                   {% endif %}
 
                   {% if sort_proposal.preview_rows %}
-                    <div class="fr-table fr-table--bordered fr-mt-3v">
+                    <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll">
                       <div class="fr-table__wrapper">
                         <div class="fr-table__container">
                           <div class="fr-table__content">
@@ -926,11 +1411,12 @@
                   {% endif %}
 
                   {% if not sort_decision %}
-                    <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v">
+                    <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
                       {% if sort_proposal.can_sort %}
                         <li>
                           <button
-                            class="fr-btn fr-icon-sort-asc-line fr-btn--icon-left"
+                            class="fr-btn fr-icon-sort-asc fr-btn--icon-left"
+                            id="sort-confirm"
                             type="button"
                             data-sort-lot-id="{{ selected_lot.id }}"
                             data-sort-decision="tri_region_departement"
@@ -941,7 +1427,8 @@
                       {% endif %}
                       <li>
                         <button
-                          class="fr-btn fr-btn--secondary fr-icon-list-ordered-line fr-btn--icon-left"
+                          class="fr-btn fr-btn--secondary fr-icon-list-ordered fr-btn--icon-left"
+                          id="sort-order-source"
                           type="button"
                           data-sort-lot-id="{{ selected_lot.id }}"
                           data-sort-decision="ordre_source"
@@ -952,10 +1439,25 @@
                     </ul>
                   {% endif %}
                 </section>
+              {% elif active_view == "tri_region_departement" %}
+                <section class="fr-mt-5v" aria-labelledby="sort-title">
+                  <h3 id="sort-title">Tri région/département</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Tri en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      la proposition de tri n'est pas encore disponible.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      valider le mapping puis laisser le traitement local préparer cette étape.
+                    </p>
+                  </div>
+                </section>
               {% endif %}
 
               {% set csv_preview_payload = selected_lot.csv_preview if selected_lot.csv_preview is defined else none %}
-              {% if csv_preview_payload %}
+              {% if active_view == "previsualisation_csv" and csv_preview_payload %}
                 {% set csv_preview = csv_preview_payload.preview %}
                 <section class="fr-mt-5v" aria-labelledby="csv-preview-title">
                   <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
@@ -1033,7 +1535,7 @@
                     </section>
                   {% endif %}
 
-                  <div class="fr-table fr-table--bordered fr-mt-3v">
+                  <div class="fr-table fr-table--bordered fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll">
                     <div class="fr-table__wrapper">
                       <div class="fr-table__container">
                         <div class="fr-table__content">
@@ -1063,11 +1565,12 @@
                     </div>
                   </div>
 
-                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v">
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
                     {% if not csv_preview.validated %}
                       <li>
                         <button
                           class="fr-btn fr-icon-check-line fr-btn--icon-left"
+                          id="csv-preview-validate-button"
                           type="button"
                           data-csv-preview-validate
                           data-csv-preview-lot-id="{{ selected_lot.id }}"
@@ -1088,14 +1591,30 @@
                     {% endif %}
                   </ul>
                 </section>
+              {% elif active_view == "previsualisation_csv" %}
+                <section class="fr-mt-5v" aria-labelledby="csv-preview-title">
+                  <h3 id="csv-preview-title">Aperçu CSV</h3>
+                  <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
+                    <h4 class="fr-alert__title">Aperçu CSV en attente</h4>
+                    <p class="fr-mb-1v">
+                      <strong>Cause :</strong>
+                      le CSV final n'a pas encore été généré pour aperçu.
+                    </p>
+                    <p class="fr-mb-0">
+                      <strong>Action attendue :</strong>
+                      terminer les étapes précédentes puis actualiser cette page.
+                    </p>
+                  </div>
+                </section>
               {% endif %}
 
               {% set reports_payload = selected_lot.reports if selected_lot.reports is defined else none %}
               {% set reports_step = selected_lot.steps | selectattr("key", "equalto", "rapports") | first %}
+              {% if active_view == "rapports" %}
               <section class="fr-mt-5v" aria-labelledby="reports-title">
                 <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
                   <div class="fr-col">
-                    <h3 id="reports-title">Rapports</h3>
+                    <h3 id="reports-title">Récupérer les livrables</h3>
                   </div>
                   <div class="fr-col-auto">
                     {% if reports_payload %}
@@ -1120,7 +1639,7 @@
                     </div>
                   </dl>
 
-                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v">
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
                     <li>
                       <a
                         class="fr-btn fr-btn--secondary fr-icon-download-line fr-btn--icon-left"
@@ -1151,9 +1670,11 @@
                   </div>
                 {% endif %}
               </section>
+              {% endif %}
 
               {% set package_payload = selected_lot.package if selected_lot.package is defined else none %}
               {% set package_step = selected_lot.steps | selectattr("key", "equalto", "package_final") | first %}
+              {% if active_view == "package_final" %}
               <section class="fr-mt-5v" aria-labelledby="package-title">
                 <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
                   <div class="fr-col">
@@ -1178,14 +1699,16 @@
                     </div>
                   </dl>
 
-                  <p class="fr-mt-3v">
-                    <a
-                      class="fr-btn fr-icon-download-line fr-btn--icon-left"
-                      href="{{ package_payload.artifact.download_url }}"
-                    >
-                      Télécharger le package final
-                    </a>
-                  </p>
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
+                    <li>
+                      <a
+                        class="fr-btn fr-icon-download-line fr-btn--icon-left"
+                        href="{{ package_payload.artifact.download_url }}"
+                      >
+                        Télécharger le package final
+                      </a>
+                    </li>
+                  </ul>
                 {% elif reports_payload %}
                   <div class="fr-alert fr-alert--warning fr-mt-2v" role="alert">
                     <h4 class="fr-alert__title">Validation finale attendue</h4>
@@ -1196,16 +1719,19 @@
                       Les alertes images ouvertes sont acceptées pour cette génération.
                     </p>
                   </div>
-                  <p class="fr-mt-3v">
-                    <button
-                      class="fr-btn fr-icon-archive-line fr-btn--icon-left"
-                      type="button"
-                      data-package-generate-lot-id="{{ selected_lot.id }}"
-                      data-package-accept-warnings="true"
-                    >
-                      Générer le package final
-                    </button>
-                  </p>
+                  <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-3v sircom-action-group">
+                    <li>
+                      <button
+                        class="fr-btn fr-icon-archive-line fr-btn--icon-left"
+                        id="package-generate-button"
+                        type="button"
+                        data-package-generate-lot-id="{{ selected_lot.id }}"
+                        data-package-accept-warnings="true"
+                      >
+                        Générer le package final
+                      </button>
+                    </li>
+                  </ul>
                 {% else %}
                   <div class="fr-alert fr-alert--info fr-mt-2v" role="status">
                     <h4 class="fr-alert__title">Package en attente</h4>
@@ -1215,105 +1741,165 @@
                   </div>
                 {% endif %}
               </section>
+              {% endif %}
 
-              <h3 class="fr-mt-5v">Timeline</h3>
-              <ol class="fr-raw-list">
-                {% for step in selected_lot.steps %}
-                  <li class="fr-py-2v fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
-                    <div class="fr-col">
-                      <span>{{ step.label }}</span>
-                    </div>
-                    <div class="fr-col-auto">
-                      <span class="fr-badge fr-badge--sm">{{ step.status_label }}</span>
-                    </div>
-                    {% if step.actions is defined and step.actions.can_retry %}
-                      <div class="fr-col-auto">
-                        <button
-                          class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left"
-                          type="button"
-                          data-retry-lot-id="{{ selected_lot.id }}"
-                          data-retry-step-key="{{ step.key }}"
-                        >
-                          Relancer
-                        </button>
-                      </div>
-                    {% endif %}
-                  </li>
-                {% endfor %}
-              </ol>
+              <div class="fr-accordions-group fr-mt-6v" id="lot-details">
+                <section class="fr-accordion">
+                  <h3 class="fr-accordion__title">
+                    <button
+                      id="timeline-title"
+                      class="fr-accordion__btn"
+                      aria-expanded="false"
+                      aria-controls="timeline-panel"
+                      type="button"
+                    >
+                      Historique technique des étapes
+                    </button>
+                  </h3>
+                  <div class="fr-collapse" id="timeline-panel">
+                    <ol class="fr-raw-list fr-mt-2v">
+                      {% for step in lot_ui.step_navigation %}
+                        <li class="fr-py-2v fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                          <div class="fr-col">
+                            <span>{{ step.label }}</span>
+                          </div>
+                          <div class="fr-col-auto">
+                            <span class="fr-badge fr-badge--{{ step.ui_badge_class }} fr-badge--sm">
+                              {{ step.ui_status_label }}
+                            </span>
+                          </div>
+                          {% if step.actions is defined and step.actions.can_retry %}
+                            <div class="fr-col-auto">
+                              <button
+                                class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left"
+                                id="retry-{{ step.key }}"
+                                type="button"
+                                data-retry-lot-id="{{ selected_lot.id }}"
+                                data-retry-step-key="{{ step.key }}"
+                              >
+                                Relancer cette étape
+                              </button>
+                            </div>
+                          {% endif %}
+                        </li>
+                      {% endfor %}
+                    </ol>
+                  </div>
+                </section>
 
-              <section class="fr-mt-5v" aria-labelledby="lot-problems-title">
-                <h3 id="lot-problems-title">Problèmes</h3>
-                {% if selected_lot.problems %}
-                  {% for _severity, group in selected_lot.problem_groups.items() %}
-                    {% if group['items'] %}
-                      <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-3v" role="alert">
-                        <h4 class="fr-alert__title">{{ group['label'] }}</h4>
-                        <ul class="fr-raw-list">
-                          {% for problem in group['items'] %}
-                            <li class="fr-mt-2v">
-                              <p class="fr-mb-1v">
-                                <span class="fr-badge fr-badge--sm">{{ problem.step_label }}</span>
-                                <strong>{{ problem.title }}</strong>
-                              </p>
-                              <p class="fr-mb-1v">
-                                <strong>Cause :</strong>
-                                {{ problem.cause }}
-                              </p>
-                              <p class="fr-mb-1v">
-                                <strong>Emplacement :</strong>
-                                {{ problem.location_label }}
-                              </p>
-                              <p class="fr-mb-1v">
-                                <strong>Action attendue :</strong>
-                                {{ problem.action }}
-                              </p>
-                              {% if problem.technical_items %}
-                                <details class="fr-mt-1v">
-                                  <summary>Détails techniques</summary>
-                                  <dl class="fr-mt-1v">
-                                    {% for key, value in problem.technical_items %}
-                                      <dt>{{ key }}</dt>
-                                      <dd>{{ value }}</dd>
-                                    {% endfor %}
-                                  </dl>
-                                </details>
-                              {% endif %}
-                              <p class="fr-text--xs fr-mt-1v fr-mb-0">
-                                Code {{ problem.code }}.
-                              </p>
-                            </li>
-                          {% endfor %}
-                        </ul>
-                      </div>
-                    {% endif %}
-                  {% endfor %}
-                {% else %}
-                  <p>Aucun problème ouvert.</p>
-                {% endif %}
-              </section>
-
-              <section class="fr-mt-5v" aria-labelledby="lot-events-title">
-                <h3 id="lot-events-title">Événements</h3>
-                {% if selected_lot.events %}
-                  <ul class="fr-raw-list">
-                    {% for event in selected_lot.events %}
-                      <li class="fr-py-2v">
-                        <p class="fr-mb-0">
-                          <span class="fr-badge fr-badge--sm">{{ event.level_label }}</span>
-                          <strong>{{ event.label }}</strong>
-                        </p>
-                        {% if event.summary %}
-                          <p class="fr-text--sm fr-mb-0">{{ event.summary }}</p>
+                <section class="fr-accordion">
+                  <h3 class="fr-accordion__title">
+                    <button
+                      id="lot-problems-title"
+                      class="fr-accordion__btn"
+                      aria-expanded="{{ 'true' if selected_lot.problems else 'false' }}"
+                      aria-controls="lot-problems-panel"
+                      type="button"
+                    >
+                      Problèmes ouverts
+                    </button>
+                  </h3>
+                  <div
+                    class="fr-collapse{% if selected_lot.problems %} fr-collapse--expanded{% endif %}"
+                    id="lot-problems-panel"
+                  >
+                    {% if selected_lot.problems %}
+                      {% for _severity, group in selected_lot.problem_groups.items() %}
+                        {% if group['items'] %}
+                          <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-3v" role="alert">
+                            <h4 class="fr-alert__title">{{ group['label'] }}</h4>
+                            <ul class="fr-raw-list">
+                              {% for problem in group['items'] %}
+                                <li class="fr-mt-2v">
+                                  <p class="fr-mb-1v">
+                                    <span class="fr-badge fr-badge--sm">{{ problem.step_label }}</span>
+                                    <strong>{{ problem.title }}</strong>
+                                  </p>
+                                  <p class="fr-mb-1v">
+                                    <strong>Cause :</strong>
+                                    {{ problem.cause }}
+                                  </p>
+                                  <p class="fr-mb-1v">
+                                    <strong>Emplacement :</strong>
+                                    {{ problem.location_label }}
+                                  </p>
+                                  <p class="fr-mb-1v">
+                                    <strong>Action attendue :</strong>
+                                    {{ problem.action }}
+                                  </p>
+                                  {% if problem.technical_items %}
+                                    <div class="fr-accordions-group fr-mt-2v">
+                                      <section class="fr-accordion">
+                                        <h5 class="fr-accordion__title">
+                                          <button
+                                            class="fr-accordion__btn"
+                                            aria-expanded="false"
+                                            aria-controls="problem-tech-{{ problem.id }}"
+                                            type="button"
+                                          >
+                                            Détails techniques
+                                          </button>
+                                        </h5>
+                                        <div class="fr-collapse" id="problem-tech-{{ problem.id }}">
+                                          <dl class="fr-mt-2v">
+                                            {% for key, value in problem.technical_items %}
+                                              <dt>{{ key }}</dt>
+                                              <dd>{{ value }}</dd>
+                                            {% endfor %}
+                                          </dl>
+                                        </div>
+                                      </section>
+                                    </div>
+                                  {% endif %}
+                                  <p class="fr-text--xs fr-mt-1v fr-mb-0">
+                                    Code {{ problem.code }}.
+                                  </p>
+                                </li>
+                              {% endfor %}
+                            </ul>
+                          </div>
                         {% endif %}
-                        <p class="fr-text--xs fr-mb-0">{{ event.created_at }}</p>
-                      </li>
-                    {% endfor %}
-                  </ul>
-                {% else %}
-                  <p>Aucun événement enregistré.</p>
-                {% endif %}
-              </section>
+                      {% endfor %}
+                    {% else %}
+                      <p class="fr-mt-2v">Aucun problème ouvert.</p>
+                    {% endif %}
+                  </div>
+                </section>
+
+                <section class="fr-accordion">
+                  <h3 class="fr-accordion__title">
+                    <button
+                      id="lot-events-title"
+                      class="fr-accordion__btn"
+                      aria-expanded="false"
+                      aria-controls="lot-events-panel"
+                      type="button"
+                    >
+                      Événements techniques
+                    </button>
+                  </h3>
+                  <div class="fr-collapse" id="lot-events-panel">
+                    {% if selected_lot.events %}
+                      <ul class="fr-raw-list fr-mt-2v">
+                        {% for event in selected_lot.events %}
+                          <li class="fr-py-2v">
+                            <p class="fr-mb-0">
+                              <span class="fr-badge fr-badge--sm">{{ event.level_label }}</span>
+                              <strong>{{ event.label }}</strong>
+                            </p>
+                            {% if event.summary %}
+                              <p class="fr-text--sm fr-mb-0">{{ event.summary }}</p>
+                            {% endif %}
+                            <p class="fr-text--xs fr-mb-0">{{ event.created_at }}</p>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <p class="fr-mt-2v">Aucun événement enregistré.</p>
+                    {% endif %}
+                  </div>
+                </section>
+              </div>
             {% else %}
               <h2 id="lot-detail-title">Détail du lot</h2>
               <p>Sélectionnez un lot.</p>
@@ -1323,50 +1909,7 @@
       </div>
     </main>
 
-    <footer class="fr-footer" role="contentinfo">
-      <div class="fr-container">
-        <div class="fr-footer__body">
-          <div class="fr-footer__brand">
-            <p>{{ app_name }}</p>
-          </div>
-          <div class="fr-footer__content">
-            <p class="fr-footer__content-desc">
-              Prototype local. Accessibilité non auditée. Données personnelles et mentions légales à finaliser avant publication.
-            </p>
-            <ul class="fr-footer__content-list">
-              <li class="fr-footer__content-item">
-                <a class="fr-footer__content-link" href="/openapi.json">OpenAPI</a>
-              </li>
-              <li class="fr-footer__content-item">
-                <a class="fr-footer__content-link" href="/health/ready">Readiness</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div class="fr-footer__bottom">
-          <ul class="fr-footer__bottom-list">
-            <li class="fr-footer__bottom-item">
-              <a class="fr-footer__bottom-link" href="/plan-du-site">Plan du site</a>
-            </li>
-            <li class="fr-footer__bottom-item">
-              <a class="fr-footer__bottom-link" href="/accessibilite">Accessibilité : non auditée</a>
-            </li>
-            <li class="fr-footer__bottom-item">
-              <a class="fr-footer__bottom-link" href="/mentions-legales">Mentions légales</a>
-            </li>
-            <li class="fr-footer__bottom-item">
-              <a class="fr-footer__bottom-link" href="/donnees-personnelles">Données personnelles</a>
-            </li>
-            <li class="fr-footer__bottom-item">
-              <a class="fr-footer__bottom-link" href="/gestion-cookies">Gestion des cookies</a>
-            </li>
-          </ul>
-          <div class="fr-footer__bottom-copy">
-            <p>Application locale. Contenus et mentions à finaliser avant publication.</p>
-          </div>
-        </div>
-      </div>
-    </footer>
+    {% include "partials/footer.html" %}
 
     <script type="module" src="{{ dsfr_assets_path }}/dsfr.module.min.js"></script>
     <script type="module" src="/static/app.js"></script>

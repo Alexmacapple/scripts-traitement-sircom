@@ -397,7 +397,7 @@ class MappingUiTest(unittest.TestCase):
                     "La liste structurée des colonnes est absente du diagnostic Excel.",
                 ),
             ):
-                response = client.get(f"/?lot_id={lot_id}")
+                response = client.get(f"/?lot_id={lot_id}&view=mapping")
 
         html = response.text
         self.assertEqual(response.status_code, 200)
@@ -419,14 +419,18 @@ class MappingUiTest(unittest.TestCase):
                 key="mapping-ui",
             )
 
-            response = client.get(f"/?lot_id={lot_id}")
+            response = client.get(f"/?lot_id={lot_id}&view=mapping")
 
         html = response.text
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Mapping", html)
+        self.assertIn("Choisir les colonnes", html)
         self.assertIn('id="mapping-form"', html)
-        self.assertIn("Provenance", html)
+        self.assertIn("Colonne source", html)
+        self.assertIn("Paramètres CSV", html)
+        self.assertIn("fr-table--no-scroll", html)
+        self.assertIn("fr-table--layout-fixed", html)
         self.assertIn("Nom CSV", html)
+        self.assertIn("Rôle logique", html)
         self.assertIn("Dossiers", html)
         self.assertIn("Nom du produit", html)
         self.assertIn("d_nomdupro", html)

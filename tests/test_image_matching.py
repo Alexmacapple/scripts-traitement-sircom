@@ -438,7 +438,7 @@ class ImageMatchingApiTest(unittest.TestCase):
             )
             csv_download = client.get(validate_preview.json()["csv_artifact"]["download_url"])
             lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
-            html = client.get(f"/?lot_id={lot_id}")
+            html = client.get(f"/?lot_id={lot_id}&view=matching_images")
             database = Database(settings.sqlite_path)
             with database.session() as repositories:
                 step = repositories.steps.get_by_lot_key(lot_id, "matching_images")

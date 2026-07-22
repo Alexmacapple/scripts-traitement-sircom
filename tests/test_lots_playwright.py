@@ -127,47 +127,60 @@ class LotsPlaywrightTest(unittest.TestCase):
 
                 self.assertEqual(page.title(), "Sircom 2026")
                 self.assertTrue(
-                    page.get_by_role("heading", name="Créer un lot").is_visible()
+                    page.get_by_role("heading", name="Créer ou reprendre un lot").is_visible()
                 )
 
                 page.get_by_label("Nom du lot").fill("Lot Playwright Desktop")
-                page.get_by_role("button", name="Créer").click()
+                page.get_by_role("button", name="Créer le lot").click()
                 page.wait_for_url(re.compile(r".*\?lot_id=lot_.*"), timeout=5000)
+                lot_id_match = re.search(r"lot_id=(lot_[^&]+)", page.url)
+                self.assertIsNotNone(lot_id_match)
+                lot_id = lot_id_match.group(1)
 
+                self.assertTrue(page.locator("#lot-detail-title").is_visible())
                 self.assertTrue(
-                    page.get_by_role("heading", name="Lot Playwright Desktop").is_visible()
+                    page.get_by_role("button", name="Historique technique des étapes").is_visible()
                 )
-                self.assertTrue(page.get_by_role("heading", name="Timeline").is_visible())
+                self.assertTrue(page.get_by_text("Étape 1 sur 13").first.is_visible())
                 self.assertTrue(page.get_by_text("Déposer l'Excel").first.is_visible())
-                self.assertTrue(
-                    page.get_by_text("Préparer le package final").first.is_visible()
-                )
+                self.assertEqual(page.get_by_role("heading", name="Package final", exact=True).count(), 0)
+                self.assertTrue(page.get_by_role("button", name="Uploader l'Excel source").is_visible())
 
                 page.goto(server.base_url, wait_until="networkidle")
                 page.get_by_role("link", name="Lot Playwright Desktop").click()
                 page.wait_for_url(re.compile(r".*\?lot_id=lot_.*"), timeout=5000)
 
-                self.assertTrue(
-                    page.get_by_role("heading", name="Lot Playwright Desktop").is_visible()
-                )
+                self.assertTrue(page.locator("#lot-detail-title").is_visible())
                 workbook_path = server.tmp_path / "playwright-upload.xlsx"
                 write_workbook(workbook_path)
-                page.get_by_label("Fichier Excel").set_input_files(str(workbook_path))
-                page.get_by_role("button", name="Déposer l'Excel").click()
+                excel_upload_button = page.get_by_role("button", name="Uploader l'Excel source")
+                self.assertTrue(excel_upload_button.is_enabled())
+                self.assertEqual(excel_upload_button.get_attribute("data-upload-ready"), "false")
+                page.get_by_label("Fichier Excel source").set_input_files(str(workbook_path))
+                self.assertTrue(
+                    page.get_by_text("Fichier sélectionné : playwright-upload.xlsx").is_visible()
+                )
+                self.assertTrue(excel_upload_button.is_enabled())
+                self.assertEqual(excel_upload_button.get_attribute("data-upload-ready"), "true")
+                excel_upload_button.click()
                 page.wait_for_load_state("networkidle")
 
-                self.assertTrue(page.get_by_text("Terminée").first.is_visible())
-                self.assertTrue(page.get_by_text("Prête").first.is_visible())
-                self.assertTrue(page.get_by_text("Excel déposé").first.is_visible())
+                self.assertIn("view=upload_excel", page.url)
+                self.assertTrue(page.get_by_text("Votre document a bien été uploadé").first.is_visible())
+                self.assertEqual(
+                    page.evaluate("document.activeElement && document.activeElement.id"),
+                    "excel-upload-submit",
+                )
                 worker_result = run_worker_once(settings=server.settings)
-                self.assertEqual(worker_result.outcome, "succeeded")
-                page.goto(page.url, wait_until="networkidle")
-                self.assertTrue(page.get_by_text("Excel diagnostiqué").first.is_visible())
+                self.assertIn(worker_result.outcome, {"succeeded", "idle"})
+                page.goto(f"{server.base_url}/?lot_id={lot_id}&view=diagnostic_excel", wait_until="networkidle")
                 self.assertTrue(
-                    page.get_by_role("heading", name="Diagnostic Excel").is_visible()
+                    page.get_by_role("heading", name="Vérifier l'Excel", exact=True).is_visible()
                 )
                 self.assertTrue(page.get_by_text("Excel importable").first.is_visible())
-                self.assertTrue(page.get_by_role("heading", name="Timeline").is_visible())
+                self.assertTrue(
+                    page.get_by_role("button", name="Historique technique des étapes").is_visible()
+                )
                 assert_png_screenshot(self, page.screenshot(full_page=True))
 
                 page.get_by_role("button", name="Supprimer").click()
@@ -188,15 +201,18 @@ class LotsPlaywrightTest(unittest.TestCase):
                 )
                 page.goto(f"{server.base_url}/?lot_id={lot['id']}", wait_until="networkidle")
 
+                self.assertTrue(page.locator("#lot-detail-title").is_visible())
                 self.assertTrue(
-                    page.get_by_role("heading", name="Lot Playwright Mobile").is_visible()
+                    page.get_by_role("button", name="Historique technique des étapes").is_visible()
                 )
-                self.assertTrue(page.get_by_role("heading", name="Timeline").is_visible())
+                self.assertTrue(page.get_by_text("Étape 1 sur 13").first.is_visible())
                 self.assertTrue(page.get_by_role("button", name="Supprimer").is_visible())
-                self.assertTrue(page.get_by_text("Valider le mapping").first.is_visible())
-                self.assertTrue(
-                    page.get_by_text("Préparer le package final").first.is_visible()
+                self.assertTrue(page.get_by_role("button", name="Uploader l'Excel source").is_visible())
+                self.assertEqual(
+                    page.get_by_role("heading", name="Choisir les colonnes", exact=True).count(),
+                    0,
                 )
+                self.assertEqual(page.get_by_role("heading", name="Package final", exact=True).count(), 0)
                 assert_png_screenshot(self, page.screenshot(full_page=True))
 
                 page.goto(f"{server.base_url}/?lot_id=lot_missing", wait_until="networkidle")

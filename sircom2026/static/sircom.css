@@ -1,0 +1,46 @@
+.sircom-action-group {
+  align-items: stretch;
+}
+
+.sircom-action-group .fr-btn {
+  justify-content: center;
+  max-width: 100%;
+  min-height: 3rem;
+  text-align: center;
+  white-space: normal;
+}
+
+.sircom-action-group .fr-btn::before {
+  flex: 0 0 auto;
+}
+
+.sircom-table-no-scroll .fr-table__content {
+  overflow-x: visible;
+}
+
+.sircom-table-no-scroll table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.sircom-table-no-scroll th,
+.sircom-table-no-scroll td {
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  word-break: normal;
+}
+
+.sircom-table-no-scroll .fr-input,
+.sircom-table-no-scroll .fr-select {
+  min-width: 0;
+}
+
+.sircom-step-state {
+  align-items: start;
+}
+
+@media (max-width: 47.99em) {
+  .sircom-action-group .fr-btn {
+    width: 100%;
+  }
+}

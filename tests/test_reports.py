@@ -193,7 +193,7 @@ class ReportsApiTest(unittest.TestCase):
             technical_download = client.get(
                 reports.json()["technical_report_artifact"]["download_url"]
             )
-            html = client.get(f"/?lot_id={lot_id}")
+            html = client.get(f"/?lot_id={lot_id}&view=rapports")
             database = Database(settings.sqlite_path)
             with database.session() as repositories:
                 lot = repositories.lots.get_required(lot_id)

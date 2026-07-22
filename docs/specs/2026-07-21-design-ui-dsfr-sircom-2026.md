@@ -27,8 +27,8 @@ conformité RGAA non vérifiée.
   JavaScript minimal.
 - Aucune SPA React, Vue ou Angular n'est prévue en V1.
 - Version DSFR cible : 1.14.4, à figer dans les assets statiques du projet.
-- Mode marque par défaut : `neutral`, sans Marianne ni bloc marque République
-  Française tant que le droit d'usage n'est pas explicitement établi.
+- Mode marque Sircom 2026 : header DSFR avec Marianne et bloc marque
+  République Française, décision projet explicite pour cette V1 locale.
 - Mention autorisée : "interface alignée sur les composants DSFR utilisés".
 - Mentions interdites sans audit : "conforme DSFR", "conforme RGAA",
   "prêt publication service public".
@@ -39,10 +39,10 @@ Chaque page rendue doit fournir :
 
 - `html lang="fr"` ;
 - un lien d'évitement vers le contenu principal ;
-- un `header` DSFR sobre ;
+- un `header` DSFR sobre avec bloc marque Marianne, sans navigation technique ;
 - un `main` avec identifiant stable ;
 - un `footer` DSFR minimal ;
-- une navigation active lisible ;
+- une navigation active lisible dans le détail du lot ;
 - aucun lien `href="#"` ;
 - aucun chemin disque interne ;
 - des titres hiérarchisés sans saut incohérent.
@@ -65,6 +65,38 @@ contenu. Il ne livre pas les écrans métier complets.
 | Matching images | Résoudre ambiguïtés, continuer sans images, voir absences | 20 |
 | Package | Valider package, télécharger artefacts, voir manifeste | 22 |
 | Exploitation | Voir disque, rétention, supprimer un lot | 23 |
+
+## Parcours utilisateur
+
+Le détail d'un lot expose un parcours centré sur les besoins Sircom et déroule
+l'orchestration de bout en bout. Le menu principal du lot contient les 13 étapes
+séquentielles, avec une seule étape active par page :
+
+1. Déposer l'Excel ;
+2. Vérifier l'Excel ;
+3. Choisir les colonnes ;
+4. Fusionner les onglets ;
+5. Normaliser les contenus ;
+6. Valider le tri ;
+7. Vérifier le CSV InDesign ;
+8. Prévisualiser le CSV ;
+9. Déposer le zip images ;
+10. Inspecter les images ;
+11. Associer les images ;
+12. Récupérer les rapports ;
+13. Préparer le package final.
+
+Chaque page d'étape suit la pyramide inversée : statut et action attendue en
+premier, détail utile ensuite, historique technique en accordéon à la fin. Les
+étapes automatiques sont présentées comme traitements locaux orchestrés par le
+worker, sans bouton de validation artificiel.
+
+Le stepper DSFR du détail de lot porte la progression séquentielle sur 13
+étapes. Les anciennes phases métier peuvent rester des libellés internes ou de
+synthèse, mais elles ne remplacent pas la navigation étape par étape.
+
+Les accès `API` et `Santé` sont des liens techniques de pied de page. Ils ne
+doivent pas être exposés dans le header ni dans le menu de parcours utilisateur.
 
 ## Composants DSFR attendus
 
@@ -152,8 +184,7 @@ Minimum par ticket UI :
 
 ## Questions ouvertes bornées
 
-- Droit d'usage du bloc marque République Française.
+- Conditions de publication publique du bloc marque République Française.
 - URLs légales finales du footer.
 - Audit RGAA complet si l'application sort du poste local vers une publication
   plus large.
-

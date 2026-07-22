@@ -164,7 +164,9 @@ class CsvPreviewApiTest(unittest.TestCase):
             )
 
             preview = client.get(f"/api/lots/{lot_id}/csv/preview")
-            html_before_validation = client.get(f"/?lot_id={lot_id}")
+            html_before_validation = client.get(
+                f"/?lot_id={lot_id}&view=previsualisation_csv"
+            )
             export_before_validation = client.get(f"/api/lots/{lot_id}/csv/export")
             validation = client.post(
                 f"/api/lots/{lot_id}/csv/preview/validate",
@@ -175,7 +177,9 @@ class CsvPreviewApiTest(unittest.TestCase):
                 headers={"X-Idempotency-Key": "preview-validate"},
             )
             export_after_validation = client.get(f"/api/lots/{lot_id}/csv/export")
-            html_after_validation = client.get(f"/?lot_id={lot_id}")
+            html_after_validation = client.get(
+                f"/?lot_id={lot_id}&view=previsualisation_csv"
+            )
             final_csv = client.get(export_after_validation.json()["artifact"]["download_url"])
             lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
             preview_payload = download_step_artifact(
