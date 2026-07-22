@@ -20,6 +20,8 @@ import uvicorn
 
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
+from sircom2026.database import Database
+from sircom2026.state import complete_step, fail_step
 from sircom2026.worker_runner import run_worker_once
 
 
@@ -270,6 +272,97 @@ class LotsPlaywrightTest(unittest.TestCase):
                 self.assertTrue(page.get_by_role("heading", name="Lot introuvable").is_visible())
                 self.assertTrue(page.get_by_text("Cause :").is_visible())
                 self.assertTrue(page.get_by_text("Action attendue :").is_visible())
+
+    def test_retry_button_requeues_blocked_worker_step_from_timeline(self) -> None:
+        with LiveServer() as server:
+            lot = server.create_lot("Lot Playwright Relance")
+            database = Database(
+                server.settings.sqlite_path,
+                busy_timeout_ms=server.settings.sqlite_busy_timeout_ms,
+            )
+            with database.transaction() as repositories:
+                complete_step(
+                    repositories,
+                    lot_id=str(lot["id"]),
+                    step_key="upload_excel",
+                    run_id="run_playwright_excel_uploaded",
+                )
+                fail_step(
+                    repositories,
+                    lot_id=str(lot["id"]),
+                    step_key="diagnostic_excel",
+                    run_id="run_playwright_diagnostic_failed",
+                    code="SIRCOM_PLAYWRIGHT_DIAGNOSTIC_FAILED",
+                    title="Diagnostic interrompu",
+                    cause="Le diagnostic de test est interrompu.",
+                    action="Relancer le diagnostic depuis l'historique des étapes.",
+                )
+
+            with chromium_browser() as browser:
+                page = browser.new_page(viewport={"width": 1280, "height": 900})
+                page.goto(
+                    f"{server.base_url}/lots/{lot['id']}/excel?view=diagnostic_excel",
+                    wait_until="networkidle",
+                )
+
+                diagnostic_section = page.locator(
+                    "section[aria-labelledby='excel-diagnostic-title']"
+                )
+                self.assertTrue(
+                    page.get_by_role(
+                        "heading",
+                        name="Vérifier l'Excel",
+                        exact=True,
+                    ).is_visible()
+                )
+                self.assertTrue(
+                    diagnostic_section.get_by_text("Diagnostic interrompu").is_visible()
+                )
+                self.assertTrue(
+                    diagnostic_section.get_by_text("Action attendue").first.is_visible()
+                )
+
+                page.get_by_role("button", name="Historique technique des étapes").click()
+                retry_button = page.locator("#retry-diagnostic_excel")
+                retry_button.wait_for(state="visible", timeout=5000)
+                self.assertTrue(retry_button.is_visible())
+                with page.expect_response(
+                    lambda response: response.url.endswith(f"/api/lots/{lot['id']}/retry")
+                    and response.request.method == "POST"
+                ) as retry_response:
+                    retry_button.click()
+                self.assertEqual(retry_response.value.status, 202)
+                page.wait_for_url(
+                    re.compile(r".*/lots/lot_.*/excel.*view=diagnostic_excel"),
+                    timeout=5000,
+                )
+                page.locator("#retry-diagnostic_excel").wait_for(
+                    state="detached",
+                    timeout=5000,
+                )
+                page.wait_for_load_state("networkidle")
+
+                self.assertTrue(
+                    page.get_by_role(
+                        "button",
+                        name="Historique technique des étapes",
+                    ).is_visible()
+                )
+
+            with database.session() as repositories:
+                step = repositories.steps.get_by_lot_key(
+                    str(lot["id"]),
+                    "diagnostic_excel",
+                )
+                job = repositories.jobs.get_active_for_step(
+                    lot_id=str(lot["id"]),
+                    step_key="diagnostic_excel",
+                )
+
+        self.assertIsNotNone(step)
+        self.assertEqual(step["status"], "pret")
+        self.assertIsNotNone(job)
+        self.assertEqual(job["status"], "queued")
 
 
 def assert_png_screenshot(test_case: unittest.TestCase, screenshot: bytes) -> None:
