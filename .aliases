@@ -1,0 +1,4 @@
+# Source this file from the repo root:
+#   source .aliases
+
+alias cgsync="./bin/cgsync"
