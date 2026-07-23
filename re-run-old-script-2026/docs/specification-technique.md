@@ -97,6 +97,8 @@ La chaîne utilise l'environnement applicatif `.venv` :
 Le runner peut nettoyer uniquement les artefacts connus avec `--clean`. Les
 scripts restent en place. Le nettoyage retire aussi les anciens artefacts connus
 qui auraient été produits à la racine de `re-run-old-script-2026/`.
+Les noms d'artefacts configurés dans `../variables.md` doivent rester des
+chemins relatifs bornés, sans chemin absolu, sans `..` et sans `.` comme cible.
 
 Artefacts principaux :
 
@@ -109,6 +111,24 @@ Artefacts principaux :
 - `livrables_output_YYYY-MM-DD/run-2026-summary.json`.
 
 Les noms de ces artefacts sont configurables dans `../variables.md`.
+
+## Contrôles ZIP et images
+
+Le ZIP images de la voie scriptée est volontairement plat : les images utiles
+doivent être à la racine du ZIP. Les fichiers système macOS (`__MACOSX/` et
+fichiers cachés) sont ignorés. Les autres sous-dossiers et les doublons de nom
+après normalisation de casse sont refusés avant extraction.
+
+Les formats source acceptés sont ceux du contrat applicatif local : JPEG, PNG,
+WEBP et TIFF. Avant conversion, chaque image source est bornée par :
+
+- `image_source_max_pixels` ;
+- `image_source_max_width_px` ;
+- `image_source_max_height_px`.
+
+Le traitement image ne désactive pas la protection globale `Image.MAX_IMAGE_PIXELS`
+de Pillow. Les images produites restent des JPEG de largeur maximale
+`image_max_width_px`.
 
 ## Contrôles techniques
 

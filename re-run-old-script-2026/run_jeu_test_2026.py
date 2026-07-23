@@ -69,6 +69,24 @@ GENERATED_GLOBS = [
     "mapping_colonnes_*.csv",
     "mapping_colonnes_*.xlsx",
 ]
+CONFIGURED_GENERATED_PATH_KEYS = [
+    "step_00_output",
+    "step_01_output",
+    "step_02_output",
+    "step_03_output",
+    "step_04_output",
+    "step_05_output",
+    "step_06_output",
+    "step_07_output",
+    "step_08_output",
+    "step_09_output",
+    "step_10_output",
+    "mapping_csv_output",
+    "mapping_excel_output",
+    "summary_output",
+    "source_images_workdir",
+    "processed_images_dir",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -128,6 +146,7 @@ def main() -> int:
     args = parse_args()
     variables_file = resolve_variables_file(args.variables)
     config = load_config_variables(variables_file)
+    validate_generated_paths(config)
     excel_path = resolve_input_path(
         coalesce(args.excel, config.get("excel_source_path"), str(DEFAULT_EXCEL))
     )
@@ -292,6 +311,7 @@ def default_output_dir(
 ) -> Path:
     current_date = today or date.today()
     clean_name = output_dir_name.strip() or OUTPUT_DIR_PREFIX
+    clean_name = safe_generated_path_fragment("output_dir_name", clean_name)
     if append_date_suffix:
         date_suffix = current_date.strftime(output_date_format or "%Y-%m-%d")
         clean_name = f"{clean_name}_{date_suffix}"
@@ -303,11 +323,7 @@ def clean_generated_paths(output_dir: Path, config: dict[str, str]) -> None:
     legacy_output_dir = LEGACY_OUTPUT_DIR.resolve()
     for base_dir in dict.fromkeys([output_dir, legacy_output_dir, SCRIPT_DIR]):
         for relative_path in generated_paths(config):
-            path = base_dir / relative_path
-            if path.is_dir():
-                shutil.rmtree(path)
-            elif path.exists():
-                path.unlink()
+            delete_generated_path(base_dir, relative_path)
         for pattern in GENERATED_GLOBS:
             for path in base_dir.glob(pattern):
                 if path.is_file():
@@ -325,24 +341,50 @@ def clean_generated_paths(output_dir: Path, config: dict[str, str]) -> None:
 
 def generated_paths(config: dict[str, str]) -> list[str]:
     configured = [
-        config.get("step_00_output", ""),
-        config.get("step_01_output", ""),
-        config.get("step_02_output", ""),
-        config.get("step_03_output", ""),
-        config.get("step_04_output", ""),
-        config.get("step_05_output", ""),
-        config.get("step_06_output", ""),
-        config.get("step_07_output", ""),
-        config.get("step_08_output", ""),
-        config.get("step_09_output", ""),
-        config.get("step_10_output", ""),
-        config.get("mapping_csv_output", ""),
-        config.get("mapping_excel_output", ""),
-        config.get("summary_output", ""),
-        config.get("source_images_workdir", ""),
-        config.get("processed_images_dir", ""),
+        safe_generated_path_fragment(key, config.get(key, ""))
+        for key in CONFIGURED_GENERATED_PATH_KEYS
     ]
     return sorted({path for path in [*GENERATED_PATHS, *configured] if path})
+
+
+def validate_generated_paths(config: dict[str, str]) -> None:
+    generated_paths(config)
+
+
+def safe_generated_path_fragment(key: str, raw_path: str) -> str:
+    text = str(raw_path).strip()
+    if not text or text.upper() == "AUTO":
+        return ""
+    path = Path(text).expanduser()
+    normalized_path = path.as_posix()
+    if (
+        path.is_absolute()
+        or normalized_path in {"", "."}
+        or any(part in {".."} for part in path.parts)
+    ):
+        raise SystemExit(
+            f"Chemin d'artefact généré non borné pour {key} : {raw_path!r}. "
+            "Utiliser un chemin relatif sans '..'."
+        )
+    return normalized_path
+
+
+def delete_generated_path(base_dir: Path, relative_path: str) -> None:
+    base = base_dir.resolve()
+    path = base / relative_path
+    if not path.exists() and not path.is_symlink():
+        return
+    resolved = path.resolve(strict=False)
+    try:
+        resolved.relative_to(base)
+    except ValueError as exc:
+        raise SystemExit(
+            f"Refus de supprimer un artefact hors du dossier de nettoyage : {path}"
+        ) from exc
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path)
 
 
 def build_env(
@@ -392,7 +434,9 @@ def copy_images(source_dir: Path, target_dir: Path) -> None:
 
 def extract_images(source_zip: Path, target_dir: Path) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
-    extracted = 0
+    members_to_extract: list[tuple[zipfile.ZipInfo, str]] = []
+    seen_names: dict[str, str] = {}
+    blockers: list[str] = []
     with zipfile.ZipFile(source_zip) as archive:
         for member in archive.infolist():
             name = member.filename
@@ -401,11 +445,23 @@ def extract_images(source_zip: Path, target_dir: Path) -> None:
             filename = Path(name).name
             if not filename or filename.startswith("."):
                 continue
+            if Path(name).as_posix() != filename:
+                blockers.append(f"image en sous-dossier : {name}")
+                continue
+            normalized_filename = filename.casefold()
+            previous_name = seen_names.get(normalized_filename)
+            if previous_name is not None:
+                blockers.append(f"nom d'image dupliqué : {previous_name} / {name}")
+                continue
+            seen_names[normalized_filename] = name
+            members_to_extract.append((member, filename))
+        if blockers:
+            raise SystemExit("Zip images non supporté : " + "; ".join(blockers[:5]))
+        for member, filename in members_to_extract:
             target_path = target_dir / filename
             with archive.open(member) as source, target_path.open("wb") as target:
                 shutil.copyfileobj(source, target)
-            extracted += 1
-    print(f"Images extraites : {extracted} vers {target_dir}")
+    print(f"Images extraites : {len(members_to_extract)} vers {target_dir}")
 
 
 def write_summary(

@@ -128,6 +128,15 @@ Valeur : 11-export-images-id-dossier-rename-resize
 ### image_max_width_px
 Rôle : largeur maximale des images produites.
 Valeur : 350
+### image_source_max_pixels
+Rôle : nombre maximal de pixels accepté pour une image source avant conversion.
+Valeur : 80000000
+### image_source_max_width_px
+Rôle : largeur maximale acceptée pour une image source avant conversion.
+Valeur : 20000
+### image_source_max_height_px
+Rôle : hauteur maximale acceptée pour une image source avant conversion.
+Valeur : 20000
 ### image_jpeg_quality
 Rôle : qualité JPEG des images produites.
 Valeur : 100
@@ -136,7 +145,7 @@ Rôle : résolution DPI enregistrée dans les JPEG.
 Valeur : 300
 ### image_allowed_extensions
 Rôle : extensions d'images acceptées en entrée.
-Valeur : jpg,jpeg,png,gif,webp,tif,tiff,bmp,eps,svg,ico,heic,heif,psd,raw,hdr,exr,jp2,pgm,ppm,xcf
+Valeur : jpg,jpeg,png,webp,tif,tiff
 ### source_image_column_candidates
 Rôle : colonnes candidates pour retrouver le nom d'image source.
 Valeur : y_photodu,y_photo,photo_du_produit,photo_produit,photo,nom_image_source,image_source,source_image

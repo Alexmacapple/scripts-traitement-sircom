@@ -46,12 +46,20 @@ def process_and_rename_image(
     max_width: int,
     jpeg_quality: int,
     dpi: int,
+    source_max_pixels: int = 80_000_000,
+    source_max_width: int = 20_000,
+    source_max_height: int = 20_000,
 ) -> tuple[bool, int]:
     """Redimensionne, convertit en JPEG et renomme une image."""
     try:
-        Image.MAX_IMAGE_PIXELS = None
-
         with Image.open(image_path) as image:
+            check_source_image_dimensions(
+                image,
+                logger,
+                source_max_pixels=source_max_pixels,
+                source_max_width=source_max_width,
+                source_max_height=source_max_height,
+            )
             image.thumbnail((max_width, max_width), Image.Resampling.LANCZOS)
 
             if image.mode == "RGBA":
@@ -77,3 +85,32 @@ def process_and_rename_image(
     except Exception as exc:
         logger.error(f"  ERREUR lors du traitement : {exc}")
         return False, 0
+
+
+def check_source_image_dimensions(
+    image: Image.Image,
+    logger: ImageProcessingLogger,
+    *,
+    source_max_pixels: int,
+    source_max_width: int,
+    source_max_height: int,
+) -> None:
+    width, height = image.size
+    pixels = width * height
+    if pixels > source_max_pixels:
+        logger.error(
+            "  Image source trop grande : max_pixels "
+            f"{pixels:,} > {source_max_pixels:,}"
+        )
+        raise ValueError("image source over max_pixels")
+    if width > source_max_width:
+        logger.error(
+            f"  Image source trop large : max_width_px {width:,} > {source_max_width:,}"
+        )
+        raise ValueError("image source over max_width_px")
+    if height > source_max_height:
+        logger.error(
+            "  Image source trop haute : max_height_px "
+            f"{height:,} > {source_max_height:,}"
+        )
+        raise ValueError("image source over max_height_px")

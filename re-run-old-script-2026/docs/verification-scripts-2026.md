@@ -53,8 +53,8 @@ pas modifiés. Les livrables courants sortent dans
 | `11-process-images.py` | Images | Refactoré ; reste l'orchestrateur CLI du traitement images. |
 | `sircom2026_image_mapping.py` | Mapping image | Utile ; isole la lecture Excel ID/image. |
 | `sircom2026_image_matching.py` | Rapprochement image | Utile ; isole les règles de correspondance et d'ambiguïté. |
-| `sircom2026_image_processing.py` | Conversion image | Utile ; isole la conversion JPEG et le redimensionnement. |
-| `tests/test_image_modules.py` | Tests image | Utile ; couvre les modules extraits du script image. |
+| `sircom2026_image_processing.py` | Conversion image | Corrigé ; borne les dimensions source et ne modifie pas l'état global Pillow. |
+| `tests/test_image_modules.py` | Tests image | Utile ; couvre les modules extraits, le nettoyage borné et l'extraction ZIP. |
 | `12-create_mapping_excel.py` | Mapping | Corrigé ; ne dépend plus de `pandas` et produit des fichiers neutres. |
 | `13-verify_data_integrity.py` | Vérification finale | Corrigé ; vérifie sans `pandas`. |
 
@@ -67,6 +67,9 @@ pas modifiés. Les livrables courants sortent dans
   `--allow-missing`.
 - Le mapping utilise des libellés neutres `Champ attendu` et des fichiers
   `12-mapping-colonnes-sircom-2026.*`.
+- `--clean` refuse les artefacts configurés en chemin absolu, avec `..` ou avec
+  `.` comme cible.
+- Le ZIP images est plat : sous-dossiers utiles et doublons de nom sont refusés.
 
 ## Preuves du dernier run
 
@@ -75,7 +78,7 @@ pas modifiés. Les livrables courants sortent dans
 - `uv run --frozen --extra test ruff format --check re-run-old-script-2026` :
   succès.
 - `uv run --frozen --extra test pytest -p no:cacheprovider
-  re-run-old-script-2026/tests/test_image_modules.py` : 5 tests passés.
+  re-run-old-script-2026/tests/test_image_modules.py` : 12 tests passés.
 - Runner : `.venv/bin/python re-run-old-script-2026/run_jeu_test_2026.py --clean`.
 - Sorties contrôlées : `re-run-old-script-2026/livrables_output_2026-07-24/`.
 - Vérification finale : 561 associations image/dossier conformes.

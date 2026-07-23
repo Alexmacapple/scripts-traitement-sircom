@@ -31,6 +31,9 @@ from sircom2026_rules import config_int, config_list, config_value
 
 
 MAX_WIDTH = config_int("image_max_width_px", default=350, minimum=1)
+SOURCE_MAX_PIXELS = config_int("image_source_max_pixels", default=80_000_000, minimum=1)
+SOURCE_MAX_WIDTH = config_int("image_source_max_width_px", default=20_000, minimum=1)
+SOURCE_MAX_HEIGHT = config_int("image_source_max_height_px", default=20_000, minimum=1)
 JPEG_QUALITY = config_int("image_jpeg_quality", default=100, minimum=1)
 DPI = config_int("image_dpi", default=300, minimum=1)
 
@@ -177,6 +180,9 @@ def process_images(
             max_width=MAX_WIDTH,
             jpeg_quality=JPEG_QUALITY,
             dpi=DPI,
+            source_max_pixels=SOURCE_MAX_PIXELS,
+            source_max_width=SOURCE_MAX_WIDTH,
+            source_max_height=SOURCE_MAX_HEIGHT,
         )
         stats.used_images.add(matched_file)
         if success:
@@ -228,6 +234,9 @@ def log_summary(target_dir: str, stats: ImageRunStats, logger: logging.Logger) -
 def run(args: argparse.Namespace, logger: logging.Logger) -> bool:
     logger.info("PARAMÈTRES DE TRAITEMENT :")
     logger.info(f"  - Largeur max : {MAX_WIDTH}px")
+    logger.info(f"  - Pixels source max : {SOURCE_MAX_PIXELS}")
+    logger.info(f"  - Largeur source max : {SOURCE_MAX_WIDTH}px")
+    logger.info(f"  - Hauteur source max : {SOURCE_MAX_HEIGHT}px")
     logger.info(f"  - Qualité JPEG : {JPEG_QUALITY}%")
     logger.info(f"  - DPI : {DPI}")
     logger.info(f"  - Source : {args.source_dir}")

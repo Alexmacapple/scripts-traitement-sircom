@@ -61,6 +61,9 @@ suffixe ISO court configurable par `output_dir_name` et `output_date_format`.
 - Le tri est région puis département du site de production.
 - Les images absentes sont listées comme alertes et ne bloquent pas le run si au
   moins une image est traitée.
+- Les images sources acceptées sont les formats JPEG, PNG, WEBP et TIFF.
+- Le ZIP images doit contenir les images utiles à la racine ; les sous-dossiers
+  utiles et les doublons de nom sont refusés.
 
 ## Critères d'acceptation
 
@@ -70,6 +73,7 @@ suffixe ISO court configurable par `output_dir_name` et `output_date_format`.
 - Les colonnes `imageid` et `@pathimg` sont remplies pour chaque ligne exportée.
 - Le tri région/département ne contient aucune inversion.
 - Les 10 images présentes dans le ZIP officiel sont traitées.
+- Les bornes de dimensions source sont appliquées avant conversion JPEG.
 - Aucun livrable courant n'est attendu à la racine de `re-run-old-script-2026/`
   après un run avec `--clean`.
 

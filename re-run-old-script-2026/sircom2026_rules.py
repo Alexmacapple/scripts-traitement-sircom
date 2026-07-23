@@ -40,12 +40,12 @@ DEFAULT_CONFIG = {
     "source_images_workdir": "images",
     "processed_images_dir": "11-export-images-id-dossier-rename-resize",
     "image_max_width_px": "350",
+    "image_source_max_pixels": "80000000",
+    "image_source_max_width_px": "20000",
+    "image_source_max_height_px": "20000",
     "image_jpeg_quality": "100",
     "image_dpi": "300",
-    "image_allowed_extensions": (
-        "jpg,jpeg,png,gif,webp,tif,tiff,bmp,eps,svg,ico,heic,heif,"
-        "psd,raw,hdr,exr,jp2,pgm,ppm,xcf"
-    ),
+    "image_allowed_extensions": "jpg,jpeg,png,webp,tif,tiff",
     "source_image_column_candidates": (
         "y_photodu,y_photo,photo_du_produit,photo_produit,photo,"
         "nom_image_source,image_source,source_image"

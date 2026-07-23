@@ -58,7 +58,8 @@ Le suffixe est au format ISO court `YYYY-MM-DD`. Le dossier peut être remplacé
 dans `variables.md` avec `output_dir`, ou ponctuellement avec `--output-dir`.
 Avec `--clean`, le runner nettoie les artefacts générés connus dans le dossier
 de sortie courant et les anciens artefacts connus qui auraient été produits à
-la racine du dossier de reprise.
+la racine du dossier de reprise. Les chemins d'artefacts configurés doivent
+rester relatifs et ne peuvent pas contenir `..`.
 
 ## Sorties utiles
 
@@ -83,6 +84,9 @@ la racine du dossier de reprise.
 - Lignes totalement vides ou sans `Dossier ID` : supprimées.
 - Tri : région puis département du site de production.
 - Images absentes : alerte non bloquante si au moins une image est traitée.
+- Formats images acceptés : JPEG, PNG, WEBP et TIFF.
+- ZIP images : fichiers image à la racine uniquement ; les doublons de nom sont
+  refusés.
 
 ## Documentation progressive
 

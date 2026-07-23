@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -14,12 +15,16 @@ sys.path.insert(0, str(SCRIPT_DIR))
 image_mapping = importlib.import_module("sircom2026_image_mapping")
 image_matching = importlib.import_module("sircom2026_image_matching")
 image_processing = importlib.import_module("sircom2026_image_processing")
+runner = importlib.import_module("run_jeu_test_2026")
 
 read_excel_mapping = image_mapping.read_excel_mapping
 AmbiguousImageMatchError = image_matching.AmbiguousImageMatchError
 find_best_match = image_matching.find_best_match
 get_available_images = image_processing.get_available_images
 process_and_rename_image = image_processing.process_and_rename_image
+extract_images = runner.extract_images
+generated_paths = runner.generated_paths
+default_output_dir = runner.default_output_dir
 
 
 class Logger:
@@ -98,6 +103,55 @@ def test_process_and_rename_image_outputs_jpeg(tmp_path: Path) -> None:
         assert output.mode == "RGB"
 
 
+def test_process_and_rename_image_preserves_pillow_pixel_limit(tmp_path: Path) -> None:
+    source_path = tmp_path / "source.png"
+    target_dir = tmp_path / "out"
+    Image.new("RGB", (10, 10), (10, 20, 30)).save(source_path)
+    original_limit = Image.MAX_IMAGE_PIXELS
+
+    try:
+        Image.MAX_IMAGE_PIXELS = 123_456
+        success, _file_size = process_and_rename_image(
+            str(source_path),
+            "12345.jpg",
+            str(target_dir),
+            Logger(),
+            max_width=80,
+            jpeg_quality=90,
+            dpi=300,
+        )
+
+        assert success is True
+        assert Image.MAX_IMAGE_PIXELS == 123_456
+    finally:
+        Image.MAX_IMAGE_PIXELS = original_limit
+
+
+def test_process_and_rename_image_rejects_source_over_pixel_limit(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "source.png"
+    target_dir = tmp_path / "out"
+    logger = Logger()
+    Image.new("RGB", (4, 4), (10, 20, 30)).save(source_path)
+
+    success, file_size = process_and_rename_image(
+        str(source_path),
+        "12345.jpg",
+        str(target_dir),
+        logger,
+        max_width=80,
+        jpeg_quality=90,
+        dpi=300,
+        source_max_pixels=15,
+    )
+
+    assert success is False
+    assert file_size == 0
+    assert not (target_dir / "12345.jpg").exists()
+    assert any("max_pixels" in message for level, message in logger.messages)
+
+
 def test_get_available_images_filters_extensions_and_hidden_files(
     tmp_path: Path,
 ) -> None:
@@ -109,3 +163,54 @@ def test_get_available_images_filters_extensions_and_hidden_files(
     available = get_available_images(str(tmp_path), ["jpg", "png"])
 
     assert sorted(available) == ["visible.jpg", "visible.png"]
+
+
+def test_extract_images_rejects_nested_image_members(tmp_path: Path) -> None:
+    source_zip = tmp_path / "images.zip"
+    with zipfile.ZipFile(source_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("dossier/photo.jpg", b"jpg")
+
+    with pytest.raises(SystemExit) as exc_info:
+        extract_images(source_zip, tmp_path / "images")
+
+    assert "sous-dossier" in str(exc_info.value)
+
+
+def test_extract_images_rejects_duplicate_root_basenames(tmp_path: Path) -> None:
+    source_zip = tmp_path / "images.zip"
+    with zipfile.ZipFile(source_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("photo.jpg", b"jpg")
+        archive.writestr("PHOTO.JPG", b"jpg")
+
+    with pytest.raises(SystemExit) as exc_info:
+        extract_images(source_zip, tmp_path / "images")
+
+    assert "dupliqué" in str(exc_info.value)
+
+
+def test_generated_paths_rejects_absolute_configured_artifact() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        generated_paths({"step_00_output": "/tmp/out.xlsx"})
+
+    assert "non borné" in str(exc_info.value)
+
+
+def test_generated_paths_rejects_parent_configured_artifact() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        generated_paths({"step_00_output": "../out.xlsx"})
+
+    assert "non borné" in str(exc_info.value)
+
+
+def test_generated_paths_rejects_current_directory_artifact() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        generated_paths({"source_images_workdir": "."})
+
+    assert "non borné" in str(exc_info.value)
+
+
+def test_default_output_dir_rejects_parent_output_name() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        default_output_dir(output_dir_name="../livrables")
+
+    assert "non borné" in str(exc_info.value)
