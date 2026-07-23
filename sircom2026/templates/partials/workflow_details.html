@@ -58,13 +58,13 @@
                             <div class="fr-col">
                               <span>{{ step.label }}</span>
                             </div>
-                            <div class="fr-col-auto">
+                            <div class="fr-col sircom-col-auto">
                               <span class="fr-badge fr-badge--{{ step.ui_badge_class }} fr-badge--sm">
                                 {{ step.ui_status_label }}
                               </span>
                             </div>
                             {% if step.actions is defined and step.actions.can_retry %}
-                              <div class="fr-col-auto">
+                              <div class="fr-col sircom-col-auto">
                                 <button
                                   class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left"
                                   id="retry-{{ step.key }}"

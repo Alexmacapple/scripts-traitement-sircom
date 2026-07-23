@@ -12,14 +12,14 @@ Ce script automatise l'exécution complète de la chaîne de traitement :
 - Script 12 : Vérification de l'intégrité des données
 
 Fonctionnalités :
-✓ Création automatique de l'environnement virtuel
-✓ Installation des dépendances
-✓ Exécution séquentielle avec validation inter-étapes
-✓ Gestion des erreurs et arrêt en cas de problème
-✓ Logs détaillés avec timestamp
-✓ Rapport final avec statistiques
-✓ Sauvegarde des fichiers existants
-✓ Mode verbose optionnel
+- Création automatique de l'environnement virtuel
+- Installation des dépendances
+- Exécution séquentielle avec validation inter-étapes
+- Gestion des erreurs et arrêt en cas de problème
+- Logs détaillés avec timestamp
+- Rapport final avec statistiques
+- Sauvegarde des fichiers existants
+- Mode verbose optionnel
 
 Usage:
     python3 sircom_master_script.py [--verbose] [--image-path PATH] [--source-images-dir PATH]
@@ -165,47 +165,45 @@ class SircomMasterProcessor:
         self.logger = logging.getLogger(__name__)
 
         self.logger.info("=" * 80)
-        self.logger.info("🚀 DÉMARRAGE DU TRAITEMENT SIRCOM - MADE IN FRANCE 2025")
+        self.logger.info("DÉMARRAGE DU TRAITEMENT SIRCOM - MADE IN FRANCE 2025")
         self.logger.info("=" * 80)
         self.logger.info(
-            f"📅 Date/heure de début : {self.start_time.strftime('%d/%m/%Y à %H:%M:%S')}"
+            f"Date/heure de début : {self.start_time.strftime('%d/%m/%Y à %H:%M:%S')}"
         )
-        self.logger.info(f"📝 Fichier de log : {self.log_filename}")
-        self.logger.info(
-            f"🔧 Mode verbose : {'Activé' if self.verbose else 'Désactivé'}"
-        )
+        self.logger.info(f"Fichier de log : {self.log_filename}")
+        self.logger.info(f"Mode verbose : {'Activé' if self.verbose else 'Désactivé'}")
 
     def print_header(self):
         """Affiche l'en-tête du script"""
         print("\n" + "=" * 80)
-        print("🎯 SCRIPT MAÎTRE - CHAÎNE DE TRAITEMENT SIRCOM")
+        print("SCRIPT MAÎTRE - CHAÎNE DE TRAITEMENT SIRCOM")
         print("   Made in France 2025 - Traitement automatisé complet")
         print("=" * 80)
-        print(f"📅 Démarrage : {self.start_time.strftime('%d/%m/%Y à %H:%M:%S')}")
-        print(f"📝 Log : {self.log_filename}")
+        print(f"Démarrage : {self.start_time.strftime('%d/%m/%Y à %H:%M:%S')}")
+        print(f"Log : {self.log_filename}")
         print()
 
     def check_prerequisites(self):
         """Vérifier les prérequis"""
-        self.logger.info("🔍 VÉRIFICATION DES PRÉREQUIS")
+        self.logger.info("VÉRIFICATION DES PRÉREQUIS")
 
         # Vérifier Python 3
         python_version = sys.version_info
         if python_version.major < 3:
-            self.logger.error("❌ Python 3.x requis")
+            self.logger.error("ERREUR - Python 3.x requis")
             return False
         self.logger.info(
-            f"✅ Python {python_version.major}.{python_version.minor}.{python_version.micro}"
+            f"OK - Python {python_version.major}.{python_version.minor}.{python_version.micro}"
         )
 
         # Vérifier le fichier source
         if not os.path.exists(SOURCE_FILE):
-            self.logger.error(f"❌ Fichier source manquant : {SOURCE_FILE}")
+            self.logger.error(f"ERREUR - Fichier source manquant : {SOURCE_FILE}")
             self.logger.error(
-                f"💡 Veuillez déposer le fichier '{SOURCE_FILE}' dans le répertoire courant"
+                f"Action requise : déposer le fichier '{SOURCE_FILE}' dans le répertoire courant"
             )
             return False
-        self.logger.info(f"✅ Fichier source trouvé : {SOURCE_FILE}")
+        self.logger.info(f"OK - Fichier source trouvé : {SOURCE_FILE}")
 
         # Vérifier que tous les scripts sont présents
         missing_scripts = []
@@ -214,20 +212,24 @@ class SircomMasterProcessor:
                 missing_scripts.append(script_info["script"])
 
         if missing_scripts:
-            self.logger.error(f"❌ Scripts manquants : {', '.join(missing_scripts)}")
+            self.logger.error(
+                f"ERREUR - Scripts manquants : {', '.join(missing_scripts)}"
+            )
             return False
-        self.logger.info(f"✅ Tous les scripts trouvés ({len(SCRIPTS_CHAIN)} scripts)")
+        self.logger.info(
+            f"OK - Tous les scripts trouvés ({len(SCRIPTS_CHAIN)} scripts)"
+        )
 
         return True
 
     def configure_image_path(self):
         """Configuration interactive du chemin des images"""
-        self.logger.info("🖼️  CONFIGURATION DU CHEMIN DES IMAGES")
+        self.logger.info("CONFIGURATION DU CHEMIN DES IMAGES")
         if self.image_path_configured:
-            self.logger.info(f"✅ Chemin configuré par option : {self.image_path}")
-            print(f"\n✅ Chemin des images InDesign configuré : {self.image_path}")
+            self.logger.info(f"OK - Chemin configuré par option : {self.image_path}")
+            print(f"\nChemin des images InDesign configuré : {self.image_path}")
             return
-        print("\n🖼️  Configuration du chemin des images pour InDesign")
+        print("\nConfiguration du chemin des images pour InDesign")
         print(f"Chemin par défaut : {DEFAULT_IMAGE_PATH}")
         print()
 
@@ -239,26 +241,28 @@ class SircomMasterProcessor:
             if user_input:
                 self.image_path = user_input
                 self.logger.info(
-                    f"✅ Chemin personnalisé configuré : {self.image_path}"
+                    f"OK - Chemin personnalisé configuré : {self.image_path}"
                 )
-                print(f"✅ Chemin configuré : {self.image_path}")
+                print(f"Chemin configuré : {self.image_path}")
             else:
-                self.logger.info(f"✅ Chemin par défaut conservé : {self.image_path}")
-                print("✅ Chemin par défaut conservé")
+                self.logger.info(f"OK - Chemin par défaut conservé : {self.image_path}")
+                print("Chemin par défaut conservé")
 
         except KeyboardInterrupt:
-            self.logger.info("✅ Configuration interrompue, chemin par défaut conservé")
-            print(f"\n✅ Chemin par défaut conservé : {self.image_path}")
+            self.logger.info(
+                "OK - Configuration interrompue, chemin par défaut conservé"
+            )
+            print(f"\nChemin par défaut conservé : {self.image_path}")
 
     def setup_virtual_environment(self):
         """Créer et configurer l'environnement virtuel"""
-        self.logger.info("🐍 CONFIGURATION DE L'ENVIRONNEMENT VIRTUEL")
+        self.logger.info("CONFIGURATION DE L'ENVIRONNEMENT VIRTUEL")
 
         venv_path = os.path.join(os.getcwd(), VENV_NAME)
 
         # Créer l'environnement virtuel s'il n'existe pas
         if not os.path.exists(venv_path):
-            self.logger.info(f"📦 Création de l'environnement virtuel : {VENV_NAME}")
+            self.logger.info(f"Création de l'environnement virtuel : {VENV_NAME}")
             try:
                 subprocess.run(
                     [sys.executable, "-m", "venv", VENV_NAME],
@@ -266,14 +270,16 @@ class SircomMasterProcessor:
                     capture_output=True,
                     text=True,
                 )
-                self.logger.info("✅ Environnement virtuel créé")
+                self.logger.info("OK - Environnement virtuel créé")
             except subprocess.CalledProcessError as e:
                 self.logger.error(
-                    f"❌ Erreur lors de la création de l'environnement virtuel : {e}"
+                    f"ERREUR - Création de l'environnement virtuel impossible : {e}"
                 )
                 return False
         else:
-            self.logger.info(f"✅ Environnement virtuel existant trouvé : {VENV_NAME}")
+            self.logger.info(
+                f"OK - Environnement virtuel existant trouvé : {VENV_NAME}"
+            )
 
         # Déterminer le chemin vers Python dans l'environnement virtuel
         if os.name == "nt":  # Windows
@@ -286,14 +292,14 @@ class SircomMasterProcessor:
         requirements_path = os.path.join(os.getcwd(), REQUIREMENTS_2025_FILE)
         if not os.path.exists(requirements_path):
             self.logger.error(
-                f"❌ Fichier de dépendances manquant : {REQUIREMENTS_2025_FILE}"
+                f"ERREUR - Fichier de dépendances manquant : {REQUIREMENTS_2025_FILE}"
             )
             return False
 
         # Installer les dépendances
-        self.logger.info("📚 Installation des dépendances")
+        self.logger.info("Installation des dépendances")
         try:
-            self.logger.info(f"  📦 Installation depuis {REQUIREMENTS_2025_FILE}...")
+            self.logger.info(f"  Installation depuis {REQUIREMENTS_2025_FILE}...")
             subprocess.run(
                 [pip_venv, "install", "-r", requirements_path],
                 check=True,
@@ -301,19 +307,19 @@ class SircomMasterProcessor:
                 text=True,
             )
             self.logger.info(
-                f"  ✅ Dépendances installées depuis {REQUIREMENTS_2025_FILE}"
+                f"  OK - Dépendances installées depuis {REQUIREMENTS_2025_FILE}"
             )
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"  ❌ Erreur installation dépendances : {e}")
+            self.logger.error(f"  ERREUR - Installation dépendances impossible : {e}")
             return False
 
         self.python_venv = python_venv
-        self.logger.info("✅ Environnement virtuel prêt")
+        self.logger.info("OK - Environnement virtuel prêt")
         return True
 
     def backup_existing_files(self):
         """Sauvegarder les fichiers existants avec timestamp"""
-        self.logger.info("💾 SAUVEGARDE DES FICHIERS EXISTANTS")
+        self.logger.info("SAUVEGARDE DES FICHIERS EXISTANTS")
 
         timestamp = self.start_time.strftime("%Y%m%d-%H%M%S")
         backup_count = 0
@@ -324,17 +330,17 @@ class SircomMasterProcessor:
                 backup_name = f"{output_file}.backup-{timestamp}"
                 try:
                     shutil.copy2(output_file, backup_name)
-                    self.logger.info(f"  💾 {output_file} → {backup_name}")
+                    self.logger.info(f"  Sauvegarde : {output_file} -> {backup_name}")
                     backup_count += 1
                 except Exception as e:
                     self.logger.warning(
-                        f"  ⚠️  Impossible de sauvegarder {output_file} : {e}"
+                        f"  ATTENTION - Impossible de sauvegarder {output_file} : {e}"
                     )
 
         if backup_count > 0:
-            self.logger.info(f"✅ {backup_count} fichiers sauvegardés")
+            self.logger.info(f"OK - {backup_count} fichiers sauvegardés")
         else:
-            self.logger.info("✅ Aucun fichier existant à sauvegarder")
+            self.logger.info("OK - Aucun fichier existant à sauvegarder")
 
     def validate_file(self, filepath, min_rows=1):
         """Valider qu'un fichier est correctement créé"""
@@ -405,7 +411,7 @@ class SircomMasterProcessor:
 
     def update_image_path_in_script(self):
         """Préparer les paramètres images sans modifier les scripts source."""
-        self.logger.info("🔧 Paramètres images transmis par environnement")
+        self.logger.info("Paramètres images transmis par environnement")
         self.logger.info(f"  Chemin InDesign : {self.image_path}")
         self.logger.info(f"  Dossier images source : {self.source_images_dir}")
 
@@ -415,7 +421,7 @@ class SircomMasterProcessor:
         description = script_info["description"]
         output_file = script_info["output_file"]
 
-        self.logger.info(f"🔄 ÉTAPE {step_number}/{len(SCRIPTS_CHAIN)} : {description}")
+        self.logger.info(f"ÉTAPE {step_number}/{len(SCRIPTS_CHAIN)} : {description}")
         self.logger.info(f"   Script : {script_name}")
         self.logger.info(f"   Sortie attendue : {output_file}")
 
@@ -443,9 +449,9 @@ class SircomMasterProcessor:
 
             if is_valid:
                 self.logger.info(
-                    f"✅ Script exécuté avec succès en {execution_time:.2f}s"
+                    f"OK - Script exécuté avec succès en {execution_time:.2f}s"
                 )
-                self.logger.info(f"✅ Validation : {validation_msg}")
+                self.logger.info(f"OK - Validation : {validation_msg}")
 
                 # Enregistrer les statistiques
                 self.stats["scripts_executed"] += 1
@@ -473,7 +479,7 @@ class SircomMasterProcessor:
                 return True
 
             else:
-                self.logger.error(f"❌ Validation échouée : {validation_msg}")
+                self.logger.error(f"ERREUR - Validation échouée : {validation_msg}")
                 self.stats["errors"].append(
                     f"{script_name}: Validation échouée - {validation_msg}"
                 )
@@ -481,7 +487,7 @@ class SircomMasterProcessor:
 
         except subprocess.CalledProcessError as e:
             execution_time = time.time() - start_time
-            self.logger.error(f"❌ Erreur d'exécution après {execution_time:.2f}s")
+            self.logger.error(f"ERREUR - Exécution échouée après {execution_time:.2f}s")
             self.logger.error(f"Code de retour : {e.returncode}")
 
             if e.stdout:
@@ -496,7 +502,9 @@ class SircomMasterProcessor:
 
         except Exception as e:
             execution_time = time.time() - start_time
-            self.logger.error(f"❌ Erreur inattendue après {execution_time:.2f}s : {e}")
+            self.logger.error(
+                f"ERREUR - Erreur inattendue après {execution_time:.2f}s : {e}"
+            )
             self.stats["errors"].append(f"{script_name}: Erreur inattendue - {str(e)}")
             return False
 
@@ -520,10 +528,10 @@ class SircomMasterProcessor:
 
         report_content = f"""
 ==================================================================================
-📊 RAPPORT DE TRAITEMENT SIRCOM - MADE IN FRANCE 2025
+RAPPORT DE TRAITEMENT SIRCOM - MADE IN FRANCE 2025
 ==================================================================================
 
-📅 INFORMATIONS GÉNÉRALES
+INFORMATIONS GÉNÉRALES
 -------------------------
 Date de début       : {self.start_time.strftime("%d/%m/%Y à %H:%M:%S")}
 Date de fin         : {end_time.strftime("%d/%m/%Y à %H:%M:%S")}
@@ -532,7 +540,7 @@ Fichier de log      : {self.log_filename}
 Mode verbose        : {"Oui" if self.verbose else "Non"}
 Chemin des images   : {self.image_path}
 
-📈 STATISTIQUES D'EXÉCUTION
+STATISTIQUES D'EXÉCUTION
 ----------------------------
 Scripts exécutés    : {self.stats["scripts_executed"]}/{len(SCRIPTS_CHAIN)}
 Fichiers créés      : {len(self.stats["files_created"])}
@@ -540,7 +548,7 @@ Erreurs rencontrées : {len(self.stats["errors"])}
 Temps moyen/script  : {average_execution_time:.2f} secondes
 Espace disque total : {total_files_size:,} octets ({total_files_size / 1024 / 1024:.2f} MB)
 
-⏱️  TEMPS D'EXÉCUTION PAR SCRIPT
+TEMPS D'EXÉCUTION PAR SCRIPT
 ---------------------------------
 """
 
@@ -548,7 +556,7 @@ Espace disque total : {total_files_size:,} octets ({total_files_size / 1024 / 10
             report_content += f"{script_name:<40} : {exec_time:>8.2f}s\n"
 
         report_content += """
-📁 FICHIERS CRÉÉS
+FICHIERS CRÉÉS
 -----------------
 """
 
@@ -578,7 +586,7 @@ Espace disque total : {total_files_size:,} octets ({total_files_size / 1024 / 10
 
         if self.stats["errors"]:
             report_content += """
-❌ ERREURS RENCONTRÉES
+ERREURS RENCONTRÉES
 ----------------------
 """
             for error in self.stats["errors"]:
@@ -589,22 +597,22 @@ Espace disque total : {total_files_size:,} octets ({total_files_size / 1024 / 10
             self.stats["scripts_executed"] == len(SCRIPTS_CHAIN)
             and not self.stats["errors"]
         ):
-            status = "✅ SUCCÈS COMPLET"
+            status = "SUCCÈS COMPLET"
             result_msg = "Tous les scripts ont été exécutés avec succès !"
         elif self.stats["scripts_executed"] > 0:
-            status = "⚠️  SUCCÈS PARTIEL"
+            status = "SUCCÈS PARTIEL"
             result_msg = f"{self.stats['scripts_executed']}/{len(SCRIPTS_CHAIN)} scripts exécutés"
         else:
-            status = "❌ ÉCHEC"
+            status = "ÉCHEC"
             result_msg = "Aucun script n'a pu être exécuté correctement"
 
         report_content += f"""
-🎯 RÉSULTAT FINAL
+RÉSULTAT FINAL
 -----------------
 Statut : {status}
 {result_msg}
 
-📂 LIVRABLES FINAUX
+LIVRABLES FINAUX
 -------------------
 • Livrable Excel  : 5-livrable-final-word.xlsx
 • Livrable CSV    : 9-final-sircom-indesign-utf16.csv
@@ -620,11 +628,11 @@ Rapport généré automatiquement le {end_time.strftime("%d/%m/%Y à %H:%M:%S")}
             with open(report_filename, "w", encoding="utf-8") as f:
                 f.write(report_content)
 
-            self.logger.info(f"📊 Rapport final généré : {report_filename}")
+            self.logger.info(f"Rapport final généré : {report_filename}")
 
             # Afficher le résumé dans les logs
             self.logger.info("=" * 80)
-            self.logger.info("🎯 RÉSUMÉ FINAL")
+            self.logger.info("RÉSUMÉ FINAL")
             self.logger.info("=" * 80)
             self.logger.info(f"Statut : {status}")
             self.logger.info(
@@ -637,7 +645,7 @@ Rapport généré automatiquement le {end_time.strftime("%d/%m/%Y à %H:%M:%S")}
             return True, report_filename
 
         except Exception as e:
-            self.logger.error(f"❌ Erreur lors de la génération du rapport : {e}")
+            self.logger.error(f"ERREUR - Génération du rapport impossible : {e}")
             return False, None
 
     def run(self):
@@ -647,7 +655,9 @@ Rapport généré automatiquement le {end_time.strftime("%d/%m/%Y à %H:%M:%S")}
 
             # Étape 1 : Vérifications préliminaires
             if not self.check_prerequisites():
-                self.logger.error("❌ Prérequis non satisfaits - Arrêt du traitement")
+                self.logger.error(
+                    "ERREUR - Prérequis non satisfaits - Arrêt du traitement"
+                )
                 return False
 
             # Étape 2 : Configuration du chemin des images
@@ -655,7 +665,9 @@ Rapport généré automatiquement le {end_time.strftime("%d/%m/%Y à %H:%M:%S")}
 
             # Étape 3 : Configuration de l'environnement
             if not self.setup_virtual_environment():
-                self.logger.error("❌ Impossible de configurer l'environnement virtuel")
+                self.logger.error(
+                    "ERREUR - Impossible de configurer l'environnement virtuel"
+                )
                 return False
 
             # Étape 4 : Sauvegarde des fichiers existants
@@ -665,13 +677,15 @@ Rapport généré automatiquement le {end_time.strftime("%d/%m/%Y à %H:%M:%S")}
             self.update_image_path_in_script()
 
             # Étape 6 : Exécution de la chaîne de scripts
-            self.logger.info("🚀 DÉBUT DE L'EXÉCUTION DE LA CHAÎNE")
+            self.logger.info("DÉBUT DE L'EXÉCUTION DE LA CHAÎNE")
             self.logger.info("=" * 80)
 
             chain_success = True
             for i, script_info in enumerate(SCRIPTS_CHAIN, 1):
                 if not self.execute_script(script_info, i):
-                    self.logger.error(f"❌ Échec à l'étape {i} - Arrêt du traitement")
+                    self.logger.error(
+                        f"ERREUR - Échec à l'étape {i} - Arrêt du traitement"
+                    )
                     chain_success = False
                     break
 
@@ -680,31 +694,31 @@ Rapport généré automatiquement le {end_time.strftime("%d/%m/%Y à %H:%M:%S")}
 
             # Étape 7 : Génération du rapport final
             self.logger.info("=" * 80)
-            self.logger.info("📊 GÉNÉRATION DU RAPPORT FINAL")
+            self.logger.info("GÉNÉRATION DU RAPPORT FINAL")
 
             success, report_file = self.generate_final_report()
 
             if success and chain_success:
-                self.logger.info("🎉 TRAITEMENT TERMINÉ AVEC SUCCÈS !")
+                self.logger.info("TRAITEMENT TERMINÉ AVEC SUCCÈS")
                 if report_file:
-                    print(f"\n📊 Rapport détaillé disponible : {report_file}")
+                    print(f"\nRapport détaillé disponible : {report_file}")
                 return True
             elif success:
                 self.logger.error(
-                    "❌ Traitement interrompu : rapport généré mais chaîne incomplète"
+                    "ERREUR - Traitement interrompu : rapport généré mais chaîne incomplète"
                 )
                 if report_file:
-                    print(f"\n📊 Rapport détaillé disponible : {report_file}")
+                    print(f"\nRapport détaillé disponible : {report_file}")
                 return False
             else:
-                self.logger.error("❌ Erreur lors de la génération du rapport")
+                self.logger.error("ERREUR - Génération du rapport impossible")
                 return False
 
         except KeyboardInterrupt:
-            self.logger.warning("\n⚠️  Traitement interrompu par l'utilisateur")
+            self.logger.warning("\nATTENTION - Traitement interrompu par l'utilisateur")
             return False
         except Exception as e:
-            self.logger.error(f"❌ Erreur critique : {e}")
+            self.logger.error(f"ERREUR - Erreur critique : {e}")
             return False
 
 
