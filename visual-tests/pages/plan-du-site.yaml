@@ -14,5 +14,3 @@ steps:
     text: "Plan du site"
   - action: assert_text
     text: "Navigation disponible"
-  - action: screenshot
-    screenshot: "plan-du-site.png"

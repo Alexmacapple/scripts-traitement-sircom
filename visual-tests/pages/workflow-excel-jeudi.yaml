@@ -1,0 +1,16 @@
+name: "Workflow Excel - lot jeudi"
+description: "Capture ciblée de l'écran Traitement Excel du lot jeudi pour retour visuel"
+priority: high
+requires_auth: false
+timeout: 30s
+tags: [workflow, excel, lot-jeudi, retour-visuel]
+generated_by: codex
+generated_date: "2026-07-23"
+
+steps:
+  - action: open
+    url: "{base_url}/lots/lot_951dcd57f2b94fecbbe4e50559ad8364/excel"
+  - action: assert_text
+    text: "Traitement Excel du lot jeudi"
+  - action: assert_text
+    text: "Prévisualiser le CSV"

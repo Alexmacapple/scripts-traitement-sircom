@@ -633,7 +633,11 @@ class LotsUiTest(unittest.TestCase):
 
         html = response.text
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Problèmes", html)
+        self.assertIn("Problèmes ouverts : 1", html)
+        self.assertIn("Voir le détail des problèmes ouverts", html)
+        self.assertIn('id="lot-problems-title"', html)
+        self.assertIn('aria-expanded="false"', html)
+        self.assertNotIn("fr-collapse--expanded", html)
         self.assertIn("Alerte", html)
         self.assertIn("Colonnes masquées détectées", html)
         self.assertIn("<dt>Cause</dt>", html)

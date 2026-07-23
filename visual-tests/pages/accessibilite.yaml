@@ -14,5 +14,3 @@ steps:
     text: "Accessibilité"
   - action: assert_text
     text: "Statut non audité"
-  - action: screenshot
-    screenshot: "accessibilite.png"

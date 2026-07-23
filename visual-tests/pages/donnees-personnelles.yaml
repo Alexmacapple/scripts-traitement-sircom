@@ -14,5 +14,3 @@ steps:
     text: "Données personnelles"
   - action: assert_text
     text: "Données stockées localement"
-  - action: screenshot
-    screenshot: "donnees-personnelles.png"

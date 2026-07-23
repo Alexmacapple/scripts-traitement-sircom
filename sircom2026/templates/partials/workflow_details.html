@@ -1,156 +1,194 @@
-              <div class="fr-accordions-group fr-mt-6v" id="lot-details">
-                <section class="fr-accordion">
-                  <h3 class="fr-accordion__title">
-                    <button
-                      id="timeline-title"
-                      class="fr-accordion__btn"
-                      aria-expanded="false"
-                      aria-controls="timeline-panel"
-                      type="button"
-                    >
-                      Historique technique des étapes
-                    </button>
-                  </h3>
-                  <div class="fr-collapse" id="timeline-panel">
-                    <ol class="fr-raw-list fr-mt-2v">
-                      {% for step in lot_ui.step_navigation %}
-                        <li class="fr-py-2v fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
-                          <div class="fr-col">
-                            <span>{{ step.label }}</span>
-                          </div>
-                          <div class="fr-col-auto">
-                            <span class="fr-badge fr-badge--{{ step.ui_badge_class }} fr-badge--sm">
-                              {{ step.ui_status_label }}
-                            </span>
-                          </div>
-                          {% if step.actions is defined and step.actions.can_retry %}
-                            <div class="fr-col-auto">
-                              <button
-                                class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left"
-                                id="retry-{{ step.key }}"
-                                type="button"
-                                data-retry-lot-id="{{ selected_lot.id }}"
-                                data-retry-step-key="{{ step.key }}"
-                              >
-                                Relancer cette étape
-                              </button>
-                            </div>
-                          {% endif %}
+              <div class="fr-mt-6v" id="lot-details">
+                {% set blocking_count = selected_lot.problem_groups['bloquant']['items'] | length %}
+                {% set alert_count = selected_lot.problem_groups['alerte']['items'] | length %}
+                {% set information_count = selected_lot.problem_groups['information']['items'] | length %}
+                {% if selected_lot.problems %}
+                  {% set summary_alert_class = 'error' if blocking_count else 'warning' if alert_count else 'info' %}
+                  <div class="fr-alert fr-alert--{{ summary_alert_class }} fr-mb-4v sircom-problems-summary" role="status">
+                    <h3 class="fr-alert__title">
+                      Problèmes ouverts : {{ selected_lot.counters.problems_open_count }}
+                    </h3>
+                    <ul class="fr-badges-group fr-mt-2v fr-mb-0" aria-label="Résumé des problèmes ouverts">
+                      {% if blocking_count %}
+                        <li>
+                          <p class="fr-badge fr-badge--error fr-badge--sm">
+                            Bloquant : {{ blocking_count }}
+                          </p>
                         </li>
-                      {% endfor %}
-                    </ol>
+                      {% endif %}
+                      {% if alert_count %}
+                        <li>
+                          <p class="fr-badge fr-badge--warning fr-badge--sm">
+                            Alerte : {{ alert_count }}
+                          </p>
+                        </li>
+                      {% endif %}
+                      {% if information_count %}
+                        <li>
+                          <p class="fr-badge fr-badge--info fr-badge--sm">
+                            Information : {{ information_count }}
+                          </p>
+                        </li>
+                      {% endif %}
+                    </ul>
                   </div>
-                </section>
-
-                <section class="fr-accordion">
-                  <h3 class="fr-accordion__title">
-                    <button
-                      id="lot-problems-title"
-                      class="fr-accordion__btn"
-                      aria-expanded="{{ 'true' if selected_lot.problems else 'false' }}"
-                      aria-controls="lot-problems-panel"
-                      type="button"
-                    >
-                      Problèmes ouverts
-                    </button>
-                  </h3>
-                  <div
-                    class="fr-collapse{% if selected_lot.problems %} fr-collapse--expanded{% endif %}"
-                    id="lot-problems-panel"
-                  >
-                    {% if selected_lot.problems %}
-                      {% for _severity, group in selected_lot.problem_groups.items() %}
-                        {% if group['items'] %}
-                          {% set problem_count = group['items'] | length %}
-                          <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-4v sircom-problem-group" role="alert">
-                            <h4 class="fr-alert__title">
-                              {{ group['label'] }} : {{ problem_count }} {{ "points" if problem_count > 1 else "point" }}
-                            </h4>
-                            <ul class="fr-raw-list sircom-problem-list fr-mt-3v">
-                              {% for problem in group['items'] %}
-                                <li class="sircom-problem-item fr-py-3v">
-                                  <div class="sircom-problem-heading fr-mb-2v">
-                                    <span class="fr-badge fr-badge--sm">{{ problem.step_label }}</span>
-                                    <p class="sircom-problem-title fr-mb-0">{{ problem.title }}</p>
-                                  </div>
-                                  <dl class="sircom-problem-details fr-mt-2v fr-mb-0">
-                                    <dt>Cause</dt>
-                                    <dd>{{ problem.cause }}</dd>
-                                    <dt>Emplacement</dt>
-                                    <dd>{{ problem.location_label }}</dd>
-                                    <dt>Action attendue</dt>
-                                    <dd>{{ problem.action }}</dd>
-                                  </dl>
-                                  {% if problem.technical_items %}
-                                    <div class="fr-accordions-group fr-mt-2v">
-                                      <section class="fr-accordion">
-                                        <h5 class="fr-accordion__title">
-                                          <button
-                                            class="fr-accordion__btn"
-                                            aria-expanded="false"
-                                            aria-controls="problem-tech-{{ problem.id }}"
-                                            type="button"
-                                          >
-                                            Détails techniques
-                                          </button>
-                                        </h5>
-                                        <div class="fr-collapse" id="problem-tech-{{ problem.id }}">
-                                          <dl class="fr-mt-2v">
-                                            {% for key, value in problem.technical_items %}
-                                              <dt>{{ key }}</dt>
-                                              <dd>{{ value }}</dd>
-                                            {% endfor %}
-                                          </dl>
-                                        </div>
-                                      </section>
-                                    </div>
-                                  {% endif %}
-                                  <p class="sircom-problem-code fr-text--xs fr-mt-2v fr-mb-0">
-                                    Code {{ problem.code }}.
-                                  </p>
-                                </li>
-                              {% endfor %}
-                            </ul>
-                          </div>
-                        {% endif %}
-                      {% endfor %}
-                    {% else %}
-                      <p class="fr-mt-2v">Aucun problème ouvert.</p>
-                    {% endif %}
+                {% else %}
+                  <div class="fr-alert fr-alert--success fr-mb-4v sircom-problems-summary" role="status">
+                    <h3 class="fr-alert__title">Aucun problème ouvert</h3>
                   </div>
-                </section>
+                {% endif %}
 
-                <section class="fr-accordion">
-                  <h3 class="fr-accordion__title">
-                    <button
-                      id="lot-events-title"
-                      class="fr-accordion__btn"
-                      aria-expanded="false"
-                      aria-controls="lot-events-panel"
-                      type="button"
-                    >
-                      Événements techniques
-                    </button>
-                  </h3>
-                  <div class="fr-collapse" id="lot-events-panel">
-                    {% if selected_lot.events %}
-                      <ul class="fr-raw-list fr-mt-2v">
-                        {% for event in selected_lot.events %}
-                          <li class="fr-py-2v">
-                            <p class="fr-mb-0">
-                              <span class="fr-badge fr-badge--sm">{{ event.level_label }}</span>
-                              <strong>{{ event.label }}</strong>
-                            </p>
-                            {% if event.summary %}
-                              <p class="fr-text--sm fr-mb-0">{{ event.summary }}</p>
+                <div class="fr-accordions-group">
+                  <section class="fr-accordion">
+                    <h3 class="fr-accordion__title">
+                      <button
+                        id="timeline-title"
+                        class="fr-accordion__btn"
+                        aria-expanded="false"
+                        aria-controls="timeline-panel"
+                        type="button"
+                      >
+                        Historique technique des étapes
+                      </button>
+                    </h3>
+                    <div class="fr-collapse" id="timeline-panel">
+                      <ol class="fr-raw-list fr-mt-2v">
+                        {% for step in lot_ui.step_navigation %}
+                          <li class="fr-py-2v fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+                            <div class="fr-col">
+                              <span>{{ step.label }}</span>
+                            </div>
+                            <div class="fr-col-auto">
+                              <span class="fr-badge fr-badge--{{ step.ui_badge_class }} fr-badge--sm">
+                                {{ step.ui_status_label }}
+                              </span>
+                            </div>
+                            {% if step.actions is defined and step.actions.can_retry %}
+                              <div class="fr-col-auto">
+                                <button
+                                  class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left"
+                                  id="retry-{{ step.key }}"
+                                  type="button"
+                                  data-retry-lot-id="{{ selected_lot.id }}"
+                                  data-retry-step-key="{{ step.key }}"
+                                >
+                                  Relancer cette étape
+                                </button>
+                              </div>
                             {% endif %}
-                            <p class="fr-text--xs fr-mb-0">{{ event.created_at }}</p>
                           </li>
                         {% endfor %}
-                      </ul>
-	                    {% else %}
-	                      <p class="fr-mt-2v">Aucun événement enregistré.</p>
-	                    {% endif %}
-	                  </div>
-	                </section>
-	              </div>
+                      </ol>
+                    </div>
+                  </section>
+
+                  <section class="fr-accordion">
+                    <h3 class="fr-accordion__title">
+                      <button
+                        id="lot-problems-title"
+                        class="fr-accordion__btn"
+                        aria-expanded="false"
+                        aria-controls="lot-problems-panel"
+                        type="button"
+                      >
+                        Voir le détail des problèmes ouverts
+                      </button>
+                    </h3>
+                    <div class="fr-collapse" id="lot-problems-panel">
+                      {% if selected_lot.problems %}
+                        {% for _severity, group in selected_lot.problem_groups.items() %}
+                          {% if group['items'] %}
+                            {% set problem_count = group['items'] | length %}
+                            <div class="fr-alert fr-alert--{{ group['alert_class'] }} fr-mb-4v sircom-problem-group" role="alert">
+                              <h4 class="fr-alert__title">
+                                {{ group['label'] }} : {{ problem_count }} {{ "points" if problem_count > 1 else "point" }}
+                              </h4>
+                              <ul class="fr-raw-list sircom-problem-list fr-mt-3v">
+                                {% for problem in group['items'] %}
+                                  <li class="sircom-problem-item fr-py-3v">
+                                    <div class="sircom-problem-heading fr-mb-2v">
+                                      <span class="fr-badge fr-badge--sm">{{ problem.step_label }}</span>
+                                      <p class="sircom-problem-title fr-mb-0">{{ problem.title }}</p>
+                                    </div>
+                                    <dl class="sircom-problem-details fr-mt-2v fr-mb-0">
+                                      <dt>Cause</dt>
+                                      <dd>{{ problem.cause }}</dd>
+                                      <dt>Emplacement</dt>
+                                      <dd>{{ problem.location_label }}</dd>
+                                      <dt>Action attendue</dt>
+                                      <dd>{{ problem.action }}</dd>
+                                    </dl>
+                                    {% if problem.technical_items %}
+                                      <div class="fr-accordions-group fr-mt-2v">
+                                        <section class="fr-accordion">
+                                          <h5 class="fr-accordion__title">
+                                            <button
+                                              class="fr-accordion__btn"
+                                              aria-expanded="false"
+                                              aria-controls="problem-tech-{{ problem.id }}"
+                                              type="button"
+                                            >
+                                              Détails techniques
+                                            </button>
+                                          </h5>
+                                          <div class="fr-collapse" id="problem-tech-{{ problem.id }}">
+                                            <dl class="fr-mt-2v">
+                                              {% for key, value in problem.technical_items %}
+                                                <dt>{{ key }}</dt>
+                                                <dd>{{ value }}</dd>
+                                              {% endfor %}
+                                            </dl>
+                                          </div>
+                                        </section>
+                                      </div>
+                                    {% endif %}
+                                    <p class="sircom-problem-code fr-text--xs fr-mt-2v fr-mb-0">
+                                      Code {{ problem.code }}.
+                                    </p>
+                                  </li>
+                                {% endfor %}
+                              </ul>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% else %}
+                        <p class="fr-mt-2v">Aucun problème ouvert.</p>
+                      {% endif %}
+                    </div>
+                  </section>
+
+                  <section class="fr-accordion">
+                    <h3 class="fr-accordion__title">
+                      <button
+                        id="lot-events-title"
+                        class="fr-accordion__btn"
+                        aria-expanded="false"
+                        aria-controls="lot-events-panel"
+                        type="button"
+                      >
+                        Événements techniques
+                      </button>
+                    </h3>
+                    <div class="fr-collapse" id="lot-events-panel">
+                      {% if selected_lot.events %}
+                        <ul class="fr-raw-list fr-mt-2v">
+                          {% for event in selected_lot.events %}
+                            <li class="fr-py-2v">
+                              <p class="fr-mb-0">
+                                <span class="fr-badge fr-badge--sm">{{ event.level_label }}</span>
+                                <strong>{{ event.label }}</strong>
+                              </p>
+                              {% if event.summary %}
+                                <p class="fr-text--sm fr-mb-0">{{ event.summary }}</p>
+                              {% endif %}
+                              <p class="fr-text--xs fr-mb-0">{{ event.created_at }}</p>
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      {% else %}
+                        <p class="fr-mt-2v">Aucun événement enregistré.</p>
+                      {% endif %}
+                    </div>
+                  </section>
+                </div>
+              </div>

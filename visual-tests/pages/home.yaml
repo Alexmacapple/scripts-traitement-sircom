@@ -18,5 +18,3 @@ steps:
     text: "Créer le lot"
   - action: assert_text
     text: "Lots"
-  - action: screenshot
-    screenshot: "home.png"

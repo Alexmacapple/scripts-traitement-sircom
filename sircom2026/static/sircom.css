@@ -59,6 +59,7 @@
 }
 
 .sircom-create-lot-action .fr-btn {
+  margin-bottom: 0;
   min-height: 2.5rem;
   width: 100%;
 }
@@ -178,17 +179,33 @@
 }
 
 .sircom-workflow-screen-link--active {
+  --active-tint: var(--background-action-high-blue-france);
+  --hover-tint: var(--background-action-high-blue-france);
   background-color: var(--background-action-high-blue-france);
   box-shadow: inset 0 0 0 1px var(--border-action-high-blue-france);
   color: var(--text-inverted-blue-france);
 }
 
-.sircom-workflow-screen-link--active:hover,
-.sircom-workflow-screen-link--active:focus {
-  background-color: var(--background-action-high-blue-france-hover);
+a.sircom-workflow-screen-link--active:hover,
+a.sircom-workflow-screen-link--active:focus {
+  background-color: var(--background-action-high-blue-france);
+  box-shadow: inset 0 0 0 2px var(--border-action-high-blue-france);
+  color: var(--text-inverted-blue-france);
+}
+
+.sircom-workflow-screen-link--active .sircom-workflow-screen-label,
+.sircom-workflow-screen-link--active:hover .sircom-workflow-screen-label,
+.sircom-workflow-screen-link--active:focus .sircom-workflow-screen-label {
+  color: var(--text-inverted-blue-france);
 }
 
 .sircom-workflow-screen-link--active .fr-badge {
+  background-color: var(--background-default-grey);
+  color: var(--text-default-grey);
+}
+
+.sircom-workflow-screen-link--active:hover .fr-badge,
+.sircom-workflow-screen-link--active:focus .fr-badge {
   background-color: var(--background-default-grey);
   color: var(--text-default-grey);
 }
@@ -200,6 +217,18 @@
 
 .sircom-step-state {
   align-items: start;
+}
+
+.sircom-step-guidance > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sircom-step-guidance dt,
+.sircom-step-guidance dd {
+  margin-left: 0;
+  max-width: 100%;
 }
 
 .sircom-problem-list {
