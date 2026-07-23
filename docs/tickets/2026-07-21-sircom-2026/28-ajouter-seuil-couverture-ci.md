@@ -1,6 +1,6 @@
 # 28 - Ajouter un seuil de couverture en CI
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : aucun, peut commencer immédiatement.
 
@@ -22,14 +22,14 @@ campagne de tests.
 
 ## Critères d'acceptation
 
-- [ ] La dépendance de couverture est épinglée dans les dépendances de test.
-- [ ] La CI exécute la suite avec couverture sur le package `sircom2026`.
-- [ ] Le seuil initial est documenté dans `pyproject.toml` ou dans la commande
+- [x] La dépendance de couverture est épinglée dans les dépendances de test.
+- [x] La CI exécute la suite avec couverture sur le package `sircom2026`.
+- [x] Le seuil initial est documenté dans `pyproject.toml` ou dans la commande
       CI.
-- [ ] Le seuil choisi est justifié par la mesure actuelle et laisse une marge
+- [x] Le seuil choisi est justifié par la mesure actuelle et laisse une marge
       faible, par exemple un arrondi inférieur de la couverture mesurée.
-- [ ] `uv run --frozen --extra test pytest -q` passe.
-- [ ] La commande de couverture passe localement.
+- [x] `uv run --frozen --extra test pytest -q` passe.
+- [x] La commande de couverture passe localement.
 
 ## Hors périmètre
 
@@ -50,3 +50,23 @@ campagne de tests.
 - commande de couverture avec seuil ;
 - `uv run --frozen --extra test pytest -q` ;
 - `git diff --check`.
+
+## Livraison
+
+- `pytest-cov==7.0.0` est ajouté aux dépendances de test épinglées.
+- `uv.lock` verrouille aussi la dépendance transitive `coverage==7.15.2`.
+- La CI exécute maintenant `pytest` avec `--cov=sircom2026` et un rapport
+  `term-missing`.
+- Le seuil initial est fixé à `89` dans `pyproject.toml`. Il est basé sur une
+  mesure locale à `90%` et garde une marge d'un point pour les différences
+  mineures d'environnement.
+- `.gitignore` exclut les artefacts locaux de couverture.
+
+Preuves exécutées le 2026-07-23 :
+
+- `uv run --frozen --extra test pytest --cov=sircom2026 --cov-report=term-missing --cov-fail-under=0 -q` :
+  223 tests passés, 4 ignorés, couverture mesurée à 90%.
+- `uv run --frozen --extra test pytest --cov=sircom2026 --cov-report=term-missing -q` :
+  seuil 89 OK.
+- `uv run --frozen --extra test pytest -q` : OK.
+- `git diff --check` : OK.

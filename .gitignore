@@ -58,6 +58,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Couverture de tests
+.coverage
+coverage.xml
+htmlcov/
+
 .sircom2026-data/
 .claude/outputs/
 *.egg-info/
