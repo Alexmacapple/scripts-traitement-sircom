@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import tempfile
 import unittest
@@ -12,9 +13,27 @@ from fastapi.testclient import TestClient
 from openpyxl import Workbook
 from PIL import Image
 
+import sircom2026.reports as reports_module
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
 from sircom2026.database import Database
+from sircom2026.reports import (
+    BUSINESS_REPORT_ARTIFACT_KIND,
+    BUSINESS_REPORT_ARTIFACT_ROLE,
+    BUSINESS_REPORT_FILENAME,
+    BUSINESS_REPORT_MIME_TYPE,
+    REPORTS_RULES_VERSION,
+    REPORTS_SCHEMA_VERSION,
+    REPORTS_STEP_KEY,
+    TECHNICAL_REPORT_ARTIFACT_KIND,
+    TECHNICAL_REPORT_ARTIFACT_ROLE,
+    TECHNICAL_REPORT_FILENAME,
+    TECHNICAL_REPORT_MIME_TYPE,
+    CurrentJsonArtifact,
+    PersistedReports,
+    ReportsNotReady,
+    ReportsPrerequisiteMissing,
+)
 from sircom2026.worker_runner import run_worker_once
 
 
@@ -135,6 +154,68 @@ def run_until_steps(settings, step_keys: set[str], *, limit: int = 16):
     raise AssertionError(f"{sorted(pending)} not reached, last result: {last_result}")
 
 
+class ReportsPublicContractTest(unittest.TestCase):
+    def test_public_reports_module_contract_entries_are_stable(self) -> None:
+        public_callables = {
+            "run_reports_job",
+            "get_persisted_reports",
+            "build_business_report",
+            "build_technical_report",
+        }
+
+        for name in public_callables:
+            with self.subTest(name=name):
+                self.assertTrue(callable(getattr(reports_module, name, None)))
+
+        public_signatures = {
+            "run_reports_job": ("context", "settings"),
+            "get_persisted_reports": ("repositories", "settings", "lot_id"),
+            "build_business_report": ("snapshot", "generated_at"),
+            "build_technical_report": ("snapshot", "generated_at"),
+        }
+        for name, expected_parameters in public_signatures.items():
+            with self.subTest(signature=name):
+                signature = inspect.signature(getattr(reports_module, name))
+                self.assertEqual(tuple(signature.parameters), expected_parameters)
+
+        self.assertEqual(
+            inspect.signature(reports_module.get_persisted_reports)
+            .parameters["settings"]
+            .kind,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+        self.assertEqual(
+            inspect.signature(reports_module.get_persisted_reports)
+            .parameters["lot_id"]
+            .kind,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+
+        self.assertEqual(REPORTS_STEP_KEY, "rapports")
+        self.assertEqual(REPORTS_RULES_VERSION, "reports-v1")
+        self.assertEqual(REPORTS_SCHEMA_VERSION, 1)
+        self.assertEqual(BUSINESS_REPORT_ARTIFACT_KIND, "markdown")
+        self.assertEqual(BUSINESS_REPORT_ARTIFACT_ROLE, "rapport-metier")
+        self.assertEqual(BUSINESS_REPORT_FILENAME, "rapport-metier.md")
+        self.assertEqual(BUSINESS_REPORT_MIME_TYPE, "text/markdown; charset=utf-8")
+        self.assertEqual(TECHNICAL_REPORT_ARTIFACT_KIND, "json")
+        self.assertEqual(TECHNICAL_REPORT_ARTIFACT_ROLE, "rapport-technique")
+        self.assertEqual(TECHNICAL_REPORT_FILENAME, "rapport-technique.json")
+        self.assertEqual(TECHNICAL_REPORT_MIME_TYPE, "application/json")
+        self.assertEqual(
+            tuple(CurrentJsonArtifact.__dataclass_fields__),
+            ("artifact", "payload"),
+        )
+        self.assertEqual(
+            tuple(PersistedReports.__dataclass_fields__),
+            ("business_artifact", "technical_artifact"),
+        )
+        self.assertTrue(issubclass(ReportsNotReady, RuntimeError))
+        prerequisite_error = ReportsPrerequisiteMissing("rapports", "result")
+        self.assertEqual(prerequisite_error.step_key, "rapports")
+        self.assertEqual(prerequisite_error.role, "result")
+
+
 class ReportsApiTest(unittest.TestCase):
     def test_reports_are_generated_and_technical_surfaces_are_redacted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -231,6 +312,37 @@ class ReportsApiTest(unittest.TestCase):
         self.assertEqual(reports.status_code, 200, reports.text)
         self.assertEqual(report_step["status"], "termine_avec_alertes")
         self.assertEqual(lot["status"], "action_requise")
+        report_payload = reports.json()
+        artifact_fields = {
+            "id",
+            "kind",
+            "role",
+            "status",
+            "size_bytes",
+            "sha256",
+            "mime_type",
+            "download_url",
+        }
+        self.assertEqual(
+            set(report_payload),
+            {"business_report_artifact", "technical_report_artifact"},
+        )
+        self.assertEqual(
+            artifact_fields,
+            set(report_payload["business_report_artifact"]),
+        )
+        self.assertEqual(
+            artifact_fields,
+            set(report_payload["technical_report_artifact"]),
+        )
+        self.assertEqual(report_payload["business_report_artifact"]["kind"], "markdown")
+        self.assertEqual(
+            report_payload["business_report_artifact"]["role"], "rapport-metier"
+        )
+        self.assertEqual(report_payload["technical_report_artifact"]["kind"], "json")
+        self.assertEqual(
+            report_payload["technical_report_artifact"]["role"], "rapport-technique"
+        )
 
         business_text = business_download.content.decode("utf-8")
         self.assertIn(
@@ -263,6 +375,8 @@ class ReportsApiTest(unittest.TestCase):
         self.assertIn(
             "rapport-technique.json", technical_download.headers["content-disposition"]
         )
+        self.assertEqual(technical["schema_version"], 1)
+        self.assertEqual(technical["rules_version"], "reports-v1")
         self.assertEqual(
             set(technical),
             {
@@ -277,12 +391,129 @@ class ReportsApiTest(unittest.TestCase):
                 "traces_anonymisees",
             },
         )
+        self.assertEqual(
+            set(technical["resume_execution"]),
+            {"lot_id", "status", "open_problem_counts"},
+        )
         self.assertIn("duration_ms", technical["etapes"][0])
+        self.assertTrue(
+            all(
+                {
+                    "step_key",
+                    "status",
+                    "run_id",
+                    "input_fingerprint",
+                    "output_fingerprint",
+                    "progress_current",
+                    "progress_total",
+                    "duration_ms",
+                }
+                == set(step)
+                for step in technical["etapes"]
+            )
+        )
+        self.assertEqual(
+            set(technical["compteurs"]),
+            {"excel", "fusion", "normalisation", "csv", "images"},
+        )
+        compteur_fields = {
+            "excel": {"sheets_count", "blockers_count", "warnings_count"},
+            "fusion": {
+                "source_rows_count",
+                "rows_count",
+                "rows_removed",
+                "columns_count",
+            },
+            "normalisation": {
+                "rows_count",
+                "columns_count",
+                "date_issues_count",
+                "invalid_dates_count",
+                "missing_dates_count",
+            },
+            "csv": {"rows_count", "columns_count", "size_bytes"},
+            "images": {
+                "rows_count",
+                "missing_count",
+                "ambiguous_count",
+                "processed_images_count",
+                "unreferenced_count",
+                "conversion_failed_count",
+                "tolerant_count",
+            },
+        }
+        for name, expected_fields in compteur_fields.items():
+            with self.subTest(compteur=name):
+                self.assertEqual(set(technical["compteurs"][name]), expected_fields)
+                self.assertTrue(
+                    all(
+                        isinstance(value, int)
+                        for value in technical["compteurs"][name].values()
+                    )
+                )
         self.assertEqual(technical["compteurs"]["csv"]["rows_count"], 1)
+        self.assertGreater(technical["compteurs"]["csv"]["size_bytes"], 0)
         self.assertEqual(technical["compteurs"]["images"]["processed_images_count"], 1)
         self.assertIn(
             "SIRCOM_IMAGE_MATCHING_UNREFERENCED", str(technical["codes_erreur"])
         )
+        self.assertTrue(technical["codes_erreur"])
+        self.assertTrue(
+            all(
+                set(error_code) == {"severity", "code", "count"}
+                for error_code in technical["codes_erreur"]
+            )
+        )
+        source_fields = {
+            "artifact_id",
+            "step_key",
+            "run_id",
+            "kind",
+            "role",
+            "status",
+            "size_bytes",
+            "sha256",
+            "mime_type",
+        }
+        self.assertTrue(technical["sources"])
+        self.assertTrue(
+            all(set(source) == source_fields for source in technical["sources"])
+        )
+        self.assertTrue(
+            all(source["status"] == "committed" for source in technical["sources"])
+        )
+        self.assertTrue(
+            all(source["size_bytes"] > 0 for source in technical["sources"])
+        )
+        self.assertTrue(
+            all(len(source["sha256"]) == 64 for source in technical["sources"])
+        )
+        self.assertFalse(
+            any("relative_path" in source for source in technical["sources"])
+        )
+        source_steps = {
+            (source["step_key"], source["role"]) for source in technical["sources"]
+        }
+        self.assertIn(("matching_images", "processed_images"), source_steps)
+        trace_fields = {
+            "created_at",
+            "event_type",
+            "step_key",
+            "run_id",
+            "level",
+            "payload",
+        }
+        self.assertTrue(technical["traces_anonymisees"])
+        self.assertTrue(
+            all(set(trace) == trace_fields for trace in technical["traces_anonymisees"])
+        )
+        for trace in technical["traces_anonymisees"]:
+            self.assertIsInstance(trace["payload"], dict)
+            for value in trace["payload"].values():
+                self.assertIsInstance(value, str | int | float | bool | type(None))
+                if isinstance(value, str):
+                    self.assertNotIn("/", value)
+                    self.assertNotIn("\\", value)
         self.assertEqual(html.status_code, 200)
         self.assertIn("Télécharger le rapport métier", html.text)
         self.assertIn("Télécharger le rapport technique", html.text)
