@@ -1,11 +1,26 @@
 # 24A - Inventaire imports et contrat public database.py
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 24.
 
-À construire : utiliser ce contrat comme entrée de la tranche 24B, première
+Livré : contrat utilisé comme entrée de la tranche 24B, première
 extraction repository/database, avec compatibilité des imports.
+
+## État de livraison au 2026-07-23
+
+Inventaire livré par `a0dfd9f docs: ajouter contrat database 24a`.
+
+La tranche 24B qui dépendait de ce contrat est également livrée par
+`81ce0b7 refactor: extraire repositories database`. Les imports publics de
+`sircom2026.database` restent compatibles via la façade historique.
+
+Preuves principales :
+
+- `uv run --frozen --extra test pytest tests/test_database.py tests/test_state.py tests/test_invalidation.py tests/test_worker.py -q` :
+  `52 passed`.
+- `uv run --frozen --extra test pytest -q -rs` : `221 passed, 4 skipped`.
+- `uv run --frozen --extra test ruff check .` : `All checks passed!`.
 
 ## Objectif
 
@@ -214,18 +229,18 @@ Méthodes appelées sur `repositories.purge_traces` :
 
 ## Critères d'acceptation de 24B
 
-- [ ] Tous les imports listés dans ce ticket restent valides depuis
+- [x] Tous les imports listés dans ce ticket restent valides depuis
       `sircom2026.database`.
-- [ ] Les propriétés de `Repositories` exposent les mêmes noms et utilisent la
+- [x] Les propriétés de `Repositories` exposent les mêmes noms et utilisent la
       même connexion SQLite.
-- [ ] `Database.session()` et `Database.transaction()` conservent leur
+- [x] `Database.session()` et `Database.transaction()` conservent leur
       comportement de transaction, rollback et fermeture de connexion.
-- [ ] Aucune constante métier importée depuis `sircom2026.database` n'est
+- [x] Aucune constante métier importée depuis `sircom2026.database` n'est
       renommée.
-- [ ] Les tests ciblés `tests/test_database.py`, `tests/test_state.py`,
+- [x] Les tests ciblés `tests/test_database.py`, `tests/test_state.py`,
       `tests/test_invalidation.py` et `tests/test_worker.py` passent après
       extraction.
-- [ ] `uv run --frozen --extra test pytest -q` passe avant commit final de 24B.
+- [x] `uv run --frozen --extra test pytest -q` passe avant commit final de 24B.
 
 ## Preuve d'inventaire
 

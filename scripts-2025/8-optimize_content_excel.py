@@ -67,7 +67,7 @@ print(f"Traitement du fichier : {file_path}")
 try:
     # 3. Ouvrir le fichier Excel
     workbook = openpyxl.load_workbook(file_path)
-    print(f"Fichier ouvert avec succès")
+    print("Fichier ouvert avec succès")
 
     # 4. Traiter la feuille active
     worksheet = workbook.active
@@ -79,7 +79,7 @@ try:
     print(f"Dimensions initiales : {original_rows} lignes × {original_cols} colonnes")
 
     # 5. ÉTAPE 1 : Nettoyer le contenu de toutes les cellules
-    print(f"\nÉtape 1 : Nettoyage du contenu des cellules...")
+    print("\nÉtape 1 : Nettoyage du contenu des cellules...")
     cells_cleaned = 0
 
     for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row):
@@ -95,7 +95,7 @@ try:
     print(f"{cells_cleaned} cellules nettoyées")
 
     # 6. ÉTAPE 2 : Identifier et supprimer les colonnes entièrement vides
-    print(f"\nÉtape 2 : Suppression des colonnes entièrement vides...")
+    print("\nÉtape 2 : Suppression des colonnes entièrement vides...")
 
     columns_to_delete = []
 
@@ -124,7 +124,7 @@ try:
     print(f"{columns_deleted} colonnes entièrement vides supprimées")
 
     # 7. ÉTAPE 3 : Identifier et supprimer les lignes inutiles
-    print(f"\nÉtape 3 : Suppression des lignes inutiles...")
+    print("\nÉtape 3 : Suppression des lignes inutiles...")
 
     # Identifier les colonnes critiques
     critical_columns = {}
@@ -197,15 +197,15 @@ try:
     print(f"Fichier sauvegardé sous : {output_filename}")
 
     # 10. Résumé des optimisations
-    print(f"\nRésumé des optimisations appliquées :")
-    print(f"  Suppression des espaces en début/fin de cellules")
-    print(f"  Remplacement des sauts de ligne par <br>")
-    print(f"  Suppression des espaces multiples")
-    print(f"  Remplacement des cellules vides par #N/A")
+    print("\nRésumé des optimisations appliquées :")
+    print("  Suppression des espaces en début/fin de cellules")
+    print("  Remplacement des sauts de ligne par <br>")
+    print("  Suppression des espaces multiples")
+    print("  Remplacement des cellules vides par #N/A")
     print(f"  Suppression de {columns_deleted} colonnes entièrement vides")
     print(f"  Suppression de {entirely_empty_deleted} lignes entièrement vides")
     print(f"  Suppression de {missing_id_deleted} lignes sans ID (dossiers invalides)")
-    print(f"  Conservation des lignes partiellement remplies avec ID valide")
+    print("  Conservation des lignes partiellement remplies avec ID valide")
 
     print("Optimisation pour InDesign terminée avec succès !")
 

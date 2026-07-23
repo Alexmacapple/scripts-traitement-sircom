@@ -25,7 +25,7 @@ print(f"Traitement du fichier : {file_path}")
 # 3. Ouvrir le fichier Excel
 try:
     workbook = openpyxl.load_workbook(file_path)
-    print(f"Fichier ouvert avec succès")
+    print("Fichier ouvert avec succès")
 except Exception as e:
     print(f"Erreur lors de l'ouverture du fichier : {e}")
     exit(1)

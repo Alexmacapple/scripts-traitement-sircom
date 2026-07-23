@@ -216,7 +216,7 @@ class SircomMasterProcessor:
             self.logger.info(f"✅ Chemin configuré par option : {self.image_path}")
             print(f"\n✅ Chemin des images InDesign configuré : {self.image_path}")
             return
-        print(f"\n🖼️  Configuration du chemin des images pour InDesign")
+        print("\n🖼️  Configuration du chemin des images pour InDesign")
         print(f"Chemin par défaut : {DEFAULT_IMAGE_PATH}")
         print()
         
@@ -229,7 +229,7 @@ class SircomMasterProcessor:
                 print(f"✅ Chemin configuré : {self.image_path}")
             else:
                 self.logger.info(f"✅ Chemin par défaut conservé : {self.image_path}")
-                print(f"✅ Chemin par défaut conservé")
+                print("✅ Chemin par défaut conservé")
                 
         except KeyboardInterrupt:
             self.logger.info("✅ Configuration interrompue, chemin par défaut conservé")
@@ -495,7 +495,7 @@ Espace disque total : {total_files_size:,} octets ({total_files_size/1024/1024:.
         for script_name, exec_time in self.stats['execution_times'].items():
             report_content += f"{script_name:<40} : {exec_time:>8.2f}s\n"
         
-        report_content += f"""
+        report_content += """
 📁 FICHIERS CRÉÉS
 -----------------
 """
@@ -516,7 +516,7 @@ Espace disque total : {total_files_size:,} octets ({total_files_size/1024/1024:.
                     report_content += f"{filename:<50} : {size:>10,} octets\n"
         
         if self.stats['errors']:
-            report_content += f"""
+            report_content += """
 ❌ ERREURS RENCONTRÉES
 ----------------------
 """

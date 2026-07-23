@@ -26,7 +26,7 @@ print(f"Traitement du fichier source : {file_path}")
 try:
     # 3. Charger le fichier Excel source
     workbook = openpyxl.load_workbook(file_path)
-    print(f"Fichier source ouvert avec succès")
+    print("Fichier source ouvert avec succès")
     
     # Récupérer des informations sur le fichier source
     worksheet = workbook.active
@@ -34,7 +34,7 @@ try:
     rows_count = worksheet.max_row
     columns_count = worksheet.max_column
     
-    print(f"Informations du fichier source :")
+    print("Informations du fichier source :")
     print(f"  - Nom de l'onglet : '{original_sheet_name}'")
     print(f"  - Nombre de lignes : {rows_count}")
     print(f"  - Nombre de colonnes : {columns_count}")
@@ -42,7 +42,7 @@ try:
     # 4. Définir le nom du fichier de sortie
     output_file_name = '5-livrable-final-word.xlsx'
     
-    print(f"\nCréation du livrable final...")
+    print("\nCréation du livrable final...")
     
     # 5. Créer une copie du fichier avec le nouveau nom
     workbook.save(output_file_name)
@@ -52,7 +52,7 @@ try:
     workbook_copy = openpyxl.load_workbook(output_file_name)
     worksheet_copy = workbook_copy.active
     
-    print(f"Livrable final vérifié :")
+    print("Livrable final vérifié :")
     print(f"  - Nom de l'onglet conservé : '{worksheet_copy.title}'")
     print(f"  - Données préservées : {worksheet_copy.max_row} lignes, {worksheet_copy.max_column} colonnes")
     
@@ -61,9 +61,9 @@ try:
     workbook_copy.close()
     workbook.close()
     
-    print(f"\nLivrable final créé avec succès !")
+    print("\nLivrable final créé avec succès !")
     print(f"Fichier disponible : {output_file_name}")
-    print(f"Résumé :")
+    print("Résumé :")
     print(f"  ├── Fichier source : {file_path}")
     print(f"  ├── Fichier final : {output_file_name}")
     print(f"  ├── Onglet : {original_sheet_name}")

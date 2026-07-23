@@ -275,9 +275,9 @@ def read_excel_mapping(excel_file, logger):
             logger.error(f"   Colonnes disponibles : {headers}")
             return {}
 
-        logger.info(f"Colonne ID : f_id")
+        logger.info("Colonne ID : f_id")
         logger.info(f"Colonne Image source : {source_image_column}")
-        logger.info(f"Colonne Image finale : imageid")
+        logger.info("Colonne Image finale : imageid")
         id_index = header_indexes['f_id']
         source_image_index = header_indexes[source_image_column]
         final_image_index = header_indexes['imageid']

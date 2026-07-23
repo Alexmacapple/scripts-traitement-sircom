@@ -51,7 +51,7 @@ print(f"Traitement du fichier : {file_path}")
 try:
     # 3. Ouvrir le fichier Excel
     workbook = openpyxl.load_workbook(file_path)
-    print(f"Fichier ouvert avec succès")
+    print("Fichier ouvert avec succès")
     
     # 4. Traiter toutes les feuilles
     for sheet_name in workbook.sheetnames:
@@ -97,12 +97,12 @@ try:
     print(f"Fichier sauvegardé sous : {output_filename}")
     
     # 6. Afficher un résumé des transformations
-    print(f"\nRègles de nettoyage appliquées :")
-    print(f"  Conversion en minuscules")
-    print(f"  Suppression des accents")
-    print(f"  Suppression des caractères spéciaux")
-    print(f"  Limitation à 10 caractères maximum")
-    print(f"  Conservation des préfixes pour éviter les collisions")
+    print("\nRègles de nettoyage appliquées :")
+    print("  Conversion en minuscules")
+    print("  Suppression des accents")
+    print("  Suppression des caractères spéciaux")
+    print("  Limitation à 10 caractères maximum")
+    print("  Conservation des préfixes pour éviter les collisions")
     
     print("Nettoyage des en-têtes terminé avec succès !")
 

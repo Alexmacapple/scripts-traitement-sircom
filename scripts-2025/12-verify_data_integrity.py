@@ -136,7 +136,7 @@ def verify_data_integrity():
         print()
         
         # Statistiques
-        print(f"Statistiques :")
+        print("Statistiques :")
         print(f"  - Lignes dans Excel source : {len(excel_data)}")
         print(f"  - Lignes dans CSV final : {len(df_csv)}")
         print(f"  - Différence : {len(excel_data) - len(df_csv)} lignes")
@@ -146,7 +146,7 @@ def verify_data_integrity():
         csv_ids = set(normalize_id(row[col_id_csv]) for _, row in df_csv.iterrows())
         missing_ids = set(excel_data.keys()) - csv_ids
         if missing_ids:
-            print(f"IDs présents dans Excel mais absents du CSV final :")
+            print("IDs présents dans Excel mais absents du CSV final :")
             for mid in sorted(missing_ids):
                 print(f"    - ID {mid}: {excel_data[mid]['entreprise'][:50]}")
         

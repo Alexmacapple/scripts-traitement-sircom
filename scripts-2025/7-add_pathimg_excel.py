@@ -42,7 +42,7 @@ print(f"Chemin des images configuré : {IMAGE_BASE_PATH}")
 try:
     # 3. Ouvrir le fichier Excel
     workbook = openpyxl.load_workbook(file_path)
-    print(f"Fichier ouvert avec succès")
+    print("Fichier ouvert avec succès")
     
     # 4. Traiter la feuille active
     worksheet = workbook.active
@@ -122,9 +122,9 @@ try:
         print(f"Fichier sauvegardé sous : {output_filename}")
         
         # 9. Afficher un résumé
-        print(f"\nRésumé du traitement :")
-        print(f"  Colonne source : 'imageid'")
-        print(f"  Colonne ajoutée : '@pathimg'")
+        print("\nRésumé du traitement :")
+        print("  Colonne source : 'imageid'")
+        print("  Colonne ajoutée : '@pathimg'")
         print(f"  Format des chemins : {IMAGE_BASE_PATH}/dossier-{{ID}}.jpg")
         print(f"  Lignes traitées : {rows_processed}")
         print(f"  Chemins générés : {paths_generated}")

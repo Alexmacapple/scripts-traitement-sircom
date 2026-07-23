@@ -1,12 +1,39 @@
 # 24 - Refactorisation progressive des fichiers volumineux
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : aucun, peut commencer immédiatement.
 
-À construire : réduire la dette de maintenabilité des grands fichiers
+Livré : réduction de la dette de maintenabilité des grands fichiers
 applicatifs révélés par l'audit Loriq, sans changer le comportement utilisateur
 ni refactoriser les artefacts tiers ou générés.
+
+## État de livraison au 2026-07-23
+
+Ticket traité comme parent et livré en tranches courtes :
+
+- 24A : inventaire imports et contrat public de `database.py`, livré par
+  `a0dfd9f docs: ajouter contrat database 24a`.
+- 24B : extraction repository/database avec compatibilité imports, livré par
+  `81ce0b7 refactor: extraire repositories database`.
+- 24C : découpage `app.py` autour du lifespan, du worker et des routes, livré
+  par `c85e9f7 refactor: decouper app web et lifecycle`.
+- 24D : découpage Jinja de `index.html` avec contrat DOM/Playwright, livré par
+  `5b24ba8 refactor: decouper template index`.
+
+Limite connue : Loriq peut encore marquer l'audit `incomplete` sur des
+artefacts volumineux hors cible applicative (`uv.lock`, assets DSFR, polices,
+`visual-tests/*` et note longue `docs/cuisine-moi/*`). Cette limite relève du
+classement des artefacts côté audit, pas d'un reste à refactoriser dans les
+trois fichiers applicatifs ciblés.
+
+Preuves principales :
+
+- `uv run --frozen --extra test pytest -q -rs` : `221 passed, 4 skipped`.
+- `env SIRCOM_RUN_PLAYWRIGHT=1 uv run --frozen --extra test pytest tests/test_lots_playwright.py -q` :
+  `4 passed`.
+- `uv run --frozen --extra test ruff check .` : `All checks passed!`.
+- `git diff --check` : aucune sortie.
 
 ## Énoncé du problème
 
@@ -71,15 +98,15 @@ CI verte à chaque commit.
 
 ## Critères d'acceptation
 
-- [ ] Les tests existants restent verts après chaque étape de refactor.
-- [ ] Les routes API publiques conservent les mêmes chemins, statuts HTTP et
+- [x] Les tests existants restent verts après chaque étape de refactor.
+- [x] Les routes API publiques conservent les mêmes chemins, statuts HTTP et
       formes JSON.
-- [ ] Les ids HTML, attributs `data-*`, rôles ARIA et libellés visibles
+- [x] Les ids HTML, attributs `data-*`, rôles ARIA et libellés visibles
       couverts par les tests Playwright restent stables.
-- [ ] Aucun fichier DSFR, police, lockfile ou asset minifié n'est refactorisé.
-- [ ] Le découpage réduit la taille ou la responsabilité d'au moins un des trois
+- [x] Aucun fichier DSFR, police, lockfile ou asset minifié n'est refactorisé.
+- [x] Le découpage réduit la taille ou la responsabilité d'au moins un des trois
       fichiers applicatifs ciblés.
-- [ ] Le rapport final du ticket liste les fichiers déplacés, les imports
+- [x] Le rapport final du ticket liste les fichiers déplacés, les imports
       publics conservés et les tests exécutés.
 
 ## Hors périmètre

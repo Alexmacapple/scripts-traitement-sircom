@@ -311,9 +311,9 @@ def build_business_report(snapshot: dict[str, Any], *, generated_at: str) -> str
             f"- Dates absentes : {normalization.get('missing_dates_count', 0)}",
             "",
             "## CSV",
-            f"- Fichier final attendu : sircom-indesign-utf16.csv",
-            f"- Encodage : UTF-16 avec BOM",
-            f"- Séparateur : virgule",
+            "- Fichier final attendu : sircom-indesign-utf16.csv",
+            "- Encodage : UTF-16 avec BOM",
+            "- Séparateur : virgule",
             f"- Colonnes : {preview.get('headers_count', 0)}",
             f"- Lignes : {preview.get('rows_count', 0)}",
             f"- Contrat InDesign valide : {'oui' if contract.get('valid') else 'non'}",
@@ -331,7 +331,7 @@ def build_business_report(snapshot: dict[str, Any], *, generated_at: str) -> str
             f"- Images ambiguës : {matching.get('ambiguous_count', 0)}",
             f"- Images non référencées : {matching.get('unreferenced_count', 0)}",
             f"- Conversions échouées : {matching.get('conversion_failed_count', 0)}",
-            f"- Dossier final images : export-jpg-resize/",
+            "- Dossier final images : export-jpg-resize/",
         ]
     )
     lines.extend(_unreferenced_image_lines(matching))

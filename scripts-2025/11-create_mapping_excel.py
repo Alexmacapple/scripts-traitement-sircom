@@ -158,7 +158,7 @@ def create_mapping():
                 try:
                     if len(str(cell.value)) > max_length:
                         max_length = len(cell.value)
-                except:
+                except TypeError:
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
@@ -166,13 +166,13 @@ def create_mapping():
     print(f"Fichier Excel créé : {excel_output}")
     
     # Afficher un résumé
-    print(f"\nRésumé du mapping :")
+    print("\nRésumé du mapping :")
     print(f"  - Total de colonnes : {len(mapping_data)}")
     print(f"  - Colonnes demandées par Charles : {len([m for m in mapping_data if m['Demandé par Charles'] == 'Oui'])}")
     print(f"  - Colonnes non mappées : {len([m for m in mapping_data if m['Colonne CSV Final'] == 'Non mappé'])}")
     
     # Afficher les colonnes demandées par Charles
-    print(f"\nColonnes demandées par Charles :")
+    print("\nColonnes demandées par Charles :")
     for m in mapping_data:
         if m['Demandé par Charles'] == 'Oui':
             print(f"  - {m['Colonne Excel Original']} → {m['Colonne CSV Final']}")
