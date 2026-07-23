@@ -34,6 +34,12 @@ max. La limite manquante porte sur les pixels source avant traitement complet.
       valide proche de la limite et conversion existante non régressée.
 - [x] Les tests adversariaux abaissent les limites de configuration pour rester
       rapides ; ils ne créent pas de vraies images géantes.
+- [x] Une image déclenchant `PIL.Image.DecompressionBombError` est convertie en
+      blocage métier `SIRCOM_IMAGE_DIMENSIONS_EXCEEDED`, pas en échec technique
+      du worker.
+- [x] Les limites globales du zip sont évaluées avant les ouvertures Pillow si
+      le zip est déjà invalide par nombre de fichiers, nombre d'images ou volume
+      décompressé.
 
 ## Hors périmètre
 
@@ -47,6 +53,25 @@ max. La limite manquante porte sur les pixels source avant traitement complet.
 - Tests ciblés inspection ou matching images.
 - Test de non-régression sur la conversion JPEG existante.
 - `uv run --frozen --extra test ruff check .`
+
+## Clôture post-ShipGuard
+
+Commit complémentaire : `027dfad` -
+`Handle Pillow image bombs as business blockers`.
+
+Preuves exécutées :
+
+- test rouge observé avant correction : PNG synthétique minuscule avec
+  dimensions déclarées extrêmes faisait échouer le worker ;
+- `uv run --frozen --extra test python -m unittest tests.test_image_upload.ImageZipInspectionPipelineTest.test_worker_blocks_pillow_image_bomb_as_dimension_problem` :
+  OK ;
+- `uv run --frozen --extra test python -m unittest tests.test_image_matching.ImageMatchingRulesTest.test_processed_zip_marks_pillow_image_bomb_as_dimension_failure` :
+  OK ;
+- `uv run --frozen --extra test python -m unittest tests.test_image_upload.ImageZipInspectionPipelineTest.test_zip_count_limit_blocks_before_pillow_opens_images` :
+  OK ;
+- `uv run --frozen --extra test python -m unittest tests.test_image_upload tests.test_image_matching` :
+  34 tests OK ;
+- CI GitHub `30010934717` verte.
 
 ## Sources locales
 

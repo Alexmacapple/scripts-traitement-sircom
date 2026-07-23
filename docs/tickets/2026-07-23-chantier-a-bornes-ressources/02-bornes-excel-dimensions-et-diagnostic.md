@@ -35,6 +35,9 @@ dimensions extrêmes peut déclencher un parcours trop coûteux.
       corrompue toujours refusée comme avant.
 - [x] Les tests adversariaux abaissent les limites de configuration pour rester
       rapides ; ils ne génèrent pas de vrais classeurs géants.
+- [x] `diagnose_workbook()` reste borné même appelé directement : un préflight
+      `read_only=True` bloque les dimensions hors limites avant tout chargement
+      complet non `read_only`.
 
 ## Hors périmètre
 
@@ -47,6 +50,21 @@ dimensions extrêmes peut déclencher un parcours trop coûteux.
 - Tests ciblés upload ou diagnostic Excel.
 - La suite existante d'upload Excel reste verte.
 - `uv run --frozen --extra test ruff check .`
+
+## Clôture post-ShipGuard
+
+Commit complémentaire : `784632e` -
+`Preflight Excel dimensions before full diagnostic load`.
+
+Preuves exécutées :
+
+- test rouge observé avant correction : `diagnose_workbook()` appelait encore
+  `load_workbook(... read_only=False)` avant la borne ;
+- `uv run --frozen --extra test python -m unittest tests.test_excel_diagnostic.ExcelDiagnosticTest.test_direct_workbook_diagnostic_blocks_dimensions_before_full_load` :
+  OK ;
+- `uv run --frozen --extra test python -m unittest tests.test_excel_diagnostic tests.test_excel_upload tests.test_excel_diagnostic_pipeline` :
+  27 tests OK ;
+- CI GitHub `30011364866` verte.
 
 ## Sources locales
 

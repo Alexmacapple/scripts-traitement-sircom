@@ -11,6 +11,10 @@
   suite pytest avec couverture et du test navigateur Playwright opt-in.
 - Clôture documentaire des tickets du chantier A avec les commits et commandes
   de preuve associées.
+- Complément post-ShipGuard du chantier A : conversion des image bombs Pillow en
+  problème métier `SIRCOM_IMAGE_DIMENSIONS_EXCEEDED`, évaluation des bloqueurs
+  zip globaux avant les ouvertures Pillow, et préflight `read_only=True` dans
+  `diagnose_workbook()` avant le chargement complet.
 
 ## 2026-07-22
 

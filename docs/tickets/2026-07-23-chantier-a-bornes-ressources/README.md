@@ -24,15 +24,26 @@ Commits livrés :
 - `6d6f07e` - Reject oversized source images.
 - `76cdf30` - Block heavy jobs on low disk.
 - `8461083` - Add CI lint and adversarial image proof.
+- `027dfad` - Handle Pillow image bombs as business blockers.
+- `784632e` - Preflight Excel dimensions before full diagnostic load.
 
 Preuves finales :
 
 - `uv run --frozen --extra test ruff format --check .` : OK.
 - `uv run --frozen --extra test ruff check .` : OK.
 - `uv run --frozen --extra test pytest --cov=sircom2026 --cov-report=term-missing -q` :
-  244 tests passés, 5 ignorés, couverture 90,51 %.
+  249 tests passés, 5 ignorés, couverture 89,90 %.
 - `env SIRCOM_RUN_PLAYWRIGHT=1 uv run --frozen --extra test python -m unittest tests.test_lots_playwright` :
   4 tests passés.
+
+Complément post-ShipGuard :
+
+- `DecompressionBombError` Pillow est convertie en problème métier
+  `SIRCOM_IMAGE_DIMENSIONS_EXCEEDED`.
+- Les limites globales zip sont évaluées avant les ouvertures Pillow quand le
+  zip est déjà bloquant.
+- `diagnose_workbook()` préflight les dimensions en `read_only=True` avant le
+  chargement complet non `read_only`.
 
 Mode d'exécution conseillé : un ticket par session, code modifié au minimum,
 tests ciblés dans le ticket, puis statut Git.
