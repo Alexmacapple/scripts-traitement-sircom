@@ -38,7 +38,9 @@ def make_settings(tmpdir: Path):
 @dataclass
 class RecordingPolicy:
     denied_actions: set[AccessAction] = field(default_factory=set)
-    decisions: list[tuple[ActorContext, AccessAction, AccessResource]] = field(default_factory=list)
+    decisions: list[tuple[ActorContext, AccessAction, AccessResource]] = field(
+        default_factory=list
+    )
 
     def authorize(
         self,
@@ -118,7 +120,13 @@ class ArtifactStoreTest(unittest.TestCase):
                 refreshed_lot = repositories.lots.get_required(lot["id"])
 
             artifact_path = store.path_for(artifact["relative_path"])
-            temp_path = settings.data_dir / "lots" / lot["id"] / "tmp" / f"{artifact['id']}.part"
+            temp_path = (
+                settings.data_dir
+                / "lots"
+                / lot["id"]
+                / "tmp"
+                / f"{artifact['id']}.part"
+            )
             self.assertEqual(artifact["status"], "committed")
             self.assertEqual(artifact["kind"], "excel")
             self.assertEqual(artifact["role"], "source")
@@ -161,7 +169,11 @@ class ArtifactStoreTest(unittest.TestCase):
                     lease_version=1,
                 )
                 temp_path = (
-                    settings.data_dir / "lots" / lot["id"] / "tmp" / f"{artifact['id']}.part"
+                    settings.data_dir
+                    / "lots"
+                    / lot["id"]
+                    / "tmp"
+                    / f"{artifact['id']}.part"
                 )
 
                 with self.assertRaises(ArtifactUnavailableError):
@@ -215,7 +227,9 @@ class ArtifactStoreTest(unittest.TestCase):
                 step = repositories.steps.get_by_lot_key(lot["id"], "upload_excel")
                 if step is None:
                     self.fail("Expected upload_excel step to exist.")
-                repositories.steps.update_status(step["id"], "en_cours", run_id="run_new")
+                repositories.steps.update_status(
+                    step["id"], "en_cours", run_id="run_new"
+                )
                 repositories.jobs.create(
                     lot_id=lot["id"],
                     step_key="upload_excel",
@@ -349,7 +363,9 @@ class ArtifactStoreTest(unittest.TestCase):
                         lease_version=1,
                     )
 
-            self.assertFalse((settings.data_dir / "lots" / lot["id"] / "escape.part").exists())
+            self.assertFalse(
+                (settings.data_dir / "lots" / lot["id"] / "escape.part").exists()
+            )
 
     def test_database_failure_removes_temporary_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -471,10 +487,14 @@ class ArtifactStoreTest(unittest.TestCase):
 
             store.path_for(missing["relative_path"]).unlink()
             store.path_for(mismatch["relative_path"]).write_bytes(b"tampered")
-            orphan_path = settings.data_dir / "lots" / lot["id"] / "artifacts" / "orphan.bin"
+            orphan_path = (
+                settings.data_dir / "lots" / lot["id"] / "artifacts" / "orphan.bin"
+            )
             orphan_path.parent.mkdir(parents=True, exist_ok=True)
             orphan_path.write_bytes(b"orphan")
-            orphan_temp_path = settings.data_dir / "lots" / lot["id"] / "tmp" / "orphan.part"
+            orphan_temp_path = (
+                settings.data_dir / "lots" / lot["id"] / "tmp" / "orphan.part"
+            )
             orphan_temp_path.parent.mkdir(parents=True, exist_ok=True)
             orphan_temp_path.write_bytes(b"orphan temp")
 
@@ -673,7 +693,9 @@ class ArtifactDownloadApiTest(unittest.TestCase):
             database.migrate()
             store = ArtifactStore(settings.data_dir)
             with database.transaction() as repositories:
-                lot = create_lot_with_steps(repositories, title="Lot réparation lecture")
+                lot = create_lot_with_steps(
+                    repositories, title="Lot réparation lecture"
+                )
                 create_active_job(
                     repositories,
                     lot_id=lot["id"],
@@ -764,7 +786,9 @@ class ArtifactDownloadApiTest(unittest.TestCase):
         self.assertEqual(lot_before["status"], "termine")
         self.assertEqual(lot_after["status"], "termine_avec_alertes")
 
-    def test_download_hidden_404_is_indistinguishable_for_non_current_artifacts(self) -> None:
+    def test_download_hidden_404_is_indistinguishable_for_non_current_artifacts(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))

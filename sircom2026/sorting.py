@@ -10,7 +10,10 @@ from typing import Any
 from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError
 from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
-from sircom2026.invalidation import record_human_validation_snapshot, step_input_fingerprint
+from sircom2026.invalidation import (
+    record_human_validation_snapshot,
+    step_input_fingerprint,
+)
 from sircom2026.lots import get_lot_detail
 from sircom2026.state import complete_step, record_problem, transition_step
 from sircom2026.transform import NORMALIZATION_ARTIFACT_ROLE, NORMALIZATION_STEP_KEY
@@ -66,7 +69,9 @@ def get_sort_payload(
     settings: Settings,
     lot_id: str,
 ) -> dict[str, Any]:
-    normalized = _current_normalization_artifact(repositories, settings=settings, lot_id=lot_id)
+    normalized = _current_normalization_artifact(
+        repositories, settings=settings, lot_id=lot_id
+    )
     if normalized is None:
         raise SortDecisionError(
             409,
@@ -77,7 +82,9 @@ def get_sort_payload(
         normalized.payload,
         source_normalization_artifact_id=normalized.artifact["id"],
     )
-    current_decision = _current_sort_artifact(repositories, settings=settings, lot_id=lot_id)
+    current_decision = _current_sort_artifact(
+        repositories, settings=settings, lot_id=lot_id
+    )
     return {
         "proposal": proposal,
         "decision": current_decision.payload if current_decision else None,
@@ -116,7 +123,9 @@ def validate_sort_decision(
             lot=get_lot_detail(repositories, lot_id),
         )
 
-    normalized = _current_normalization_artifact(repositories, settings=settings, lot_id=lot_id)
+    normalized = _current_normalization_artifact(
+        repositories, settings=settings, lot_id=lot_id
+    )
     if normalized is None:
         raise SortDecisionError(
             409,
@@ -243,7 +252,9 @@ def validate_sort_decision(
     )
     warning_code = _warning_code_for_decision(proposal, decision)
     if warning_code:
-        _record_sort_warning(repositories, lot_id=lot_id, run_id=run_id, code=warning_code)
+        _record_sort_warning(
+            repositories, lot_id=lot_id, run_id=run_id, code=warning_code
+        )
     complete_step(
         repositories,
         lot_id=lot_id,
@@ -303,9 +314,13 @@ def build_sort_proposal(
         "default_decision": "tri_region_departement" if can_sort else "ordre_source",
         "warning_code": warning_code,
         "region_column": _public_column(region_column) if region_column else None,
-        "department_column": _public_column(department_column) if department_column else None,
+        "department_column": _public_column(department_column)
+        if department_column
+        else None,
         "region_candidates": [_public_column(column) for column in region_columns],
-        "department_candidates": [_public_column(column) for column in department_columns],
+        "department_candidates": [
+            _public_column(column) for column in department_columns
+        ],
         "preview_rows": _preview_rows(
             normalized_payload.get("rows", []),
             region_column=region_column,
@@ -321,9 +336,7 @@ def build_sort_decision_payload(
 ) -> dict[str, Any]:
     columns = [dict(column) for column in normalized_payload.get("columns", [])]
     rows = [
-        dict(row)
-        for row in normalized_payload.get("rows", [])
-        if isinstance(row, dict)
+        dict(row) for row in normalized_payload.get("rows", []) if isinstance(row, dict)
     ]
     if decision == "tri_region_departement":
         region_name = proposal["region_column"]["csv_name"]
@@ -341,7 +354,9 @@ def build_sort_decision_payload(
     return {
         "schema_version": SORT_SCHEMA_VERSION,
         "rules_version": SORT_RULES_VERSION,
-        "source_normalization_artifact_id": proposal["source_normalization_artifact_id"],
+        "source_normalization_artifact_id": proposal[
+            "source_normalization_artifact_id"
+        ],
         "source_normalization_rules_version": normalized_payload.get("rules_version"),
         "structural_fingerprint": normalized_payload.get("structural_fingerprint"),
         "decision": decision,
@@ -350,7 +365,9 @@ def build_sort_decision_payload(
         "confirmed_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "columns_count": len(columns),
         "rows_count": len(ordered_rows),
-        "removed_empty_columns_count": normalized_payload.get("removed_empty_columns_count", 0),
+        "removed_empty_columns_count": normalized_payload.get(
+            "removed_empty_columns_count", 0
+        ),
         "removed_empty_columns": normalized_payload.get("removed_empty_columns", []),
         "upstream_removed_empty_columns_count": normalized_payload.get(
             "upstream_removed_empty_columns_count",
@@ -411,7 +428,9 @@ def _existing_sort_decision(
             "SIRCOM_SORT_ALREADY_SUBMITTED",
             "Cette clé d'idempotence a déjà été utilisée pour une autre décision de tri.",
         )
-    payload = _read_json_artifact(repositories, settings=settings, lot_id=lot_id, artifact=artifact)
+    payload = _read_json_artifact(
+        repositories, settings=settings, lot_id=lot_id, artifact=artifact
+    )
     if payload.get("decision") != decision:
         raise SortDecisionError(
             409,
@@ -464,7 +483,11 @@ def _current_step_artifact(
 ) -> CurrentJsonArtifact | None:
     repositories.lots.get_required(lot_id)
     step = repositories.steps.get_by_lot_key(lot_id, step_key)
-    if step is None or not step["current_run_id"] or step["status"] not in ready_statuses:
+    if (
+        step is None
+        or not step["current_run_id"]
+        or step["status"] not in ready_statuses
+    ):
         return None
     artifact = repositories.artifacts.get_for_step_run_role(
         lot_id=lot_id,
@@ -474,7 +497,9 @@ def _current_step_artifact(
     )
     if artifact is None or artifact["status"] != "committed":
         return None
-    payload = _read_json_artifact(repositories, settings=settings, lot_id=lot_id, artifact=artifact)
+    payload = _read_json_artifact(
+        repositories, settings=settings, lot_id=lot_id, artifact=artifact
+    )
     return CurrentJsonArtifact(artifact=artifact, payload=payload)
 
 
@@ -496,7 +521,13 @@ def _read_json_artifact(
             artifact_id=artifact["id"],
         )
         payload = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ) as exc:
         raise SortDecisionError(
             409,
             "SIRCOM_SORT_ARTIFACT_UNAVAILABLE",
@@ -511,7 +542,9 @@ def _read_json_artifact(
     return payload
 
 
-def _columns_with_role(columns: list[dict[str, Any]], role: str) -> list[dict[str, Any]]:
+def _columns_with_role(
+    columns: list[dict[str, Any]], role: str
+) -> list[dict[str, Any]]:
     return [column for column in columns if column.get("logical_role") == role]
 
 
@@ -525,13 +558,19 @@ def _preview_rows(
     region_name = region_column["csv_name"] if region_column else None
     department_name = department_column["csv_name"] if department_column else None
     for row in rows[:10] if isinstance(rows, list) else []:
-        values = row.get("values") if isinstance(row, dict) and isinstance(row.get("values"), dict) else {}
+        values = (
+            row.get("values")
+            if isinstance(row, dict) and isinstance(row.get("values"), dict)
+            else {}
+        )
         preview.append(
             {
                 "id_dossier": row.get("id_dossier"),
                 "source_rank": row.get("source_rank"),
                 "region": values.get(region_name, "") if region_name else "",
-                "departement": values.get(department_name, "") if department_name else "",
+                "departement": values.get(department_name, "")
+                if department_name
+                else "",
             }
         )
     return preview
@@ -548,7 +587,9 @@ def _sort_value(row: dict[str, Any], csv_name: str) -> tuple[int, str]:
 
 def _fold_for_sort(value: str) -> str:
     ascii_text = unicodedata.normalize("NFKD", value)
-    ascii_text = "".join(character for character in ascii_text if not unicodedata.combining(character))
+    ascii_text = "".join(
+        character for character in ascii_text if not unicodedata.combining(character)
+    )
     return " ".join(ascii_text.casefold().split())
 
 
@@ -575,7 +616,9 @@ def _public_column(column: dict[str, Any]) -> dict[str, Any]:
 def _warning_code_for_decision(proposal: dict[str, Any], decision: str) -> str | None:
     if decision != "ordre_source":
         return None
-    return proposal["warning_code"] if proposal["detection_status"] != "detected" else None
+    return (
+        proposal["warning_code"] if proposal["detection_status"] != "detected" else None
+    )
 
 
 def _record_sort_warning(

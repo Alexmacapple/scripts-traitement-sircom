@@ -18,7 +18,7 @@ from sircom2026._database_shared import (
     _validate_choice,
 )
 
-__all__ = ['ProblemsRepository']
+__all__ = ["ProblemsRepository"]
 
 
 class ProblemsRepository:
@@ -46,7 +46,11 @@ class ProblemsRepository:
         now = _now()
         row_id = problem_id or _new_id("problem")
         cause_text = cause if cause is not None else message
-        action_text = action if action is not None else "Corriger la cause puis relancer l'étape concernée."
+        action_text = (
+            action
+            if action is not None
+            else "Corriger la cause puis relancer l'étape concernée."
+        )
         self.connection.execute(
             """
             INSERT INTO problemes (
@@ -78,7 +82,9 @@ class ProblemsRepository:
         return self.get_required(row_id)
 
     def get(self, problem_id: str) -> dict[str, Any] | None:
-        return _fetch_one(self.connection, "SELECT * FROM problemes WHERE id = ?", (problem_id,))
+        return _fetch_one(
+            self.connection, "SELECT * FROM problemes WHERE id = ?", (problem_id,)
+        )
 
     def get_required(self, problem_id: str) -> dict[str, Any]:
         row = self.get(problem_id)
@@ -116,7 +122,11 @@ class ProblemsRepository:
         if step is None:
             raise KeyError(f"{lot_id}:{step_key}")
         current_run_id = step["current_run_id"]
-        if run_id is not None and current_run_id is not None and current_run_id != run_id:
+        if (
+            run_id is not None
+            and current_run_id is not None
+            and current_run_id != run_id
+        ):
             raise ValueError("Problem run_id does not match the current step run_id.")
 
     def list_for_lot(
@@ -179,7 +189,9 @@ class ProblemsRepository:
         ).fetchone()
         return int(row[0])
 
-    def mark_open_obsolete_for_steps(self, *, lot_id: str, step_keys: tuple[str, ...]) -> int:
+    def mark_open_obsolete_for_steps(
+        self, *, lot_id: str, step_keys: tuple[str, ...]
+    ) -> int:
         if not step_keys:
             return 0
         now = _now()

@@ -38,7 +38,9 @@ def make_settings(tmpdir: Path, **overrides: str):
 @dataclass
 class RecordingPolicy:
     denied_actions: set[AccessAction] = field(default_factory=set)
-    decisions: list[tuple[ActorContext, AccessAction, AccessResource]] = field(default_factory=list)
+    decisions: list[tuple[ActorContext, AccessAction, AccessResource]] = field(
+        default_factory=list
+    )
 
     def authorize(
         self,
@@ -185,7 +187,9 @@ class ApiAccessErrorsTest(unittest.TestCase):
     def test_policy_can_refuse_access_without_changing_route(self) -> None:
         policy = RecordingPolicy({AccessAction.CONFIG_READ})
         with tempfile.TemporaryDirectory() as tmp:
-            client = TestClient(create_app(make_settings(Path(tmp)), access_policy=policy))
+            client = TestClient(
+                create_app(make_settings(Path(tmp)), access_policy=policy)
+            )
 
             response = client.get(
                 "/api/config/limits",
@@ -239,7 +243,9 @@ class ApiAccessErrorsTest(unittest.TestCase):
 
             @app.get("/api/test/path-error")
             async def path_error(
-                _actor: ActorContext = Depends(require_action(AccessAction.CONFIG_READ)),
+                _actor: ActorContext = Depends(
+                    require_action(AccessAction.CONFIG_READ)
+                ),
             ) -> dict[str, str]:
                 raise ApiError(
                     400,
@@ -260,11 +266,15 @@ class ApiAccessErrorsTest(unittest.TestCase):
         serialized = str(payload)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(payload["error"]["code"], "SIRCOM_TEST_PATH")
-        self.assertEqual(payload["error"]["message"], f"Erreur de test pour {MASKED_PATH}.")
+        self.assertEqual(
+            payload["error"]["message"], f"Erreur de test pour {MASKED_PATH}."
+        )
         self.assertEqual(payload["error"]["details"]["upload_path"], MASKED_PATH)
         self.assertEqual(payload["error"]["details"]["relative_path"], MASKED_PATH)
         self.assertEqual(payload["error"]["details"]["sqlite_path"], MASKED_PATH)
-        self.assertEqual(payload["error"]["details"]["safe_code"], "EXCEL_HIDDEN_COLUMNS")
+        self.assertEqual(
+            payload["error"]["details"]["safe_code"], "EXCEL_HIDDEN_COLUMNS"
+        )
         self.assertNotIn(str(settings.data_dir), serialized)
         self.assertNotIn(str(settings.sqlite_path), serialized)
 
@@ -290,7 +300,9 @@ class ApiAccessErrorsTest(unittest.TestCase):
             app = create_app(make_settings(Path(tmp)))
 
             @app.get("/api/test/lots/{lot_id}/downloads/{artifact_id}/{reason}")
-            async def download_probe(lot_id: str, artifact_id: str, reason: str, request: Request):
+            async def download_probe(
+                lot_id: str, artifact_id: str, reason: str, request: Request
+            ):
                 raise hidden_artifact_not_found(
                     lot_id=lot_id,
                     artifact_id=artifact_id,

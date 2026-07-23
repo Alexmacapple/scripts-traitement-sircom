@@ -182,7 +182,9 @@ def _ensure_schema_migrations_table(connection: sqlite3.Connection) -> None:
 
 
 def _current_schema_version(connection: sqlite3.Connection) -> int:
-    row = connection.execute("SELECT MAX(version) AS version FROM schema_migrations").fetchone()
+    row = connection.execute(
+        "SELECT MAX(version) AS version FROM schema_migrations"
+    ).fetchone()
     return int(row["version"] or 0)
 
 
@@ -215,7 +217,9 @@ def _apply_schema_v2(connection: sqlite3.Connection) -> None:
 def _apply_schema_v3(connection: sqlite3.Connection) -> None:
     problem_columns = _table_columns(connection, "problemes")
     if "cause" not in problem_columns:
-        connection.execute("ALTER TABLE problemes ADD COLUMN cause TEXT NOT NULL DEFAULT ''")
+        connection.execute(
+            "ALTER TABLE problemes ADD COLUMN cause TEXT NOT NULL DEFAULT ''"
+        )
         connection.execute("UPDATE problemes SET cause = message WHERE cause = ''")
     if "action" not in problem_columns:
         connection.execute(
@@ -337,7 +341,9 @@ def _validate_schema(connection: sqlite3.Connection) -> None:
         missing_columns = expected_columns - actual_columns
         if missing_columns:
             columns = ", ".join(sorted(missing_columns))
-            raise SchemaVersionError(f"SQLite table {table} is missing columns: {columns}.")
+            raise SchemaVersionError(
+                f"SQLite table {table} is missing columns: {columns}."
+            )
 
     missing_indexes = EXPECTED_INDEXES - _index_names(connection)
     if missing_indexes:
@@ -348,7 +354,9 @@ def _validate_schema(connection: sqlite3.Connection) -> None:
         missing_groups = expected_groups - _foreign_key_column_groups(connection, table)
         if missing_groups:
             groups = ", ".join(" + ".join(group) for group in sorted(missing_groups))
-            raise SchemaVersionError(f"SQLite table {table} is missing foreign keys: {groups}.")
+            raise SchemaVersionError(
+                f"SQLite table {table} is missing foreign keys: {groups}."
+            )
 
     foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
     if foreign_key_errors:
@@ -377,7 +385,9 @@ def _index_names(connection: sqlite3.Connection) -> set[str]:
     return {row["name"] for row in rows}
 
 
-def _foreign_key_column_groups(connection: sqlite3.Connection, table: str) -> set[tuple[str, ...]]:
+def _foreign_key_column_groups(
+    connection: sqlite3.Connection, table: str
+) -> set[tuple[str, ...]]:
     grouped: dict[int, list[tuple[int, str]]] = {}
     for row in connection.execute(f"PRAGMA foreign_key_list({table})"):
         grouped.setdefault(row["id"], []).append((row["seq"], row["from"]))

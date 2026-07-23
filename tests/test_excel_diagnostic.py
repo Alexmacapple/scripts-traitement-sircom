@@ -48,7 +48,10 @@ class ExcelDiagnosticTest(unittest.TestCase):
 
     def test_2025_header_cleaning_rule_keeps_excel_letter_prefix(self) -> None:
         self.assertEqual(clean_indesign_header("B_ID"), "b_id")
-        self.assertEqual(clean_indesign_header("CE_Une (seule) photo du produit candidat"), "ce_uneseul")
+        self.assertEqual(
+            clean_indesign_header("CE_Une (seule) photo du produit candidat"),
+            "ce_uneseul",
+        )
         self.assertEqual(clean_indesign_header("AC_Département"), "ac_departe")
 
     def test_refusal_reasons_are_actionable_for_common_bad_inputs(self) -> None:
@@ -89,7 +92,9 @@ class ExcelDiagnosticTest(unittest.TestCase):
                     self.assertFalse(diagnostic.importable)
                     self.assertIn(fragment, " ".join(diagnostic.blockers))
 
-    def test_duplicate_source_headers_are_non_blocking_when_provenance_disambiguates(self) -> None:
+    def test_duplicate_source_headers_are_non_blocking_when_provenance_disambiguates(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             paths = create_synthetic_excels(Path(tmpdir), ["duplicate_source_headers"])
             diagnostic = diagnose_workbook(paths["duplicate_source_headers"])
@@ -97,7 +102,9 @@ class ExcelDiagnosticTest(unittest.TestCase):
         self.assertTrue(diagnostic.importable, diagnostic.blockers)
         self.assertIn("En-têtes sources dupliqués", " ".join(diagnostic.warnings))
 
-    def test_refused_workbook_reports_multiple_detectable_reasons_in_one_pass(self) -> None:
+    def test_refused_workbook_reports_multiple_detectable_reasons_in_one_pass(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             paths = create_synthetic_excels(Path(tmpdir), ["multiple_blockers"])
             diagnostic = diagnose_workbook(paths["multiple_blockers"])
@@ -112,7 +119,9 @@ class ExcelDiagnosticTest(unittest.TestCase):
 
     def test_local_2024_2025_inputs_when_available(self) -> None:
         if not REAL_SIRCOM1.exists() or not REAL_SIRCOM2.exists():
-            self.skipTest("Local Sircom1.xlsx and Sircom2.xlsx fixtures are not present.")
+            self.skipTest(
+                "Local Sircom1.xlsx and Sircom2.xlsx fixtures are not present."
+            )
 
         sircom1 = diagnose_workbook(REAL_SIRCOM1)
         sircom2 = diagnose_workbook(REAL_SIRCOM2)

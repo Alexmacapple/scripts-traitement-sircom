@@ -198,10 +198,19 @@ def build_valid_multi_tabs(output_dir: Path) -> Path:
     )
 
     etablissements = workbook.create_sheet("Etablissements")
-    write_headers(etablissements, ["Nom du site", "Code postal", "Dossier ID", "SIRET", "Téléphone"])
-    etablissements.append(["Atelier A", "07000", "ARA07.2026-HGV", "12345678901234", "0102030405"])
-    etablissements.append(["Atelier B", "21000", "BFC21.2026-TEST", "23456789012345", "0203040506"])
-    etablissements.append(["Atelier C", "75001", "IDF75.2026-ZERO", "34567890123456", "0304050607"])
+    write_headers(
+        etablissements,
+        ["Nom du site", "Code postal", "Dossier ID", "SIRET", "Téléphone"],
+    )
+    etablissements.append(
+        ["Atelier A", "07000", "ARA07.2026-HGV", "12345678901234", "0102030405"]
+    )
+    etablissements.append(
+        ["Atelier B", "21000", "BFC21.2026-TEST", "23456789012345", "0203040506"]
+    )
+    etablissements.append(
+        ["Atelier C", "75001", "IDF75.2026-ZERO", "34567890123456", "0304050607"]
+    )
 
     images = workbook.create_sheet("Images")
     write_headers(images, ["Fichier source", "id dossier", "Légende image"])
@@ -364,8 +373,12 @@ BUILDERS = {
 }
 
 
-def create_synthetic_excels(output_dir: Path, case_names: Iterable[str] | None = None) -> dict[str, Path]:
-    selected = list(case_names) if case_names is not None else [case.name for case in CASES]
+def create_synthetic_excels(
+    output_dir: Path, case_names: Iterable[str] | None = None
+) -> dict[str, Path]:
+    selected = (
+        list(case_names) if case_names is not None else [case.name for case in CASES]
+    )
     created: dict[str, Path] = {}
     for name in selected:
         builder = BUILDERS[name]
@@ -374,7 +387,9 @@ def create_synthetic_excels(output_dir: Path, case_names: Iterable[str] | None =
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Create synthetic Sircom 2026 Excel workbooks.")
+    parser = argparse.ArgumentParser(
+        description="Create synthetic Sircom 2026 Excel workbooks."
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -393,7 +408,9 @@ def main(argv: list[str] | None = None) -> int:
     for case in CASES:
         if case.name not in created:
             continue
-        print(f"{case.name}: {created[case.name]} expected_importable={case.expected_importable}")
+        print(
+            f"{case.name}: {created[case.name]} expected_importable={case.expected_importable}"
+        )
         print(f"  {case.description}")
     return 0
 

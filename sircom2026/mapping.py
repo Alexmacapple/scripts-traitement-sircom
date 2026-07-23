@@ -12,7 +12,11 @@ from typing import Any
 
 from openpyxl.utils.cell import column_index_from_string
 
-from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError, safe_artifact_filename
+from sircom2026.artifacts import (
+    ArtifactStore,
+    ArtifactUnavailableError,
+    safe_artifact_filename,
+)
 from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
 from sircom2026.excel_diagnostic import ascii_key, clean_indesign_header
@@ -165,7 +169,9 @@ def build_default_mapping_from_current_diagnostic(
                 else:
                     status = "supprime"
                     csv_name = "id_dossier"
-                    suppression_reason = "Colonne id_dossier utilisée seulement pour la fusion interne."
+                    suppression_reason = (
+                        "Colonne id_dossier utilisée seulement pour la fusion interne."
+                    )
 
             columns.append(
                 {
@@ -441,7 +447,10 @@ def mapping_from_submission(
     default_mapping: dict[str, Any],
     submission: dict[str, Any],
 ) -> dict[str, Any]:
-    if submission.get("structural_fingerprint") != default_mapping["structural_fingerprint"]:
+    if (
+        submission.get("structural_fingerprint")
+        != default_mapping["structural_fingerprint"]
+    ):
         raise MappingError(
             409,
             "SIRCOM_MAPPING_STRUCTURE_MISMATCH",
@@ -518,7 +527,9 @@ def mapping_from_submission(
 
 def mapping_validation_errors(mapping: dict[str, Any]) -> list[MappingError]:
     errors: list[MappingError] = []
-    exported = [column for column in mapping["columns"] if column["status"] == "exporte"]
+    exported = [
+        column for column in mapping["columns"] if column["status"] == "exporte"
+    ]
     business_exported = [
         column
         for column in exported
@@ -758,7 +769,13 @@ def read_current_mapping_artifact(
             artifact_id=artifact["id"],
         )
         mapping = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ) as exc:
         raise MappingError(
             409,
             "SIRCOM_MAPPING_ARTIFACT_UNAVAILABLE",
@@ -853,9 +870,15 @@ def default_csv_name(letter: str, header: str) -> str:
     return f"{prefix}{body}"[:10]
 
 
-def clean_submitted_csv_name(value: str, *, source_column_letter: str | None = None) -> str:
+def clean_submitted_csv_name(
+    value: str, *, source_column_letter: str | None = None
+) -> str:
     cleaned = value.strip()
-    if source_column_letter is None and cleaned in {"id_dossier", "imageid", "@pathimg"}:
+    if source_column_letter is None and cleaned in {
+        "id_dossier",
+        "imageid",
+        "@pathimg",
+    }:
         return cleaned
     normalized = unicodedata.normalize("NFKD", cleaned)
     ascii_value = normalized.encode("ascii", "ignore").decode("ascii").lower()
@@ -930,8 +953,12 @@ def apply_profile_to_default_mapping(
         "columns": [
             {
                 "id": column["id"],
-                "status": profile_columns.get(column["id"], {}).get("status", column["status"]),
-                "csv_name": profile_columns.get(column["id"], {}).get("csv_name", column["csv_name"]),
+                "status": profile_columns.get(column["id"], {}).get(
+                    "status", column["status"]
+                ),
+                "csv_name": profile_columns.get(column["id"], {}).get(
+                    "csv_name", column["csv_name"]
+                ),
                 "logical_role": profile_columns.get(column["id"], {}).get(
                     "logical_role",
                     column["logical_role"],
@@ -956,7 +983,10 @@ def profile_compatibility(
         reasons.append("Version de profil incompatible.")
     if profile.get("rules_version") != MAPPING_RULES_VERSION:
         reasons.append("Version des règles de mapping différente.")
-    if profile.get("structural_fingerprint") != default_mapping["structural_fingerprint"]:
+    if (
+        profile.get("structural_fingerprint")
+        != default_mapping["structural_fingerprint"]
+    ):
         reasons.append("Structure Excel différente.")
     return {
         "compatible": not reasons,
@@ -1002,8 +1032,7 @@ def profile_from_mapping(
             for column in source_columns
         ],
         "logical_roles": {
-            column["id"]: column["logical_role"]
-            for column in mapping["columns"]
+            column["id"]: column["logical_role"] for column in mapping["columns"]
         },
         "columns": columns,
         "last_used_at": last_used_at or now_iso(),
@@ -1014,7 +1043,9 @@ class MappingProfileStore:
     def __init__(self, data_dir: Path) -> None:
         self.root = data_dir / "profiles" / "mapping"
 
-    def list_profiles_for(self, default_mapping: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    def list_profiles_for(
+        self, default_mapping: dict[str, Any]
+    ) -> dict[str, list[dict[str, Any]]]:
         compatible: list[dict[str, Any]] = []
         incompatible: list[dict[str, Any]] = []
         for profile in self.list_profiles():
@@ -1040,7 +1071,11 @@ class MappingProfileStore:
                 continue
             if isinstance(payload, dict) and isinstance(payload.get("id"), str):
                 profiles.append(payload)
-        return sorted(profiles, key=lambda profile: str(profile.get("last_used_at", "")), reverse=True)
+        return sorted(
+            profiles,
+            key=lambda profile: str(profile.get("last_used_at", "")),
+            reverse=True,
+        )
 
     def get_profile(self, profile_id: str) -> dict[str, Any] | None:
         safe_id = safe_profile_id(profile_id)
@@ -1053,7 +1088,9 @@ class MappingProfileStore:
             return None
         return payload if isinstance(payload, dict) else None
 
-    def save_profile(self, mapping: dict[str, Any], *, name: str | None) -> dict[str, Any]:
+    def save_profile(
+        self, mapping: dict[str, Any], *, name: str | None
+    ) -> dict[str, Any]:
         profile = profile_from_mapping(mapping, name=name)
         self._write_profile(profile)
         return profile
@@ -1080,7 +1117,9 @@ class MappingProfileStore:
         tmp_path.replace(path)
 
 
-def profile_summary(profile: dict[str, Any], compatibility: dict[str, Any]) -> dict[str, Any]:
+def profile_summary(
+    profile: dict[str, Any], compatibility: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "id": profile["id"],
         "name": profile.get("name") or profile["id"],

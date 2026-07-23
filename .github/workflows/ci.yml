@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --extra test
 
+      - name: Run Ruff format check
+        run: uv run --frozen --extra test ruff format --check .
+
       - name: Run test suite with coverage
         run: uv run --frozen --extra test pytest --cov=sircom2026 --cov-report=term-missing -q
 

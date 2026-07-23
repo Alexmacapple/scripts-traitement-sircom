@@ -54,7 +54,9 @@ class InvalidationContractTest(unittest.TestCase):
             ("purge_retention",),
         )
 
-    def test_retry_failed_step_enqueues_new_run_and_invalidates_downstream(self) -> None:
+    def test_retry_failed_step_enqueues_new_run_and_invalidates_downstream(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             database = migrated_database(tmp)
             with database.transaction() as repositories:
@@ -115,7 +117,9 @@ class InvalidationContractTest(unittest.TestCase):
                 )
 
             with database.session() as repositories:
-                source = repositories.steps.get_by_lot_key(lot["id"], "normalisation_contenu")
+                source = repositories.steps.get_by_lot_key(
+                    lot["id"], "normalisation_contenu"
+                )
                 invalidated = {
                     step["step_key"]: step
                     for step in repositories.steps.list_for_lot(lot["id"])
@@ -155,7 +159,9 @@ class InvalidationContractTest(unittest.TestCase):
                     "package_final",
                 ),
             )
-            self.assertEqual({step["status"] for step in invalidated.values()}, {"invalide"})
+            self.assertEqual(
+                {step["status"] for step in invalidated.values()}, {"invalide"}
+            )
             self.assertEqual(
                 {step["current_run_id"] for step in invalidated.values()},
                 {None},
@@ -165,7 +171,9 @@ class InvalidationContractTest(unittest.TestCase):
             self.assertIn("retry.requested", {event["event_type"] for event in events})
             self.assertIn("step.invalidated", {event["event_type"] for event in events})
 
-    def test_input_and_human_decision_changes_invalidate_the_contractual_branches(self) -> None:
+    def test_input_and_human_decision_changes_invalidate_the_contractual_branches(
+        self,
+    ) -> None:
         expected = {
             "upload_excel": (
                 "diagnostic_excel",
@@ -213,7 +221,9 @@ class InvalidationContractTest(unittest.TestCase):
             with database.transaction() as repositories:
                 lot = create_lot_with_steps(repositories, title="Lot branches")
                 for source_step, expected_downstream in expected.items():
-                    self.assertEqual(downstream_step_keys(source_step), expected_downstream)
+                    self.assertEqual(
+                        downstream_step_keys(source_step), expected_downstream
+                    )
 
                 excel_change = record_input_change(
                     repositories,
@@ -278,22 +288,38 @@ class InvalidationContractTest(unittest.TestCase):
                 )
 
             with database.session() as repositories:
-                upload_excel = repositories.steps.get_by_lot_key(lot["id"], "upload_excel")
-                upload_images = repositories.steps.get_by_lot_key(lot["id"], "upload_images")
+                upload_excel = repositories.steps.get_by_lot_key(
+                    lot["id"], "upload_excel"
+                )
+                upload_images = repositories.steps.get_by_lot_key(
+                    lot["id"], "upload_images"
+                )
                 mapping = repositories.steps.get_by_lot_key(lot["id"], "mapping")
-                tri = repositories.steps.get_by_lot_key(lot["id"], "tri_region_departement")
-                matching = repositories.steps.get_by_lot_key(lot["id"], "matching_images")
+                tri = repositories.steps.get_by_lot_key(
+                    lot["id"], "tri_region_departement"
+                )
+                matching = repositories.steps.get_by_lot_key(
+                    lot["id"], "matching_images"
+                )
                 event_payloads = [
                     json.loads(event["payload_json"])
                     for event in repositories.events.list_for_lot(lot["id"], limit=100)
                 ]
 
-            self.assertEqual(upload_excel["output_fingerprint"], excel_change.source_fingerprint)
-            self.assertEqual(upload_images["output_fingerprint"], zip_change.source_fingerprint)
+            self.assertEqual(
+                upload_excel["output_fingerprint"], excel_change.source_fingerprint
+            )
+            self.assertEqual(
+                upload_images["output_fingerprint"], zip_change.source_fingerprint
+            )
             self.assertEqual(mapping["input_fingerprint"], mapping_input_fingerprint)
-            self.assertEqual(mapping["output_fingerprint"], mapping_snapshot.output_fingerprint)
+            self.assertEqual(
+                mapping["output_fingerprint"], mapping_snapshot.output_fingerprint
+            )
             self.assertEqual(tri["output_fingerprint"], tri_snapshot.output_fingerprint)
-            self.assertEqual(matching["output_fingerprint"], image_snapshot.output_fingerprint)
+            self.assertEqual(
+                matching["output_fingerprint"], image_snapshot.output_fingerprint
+            )
             self.assertNotIn("B_nom", str(event_payloads))
             self.assertNotIn("image_1", str(event_payloads))
 
@@ -350,7 +376,9 @@ class InvalidationContractTest(unittest.TestCase):
 
             self.assertEqual(jobs_count, 0)
 
-    def test_retry_route_returns_structured_result_and_reuses_idempotency_key(self) -> None:
+    def test_retry_route_returns_structured_result_and_reuses_idempotency_key(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = load_settings(
                 {
@@ -360,7 +388,9 @@ class InvalidationContractTest(unittest.TestCase):
                 }
             )
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot retry API"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot retry API"}).json()[
+                "lot"
+            ]["id"]
             database = Database(
                 settings.sqlite_path,
                 busy_timeout_ms=settings.sqlite_busy_timeout_ms,
@@ -400,7 +430,9 @@ class InvalidationContractTest(unittest.TestCase):
         self.assertEqual(first_response.status_code, 202)
         self.assertEqual(second_response.status_code, 202)
         self.assertEqual(conflict_response.status_code, 409)
-        self.assertEqual(first_response.json()["job"]["id"], second_response.json()["job"]["id"])
+        self.assertEqual(
+            first_response.json()["job"]["id"], second_response.json()["job"]["id"]
+        )
         self.assertTrue(first_response.json()["job"]["created"])
         self.assertFalse(second_response.json()["job"]["created"])
         self.assertEqual(

@@ -173,7 +173,9 @@ class UiButtonContractTest(unittest.TestCase):
             "Icon buttons must use the DSFR visible-label variant.",
         )
 
-    def test_local_action_groups_do_not_collapse_icon_buttons_to_icon_only(self) -> None:
+    def test_local_action_groups_do_not_collapse_icon_buttons_to_icon_only(
+        self,
+    ) -> None:
         css = (STATIC_ROOT / "sircom.css").read_text(encoding="utf-8")
 
         self.assertIn('.sircom-action-group .fr-btn[class*=" fr-icon-"]', css)

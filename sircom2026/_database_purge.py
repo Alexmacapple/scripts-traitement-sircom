@@ -11,7 +11,7 @@ from sircom2026._database_shared import (
     _now,
 )
 
-__all__ = ['PurgeTracesRepository']
+__all__ = ["PurgeTracesRepository"]
 
 
 class PurgeTracesRepository:

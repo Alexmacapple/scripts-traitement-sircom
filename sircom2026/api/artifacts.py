@@ -20,7 +20,9 @@ async def download_artifact(
     lot_id: str,
     artifact_id: str,
     request: Request,
-    _actor: Annotated[ActorContext, Depends(require_action(AccessAction.ARTIFACT_DOWNLOAD))],
+    _actor: Annotated[
+        ActorContext, Depends(require_action(AccessAction.ARTIFACT_DOWNLOAD))
+    ],
     database: Annotated[Database, Depends(get_database)],
 ) -> FileResponse:
     settings = request.app.state.settings

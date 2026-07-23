@@ -119,7 +119,9 @@ def request_package_generation(
         pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
     )
     try:
-        sources = _build_package_sources(repositories, store, settings=settings, lot_id=lot_id)
+        sources = _build_package_sources(
+            repositories, store, settings=settings, lot_id=lot_id
+        )
     except PackagePrerequisiteMissing as exc:
         raise PackageError(
             409,
@@ -447,7 +449,9 @@ def _build_package_zip(
 
     try:
         entries: list[dict[str, Any]] = []
-        with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as package:
+        with zipfile.ZipFile(
+            temp_path, "w", compression=zipfile.ZIP_DEFLATED
+        ) as package:
             _write_file_entry(
                 package,
                 entries,
@@ -478,7 +482,9 @@ def _build_package_zip(
             )
             _write_directory(package, f"{EXPORT_IMAGES_FOLDER}/")
             if sources["processed_images"] is not None:
-                _copy_processed_images(package, entries, source=sources["processed_images"])
+                _copy_processed_images(
+                    package, entries, source=sources["processed_images"]
+                )
             manifest = _manifest_payload(
                 lot_id=lot_id,
                 entries=entries,
@@ -644,7 +650,11 @@ def _required_readable_artifact(
     role: str,
 ):
     step = repositories.steps.get_by_lot_key(lot_id, step_key)
-    if step is None or not step["current_run_id"] or step["status"] not in READY_STATUSES:
+    if (
+        step is None
+        or not step["current_run_id"]
+        or step["status"] not in READY_STATUSES
+    ):
         raise PackagePrerequisiteMissing(step_key, role)
     artifact = repositories.artifacts.get_for_step_run_role(
         lot_id=lot_id,
@@ -673,7 +683,11 @@ def _current_readable_artifact(
     role: str,
 ):
     step = repositories.steps.get_by_lot_key(lot_id, step_key)
-    if step is None or not step["current_run_id"] or step["status"] not in READY_STATUSES:
+    if (
+        step is None
+        or not step["current_run_id"]
+        or step["status"] not in READY_STATUSES
+    ):
         return None
     artifact = repositories.artifacts.get_for_step_run_role(
         lot_id=lot_id,
@@ -745,13 +759,16 @@ def _zip_info(path: str) -> zipfile.ZipInfo:
 
 
 def _require_current_lease(repositories, context: WorkerJobContext) -> None:
-    if repositories.jobs.get_committable_by_run(
-        lot_id=context.lot_id,
-        step_key=context.step_key,
-        run_id=context.run_id,
-        lease_version=context.leased_job.lease_version,
-        expected_input_fingerprint=context.leased_job.input_fingerprint,
-    ) is None:
+    if (
+        repositories.jobs.get_committable_by_run(
+            lot_id=context.lot_id,
+            step_key=context.step_key,
+            run_id=context.run_id,
+            lease_version=context.leased_job.lease_version,
+            expected_input_fingerprint=context.leased_job.input_fingerprint,
+        )
+        is None
+    ):
         raise WorkerLeaseLost("Worker lease is no longer current.")
 
 

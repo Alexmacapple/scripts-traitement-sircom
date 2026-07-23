@@ -567,7 +567,9 @@ async def save_lot_mapping_draft(
     payload: Annotated[MappingSubmissionRequest, Body()],
 ) -> dict[str, object]:
     settings = request.app.state.settings
-    idempotency_key = idempotency_key_from_request(request) or f"mapping_draft:{uuid.uuid4().hex}"
+    idempotency_key = (
+        idempotency_key_from_request(request) or f"mapping_draft:{uuid.uuid4().hex}"
+    )
     with database.transaction() as repositories:
         try:
             result = save_mapping_draft(
@@ -597,7 +599,9 @@ async def validate_lot_mapping(
     payload: Annotated[MappingSubmissionRequest, Body()],
 ) -> dict[str, object]:
     settings = request.app.state.settings
-    idempotency_key = idempotency_key_from_request(request) or f"mapping_validate:{uuid.uuid4().hex}"
+    idempotency_key = (
+        idempotency_key_from_request(request) or f"mapping_validate:{uuid.uuid4().hex}"
+    )
     validation_error: MappingError | None = None
     with database.transaction() as repositories:
         try:
@@ -660,7 +664,9 @@ async def apply_lot_mapping_profile_as_draft(
     payload: Annotated[ApplyMappingProfileRequest, Body()],
 ) -> dict[str, object]:
     settings = request.app.state.settings
-    idempotency_key = idempotency_key_from_request(request) or f"mapping_profile:{uuid.uuid4().hex}"
+    idempotency_key = (
+        idempotency_key_from_request(request) or f"mapping_profile:{uuid.uuid4().hex}"
+    )
     with database.transaction() as repositories:
         try:
             result = apply_profile_as_draft(
@@ -717,7 +723,9 @@ async def validate_lot_sort(
     payload: Annotated[SortDecisionRequest, Body()],
 ) -> dict[str, object]:
     settings = request.app.state.settings
-    idempotency_key = idempotency_key_from_request(request) or f"sort_validate:{uuid.uuid4().hex}"
+    idempotency_key = (
+        idempotency_key_from_request(request) or f"sort_validate:{uuid.uuid4().hex}"
+    )
     with database.transaction() as repositories:
         try:
             result = validate_sort_decision(
@@ -781,7 +789,9 @@ async def validate_lot_csv_preview(
     database: Annotated[Database, Depends(get_database)],
 ) -> dict[str, object]:
     settings = request.app.state.settings
-    idempotency_key = idempotency_key_from_request(request) or f"csv_preview:{uuid.uuid4().hex}"
+    idempotency_key = (
+        idempotency_key_from_request(request) or f"csv_preview:{uuid.uuid4().hex}"
+    )
     with database.transaction() as repositories:
         try:
             result = validate_csv_preview(
@@ -1028,7 +1038,9 @@ def mapping_submission_to_dict(payload: MappingSubmissionRequest) -> dict[str, o
     }
 
 
-def mapping_artifact_response(artifact: dict[str, object], lot_id: str) -> dict[str, object]:
+def mapping_artifact_response(
+    artifact: dict[str, object], lot_id: str
+) -> dict[str, object]:
     return {
         "id": artifact["id"],
         "kind": artifact["kind"],

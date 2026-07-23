@@ -306,7 +306,9 @@ def upload_prepared_image_zip_for_lot(
     )
 
 
-def run_image_inspection_job(context: WorkerJobContext, *, settings: Settings) -> JobResult:
+def run_image_inspection_job(
+    context: WorkerJobContext, *, settings: Settings
+) -> JobResult:
     store = ArtifactStore(
         settings.data_dir,
         pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
@@ -314,7 +316,9 @@ def run_image_inspection_job(context: WorkerJobContext, *, settings: Settings) -
     context.set_progress(1, 3)
     with context.database.transaction() as repositories:
         _require_current_lease(repositories, context)
-        source_artifact = _current_image_zip_source_artifact(repositories, context.lot_id)
+        source_artifact = _current_image_zip_source_artifact(
+            repositories, context.lot_id
+        )
         if source_artifact is None:
             _record_missing_source_problem(repositories, context)
             return JobResult(final_step_status="bloque")
@@ -541,11 +545,15 @@ def get_persisted_image_inspection(
             artifact_id=artifact["id"],
         )
     except (ArtifactUnavailableError, KeyError, ValueError) as exc:
-        raise ImageInspectionNotReady("Image inspection artifact is unavailable.") from exc
+        raise ImageInspectionNotReady(
+            "Image inspection artifact is unavailable."
+        ) from exc
     try:
         inspection = json.loads(readable.path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ImageInspectionNotReady("Image inspection artifact is unavailable.") from exc
+        raise ImageInspectionNotReady(
+            "Image inspection artifact is unavailable."
+        ) from exc
     if not isinstance(inspection, dict):
         raise ImageInspectionNotReady("Image inspection artifact is malformed.")
     return PersistedImageInspection(inspection=inspection, artifact=artifact)
@@ -706,7 +714,9 @@ def _current_inspection_artifact(
     repositories: Repositories,
     lot_id: str,
 ) -> dict[str, Any] | None:
-    inspection_step = repositories.steps.get_by_lot_key(lot_id, INSPECTION_IMAGES_STEP_KEY)
+    inspection_step = repositories.steps.get_by_lot_key(
+        lot_id, INSPECTION_IMAGES_STEP_KEY
+    )
     if inspection_step is None or not inspection_step["current_run_id"]:
         return None
     if inspection_step["status"] not in {"termine", "termine_avec_alertes", "bloque"}:
@@ -778,13 +788,16 @@ def _require_current_lease(
     repositories: Repositories,
     context: WorkerJobContext,
 ) -> None:
-    if repositories.jobs.get_committable_by_run(
-        lot_id=context.lot_id,
-        step_key=context.step_key,
-        run_id=context.run_id,
-        lease_version=context.leased_job.lease_version,
-        expected_input_fingerprint=context.leased_job.input_fingerprint,
-    ) is None:
+    if (
+        repositories.jobs.get_committable_by_run(
+            lot_id=context.lot_id,
+            step_key=context.step_key,
+            run_id=context.run_id,
+            lease_version=context.leased_job.lease_version,
+            expected_input_fingerprint=context.leased_job.input_fingerprint,
+        )
+        is None
+    ):
         raise WorkerLeaseLost("Worker lease is no longer current.")
 
 

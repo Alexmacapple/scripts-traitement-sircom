@@ -1,6 +1,6 @@
 # 26 - Figer le format Ruff global
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 25.
 
@@ -23,14 +23,14 @@ ajouter le contrôle `ruff format --check .` à la CI.
 
 ## Critères d'acceptation
 
-- [ ] `uv run --frozen --extra test ruff format .` a été exécuté seul ou dans un
+- [x] `uv run --frozen --extra test ruff format .` a été exécuté seul ou dans un
       commit dédié au formatage.
-- [ ] `uv run --frozen --extra test ruff format --check .` passe.
-- [ ] `uv run --frozen --extra test ruff check .` passe.
-- [ ] `uv run --frozen --extra test pytest -q` passe.
-- [ ] Le test navigateur Playwright passe si un fichier consommé par
+- [x] `uv run --frozen --extra test ruff format --check .` passe.
+- [x] `uv run --frozen --extra test ruff check .` passe.
+- [x] `uv run --frozen --extra test pytest -q` passe.
+- [x] Le test navigateur Playwright passe si un fichier consommé par
       l'interface est touché par le formatage.
-- [ ] La CI exécute `ruff format --check .`.
+- [x] La CI exécute `ruff format --check .`.
 
 ## Hors périmètre
 
@@ -54,3 +54,19 @@ ajouter le contrôle `ruff format --check .` à la CI.
 - `uv run --frozen --extra test ruff check .`
 - `uv run --frozen --extra test pytest -q`
 - `git diff --check`
+
+## Livraison
+
+- `uv run --frozen --extra test ruff format .` a reformatté 85 fichiers Python.
+- La CI exécute maintenant `uv run --frozen --extra test ruff format --check .`.
+- Le changement reste mécanique : aucun renommage de fonction, route, clé JSON
+  ou libellé UI n'a été ajouté manuellement.
+
+Preuves exécutées le 2026-07-23 :
+
+- `uv run --frozen --extra test ruff format --check .` : OK.
+- `uv run --frozen --extra test ruff check .` : OK.
+- `uv run --frozen --extra test pytest -q` : OK.
+- `SIRCOM_RUN_PLAYWRIGHT=1 uv run --frozen --extra test pytest tests/test_lots_playwright.py -q` :
+  OK.
+- `git diff --check` : OK.

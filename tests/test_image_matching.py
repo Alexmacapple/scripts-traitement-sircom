@@ -218,7 +218,9 @@ def run_until_step(settings, step_key: str, *, limit: int = 8):
 
 
 class ImageMatchingRulesTest(unittest.TestCase):
-    def test_matches_exact_tolerant_fallback_missing_and_unreferenced_images(self) -> None:
+    def test_matches_exact_tolerant_fallback_missing_and_unreferenced_images(
+        self,
+    ) -> None:
         matching = build_image_matching_payload(
             normalized_payload(
                 [
@@ -260,7 +262,9 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertEqual(matching["fallback_count"], 1)
         self.assertEqual(matching["tolerant_count"], 1)
         self.assertEqual(matching["unreferenced_count"], 1)
-        self.assertEqual(matching["unreferenced_images"][0]["source_name"], "orpheline.jpg")
+        self.assertEqual(
+            matching["unreferenced_images"][0]["source_name"], "orpheline.jpg"
+        )
 
     def test_partial_similarity_is_a_suggestion_not_an_automatic_match(self) -> None:
         matching = build_image_matching_payload(
@@ -322,7 +326,9 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertEqual(rows["ID-2"]["duplicate_source_name"], "shared.jpg")
         self.assertEqual(rows["ID-1"]["pathimg"], "")
 
-    def test_manual_source_file_collision_with_automatic_match_blocks_matching(self) -> None:
+    def test_manual_source_file_collision_with_automatic_match_blocks_matching(
+        self,
+    ) -> None:
         matching = build_image_matching_payload(
             normalized_payload([("ID-A", "source-a.jpg"), ("ID-B", "source-b.jpg")]),
             inspection_payload(["source-a.jpg", "source-b.jpg"]),
@@ -363,7 +369,10 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertTrue(unresolved["blocking"])
         self.assertEqual(unresolved["bindings"][0]["status"], "ambiguous")
         self.assertEqual(
-            [candidate["name"] for candidate in unresolved["bindings"][0]["candidates"]],
+            [
+                candidate["name"]
+                for candidate in unresolved["bindings"][0]["candidates"]
+            ],
             ["photo-a.jpg", "photo_a.png"],
         )
         self.assertFalse(resolved["blocking"])
@@ -371,7 +380,9 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertEqual(resolved["bindings"][0]["match_level"], "manual")
         self.assertEqual(resolved["bindings"][0]["source_name"], "photo_a.png")
 
-    def test_processed_zip_converts_to_final_jpg_folder_and_updates_bindings(self) -> None:
+    def test_processed_zip_converts_to_final_jpg_folder_and_updates_bindings(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = Path(tmp) / "images.zip"
             source = Image.new("RGBA", (700, 200), (0, 0, 0, 0))
@@ -397,7 +408,9 @@ class ImageMatchingRulesTest(unittest.TestCase):
                 self.assertEqual(image.format, "JPEG")
                 self.assertEqual(image.mode, "RGB")
                 self.assertEqual(image.size, (350, 100))
-                self.assertEqual(tuple(round(value) for value in image.info["dpi"]), (300, 300))
+                self.assertEqual(
+                    tuple(round(value) for value in image.info["dpi"]), (300, 300)
+                )
                 self.assertGreater(image.getpixel((0, 0))[0], 240)
 
         binding = matching["bindings"][0]
@@ -439,14 +452,18 @@ class ImageMatchingRulesTest(unittest.TestCase):
 
 
 class ImageMatchingApiTest(unittest.TestCase):
-    def test_matching_is_enqueued_after_normalization_when_images_are_inspected_first(self) -> None:
+    def test_matching_is_enqueued_after_normalization_when_images_are_inspected_first(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "images-first.xlsx"
             create_image_matching_workbook(workbook_path)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot images d'abord"}).json()["lot"]["id"]
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot images d'abord"}
+            ).json()["lot"]["id"]
 
             upload_images = client.post(
                 f"/api/lots/{lot_id}/images",
@@ -488,7 +505,9 @@ class ImageMatchingApiTest(unittest.TestCase):
             create_image_matching_workbook(workbook_path)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot images"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot images"}).json()[
+                "lot"
+            ]["id"]
 
             upload_excel = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -506,7 +525,9 @@ class ImageMatchingApiTest(unittest.TestCase):
             run_until_step(settings, "normalisation_contenu")
             upload_images = client.post(
                 f"/api/lots/{lot_id}/images",
-                files=image_zip_file(zip_bytes([("produit-retouche.png", image_bytes())])),
+                files=image_zip_file(
+                    zip_bytes([("produit-retouche.png", image_bytes())])
+                ),
                 headers={"X-Idempotency-Key": "images-upload-zip"},
             )
             run_until_step(settings, "inspection_images")
@@ -540,7 +561,9 @@ class ImageMatchingApiTest(unittest.TestCase):
                 f"/api/lots/{lot_id}/csv/preview/validate",
                 headers={"X-Idempotency-Key": "images-preview"},
             )
-            csv_download = client.get(validate_preview.json()["csv_artifact"]["download_url"])
+            csv_download = client.get(
+                validate_preview.json()["csv_artifact"]["download_url"]
+            )
             lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
             html = client.get(f"/?lot_id={lot_id}&view=matching_images")
             database = Database(settings.sqlite_path)

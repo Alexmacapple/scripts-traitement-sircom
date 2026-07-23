@@ -141,7 +141,10 @@ UI_STEP_STATUS_PRESENTATION = {
     "non_demarre": {"ui_status_label": "À venir", "ui_badge_class": "info"},
     "pret": {"ui_status_label": "En attente", "ui_badge_class": "info"},
     "en_cours": {"ui_status_label": "En cours", "ui_badge_class": "info"},
-    "action_requise": {"ui_status_label": "Action requise", "ui_badge_class": "warning"},
+    "action_requise": {
+        "ui_status_label": "Action requise",
+        "ui_badge_class": "warning",
+    },
     "bloque": {"ui_status_label": "À corriger", "ui_badge_class": "error"},
     "termine": {"ui_status_label": "Terminé", "ui_badge_class": "success"},
     "termine_avec_alertes": {

@@ -35,7 +35,9 @@ class PersistedExcelDiagnostic:
     artifact: dict[str, Any]
 
 
-def run_excel_diagnostic_job(context: WorkerJobContext, *, settings: Settings) -> JobResult:
+def run_excel_diagnostic_job(
+    context: WorkerJobContext, *, settings: Settings
+) -> JobResult:
     store = ArtifactStore(
         settings.data_dir,
         pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
@@ -157,11 +159,15 @@ def get_persisted_excel_diagnostic(
             artifact_id=artifact["id"],
         )
     except (ArtifactUnavailableError, KeyError, ValueError) as exc:
-        raise ExcelDiagnosticNotReady("Excel diagnostic artifact is unavailable.") from exc
+        raise ExcelDiagnosticNotReady(
+            "Excel diagnostic artifact is unavailable."
+        ) from exc
     try:
         diagnostic = json.loads(readable.path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ExcelDiagnosticNotReady("Excel diagnostic artifact is unavailable.") from exc
+        raise ExcelDiagnosticNotReady(
+            "Excel diagnostic artifact is unavailable."
+        ) from exc
     if not isinstance(diagnostic, dict):
         raise ExcelDiagnosticNotReady("Excel diagnostic artifact is malformed.")
     return PersistedExcelDiagnostic(diagnostic=diagnostic, artifact=artifact)
@@ -176,10 +182,7 @@ def serialize_workbook_diagnostic(diagnostic: WorkbookDiagnostic) -> dict[str, A
         "blockers": list(diagnostic.blockers),
         "warnings": list(diagnostic.warnings),
         "cleaned_header_collisions": dict(diagnostic.cleaned_header_collisions),
-        "sheets": [
-            serialize_sheet_diagnostic(sheet)
-            for sheet in diagnostic.sheets
-        ],
+        "sheets": [serialize_sheet_diagnostic(sheet) for sheet in diagnostic.sheets],
     }
 
 
@@ -200,16 +203,16 @@ def serialize_sheet_diagnostic(sheet: SheetDiagnostic) -> dict[str, Any]:
         "duplicate_headers": list(sheet.duplicate_headers),
         "cleaned_header_collisions": list(sheet.cleaned_header_collisions),
         "id_candidates": [asdict(candidate) for candidate in sheet.id_candidates],
-        "region_candidates": [asdict(candidate) for candidate in sheet.region_candidates],
+        "region_candidates": [
+            asdict(candidate) for candidate in sheet.region_candidates
+        ],
         "department_candidates": [
-            asdict(candidate)
-            for candidate in sheet.department_candidates
+            asdict(candidate) for candidate in sheet.department_candidates
         ],
         "date_candidates": [asdict(candidate) for candidate in sheet.date_candidates],
         "image_candidates": [asdict(candidate) for candidate in sheet.image_candidates],
         "sensitive_candidates": [
-            asdict(candidate)
-            for candidate in sheet.sensitive_candidates
+            asdict(candidate) for candidate in sheet.sensitive_candidates
         ],
         "source_headers": [asdict(candidate) for candidate in sheet.source_headers],
         "hidden_columns": list(sheet.hidden_columns),
@@ -388,8 +391,12 @@ def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
                 "title": "Données sans en-tête",
                 "cause": "Une colonne contient des données mais aucun en-tête exploitable.",
                 "action": "Ajouter un en-tête à cette colonne, puis relancer le diagnostic.",
-                "location": _column_location(sheet.name, sheet.empty_header_columns_with_data),
-                "technical": {"columns_count": len(sheet.empty_header_columns_with_data)},
+                "location": _column_location(
+                    sheet.name, sheet.empty_header_columns_with_data
+                ),
+                "technical": {
+                    "columns_count": len(sheet.empty_header_columns_with_data)
+                },
             }
         )
     if sheet.cleaned_header_collisions:
@@ -494,13 +501,16 @@ def _require_current_lease(
     repositories: Repositories,
     context: WorkerJobContext,
 ) -> None:
-    if repositories.jobs.get_committable_by_run(
-        lot_id=context.lot_id,
-        step_key=context.step_key,
-        run_id=context.run_id,
-        lease_version=context.leased_job.lease_version,
-        expected_input_fingerprint=context.leased_job.input_fingerprint,
-    ) is None:
+    if (
+        repositories.jobs.get_committable_by_run(
+            lot_id=context.lot_id,
+            step_key=context.step_key,
+            run_id=context.run_id,
+            lease_version=context.leased_job.lease_version,
+            expected_input_fingerprint=context.leased_job.input_fingerprint,
+        )
+        is None
+    ):
         raise WorkerLeaseLost("Worker lease is no longer current.")
 
 

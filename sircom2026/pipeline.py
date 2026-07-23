@@ -42,7 +42,9 @@ class UnknownStepError(ValueError):
     """Raised when a step is not part of the Sircom 2026 V1 DAG."""
 
 
-def downstream_step_keys(step_key: str, *, include_external: bool = False) -> tuple[str, ...]:
+def downstream_step_keys(
+    step_key: str, *, include_external: bool = False
+) -> tuple[str, ...]:
     _require_known_step(step_key)
 
     external_steps = set(V1_EXTERNAL_STEP_KEYS)
@@ -61,13 +63,14 @@ def downstream_step_keys(step_key: str, *, include_external: bool = False) -> tu
     return tuple(sorted(visited, key=lambda key: STEP_ORDER.get(key, 999)))
 
 
-def ready_auto_enqueue_step_keys(repositories, *, lot_id: str, source_step_key: str) -> tuple[str, ...]:
+def ready_auto_enqueue_step_keys(
+    repositories, *, lot_id: str, source_step_key: str
+) -> tuple[str, ...]:
     _require_known_step(source_step_key)
     auto_steps = set(V1_AUTO_ENQUEUE_STEP_KEYS)
     ready_parent_statuses = set(V1_AUTO_ENQUEUE_PARENT_STATUSES)
     steps_by_key = {
-        step["step_key"]: step
-        for step in repositories.steps.list_for_lot(lot_id)
+        step["step_key"]: step for step in repositories.steps.list_for_lot(lot_id)
     }
     ready_children: list[str] = []
     for child_key in V1_INVALIDATION_DAG[source_step_key]:
@@ -85,7 +88,9 @@ def ready_auto_enqueue_step_keys(repositories, *, lot_id: str, source_step_key: 
     return tuple(sorted(ready_children, key=lambda key: STEP_ORDER.get(key, 999)))
 
 
-def _ready_parent_step_keys(child_key: str, steps_by_key: dict[str, dict]) -> tuple[str, ...]:
+def _ready_parent_step_keys(
+    child_key: str, steps_by_key: dict[str, dict]
+) -> tuple[str, ...]:
     parents = V1_INVALIDATION_PARENTS.get(child_key, ())
     if child_key != "rapports":
         return parents

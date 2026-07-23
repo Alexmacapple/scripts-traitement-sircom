@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from sircom2026.database import Database, Repositories
-from sircom2026.pipeline import FINGERPRINT_REQUIRED_STEP_KEYS, ready_auto_enqueue_step_keys
+from sircom2026.pipeline import (
+    FINGERPRINT_REQUIRED_STEP_KEYS,
+    ready_auto_enqueue_step_keys,
+)
 from sircom2026.state import complete_step, require_human_validation, transition_step
 
 
@@ -226,7 +229,9 @@ class LocalWorker:
             )
             return True
 
-    def finish_success(self, leased_job: LeasedJob, result: JobResult | None = None) -> bool:
+    def finish_success(
+        self, leased_job: LeasedJob, result: JobResult | None = None
+    ) -> bool:
         job_result = result or JobResult()
         expected_input_fingerprint = (
             job_result.expected_input_fingerprint
@@ -475,7 +480,9 @@ class LocalWorker:
         except Exception as exc:
             outcome = "failed" if self.finish_failed(leased_job, exc) else "rejected"
         else:
-            outcome = "succeeded" if self.finish_success(leased_job, result) else "rejected"
+            outcome = (
+                "succeeded" if self.finish_success(leased_job, result) else "rejected"
+            )
 
         return WorkerRunResult(
             processed=True,
@@ -586,7 +593,9 @@ def _next_step_input_payload(
     return None
 
 
-def _effective_heartbeat_seconds(*, lease_seconds: int, heartbeat_seconds: float) -> float:
+def _effective_heartbeat_seconds(
+    *, lease_seconds: int, heartbeat_seconds: float
+) -> float:
     return min(float(heartbeat_seconds), max(float(lease_seconds) / 2, 0.001))
 
 
@@ -627,7 +636,9 @@ class _PeriodicHeartbeat:
                 return
 
 
-def request_lot_cancellation(repositories: Repositories, lot_id: str) -> tuple[dict[str, Any], int]:
+def request_lot_cancellation(
+    repositories: Repositories, lot_id: str
+) -> tuple[dict[str, Any], int]:
     lot = repositories.lots.request_cancel(lot_id)
     active_jobs = repositories.jobs.request_cancel_for_lot(lot_id)
     repositories.events.create(
@@ -643,9 +654,15 @@ def request_lot_cancellation(repositories: Repositories, lot_id: str) -> tuple[d
     return lot, active_jobs
 
 
-def _raise_if_cancel_requested(repositories: Repositories, job: Mapping[str, Any]) -> None:
+def _raise_if_cancel_requested(
+    repositories: Repositories, job: Mapping[str, Any]
+) -> None:
     lot = repositories.lots.get_required(str(job["lot_id"]))
-    if job["cancel_requested_at"] or lot["cancel_requested_at"] or lot["delete_requested_at"]:
+    if (
+        job["cancel_requested_at"]
+        or lot["cancel_requested_at"]
+        or lot["delete_requested_at"]
+    ):
         raise WorkerCancelled("Cancellation requested.")
 
 

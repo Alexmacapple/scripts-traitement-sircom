@@ -117,7 +117,9 @@ def download_step_payload(
 
 
 class CsvContractTest(unittest.TestCase):
-    def test_writer_and_verifier_match_golden_bytes_and_accept_automatic_quotes(self) -> None:
+    def test_writer_and_verifier_match_golden_bytes_and_accept_automatic_quotes(
+        self,
+    ) -> None:
         headers = ["id_dossier", "imageid", "@pathimg", "b_region", "c_nom"]
         rows = [
             ["ID-1", "", "", "Bretagne", "Produit, spécial"],
@@ -132,9 +134,9 @@ class CsvContractTest(unittest.TestCase):
 
         content = write_indesign_csv_bytes(headers, rows)
         expected_text = (
-            'id_dossier,imageid,@pathimg,b_region,c_nom\n'
+            "id_dossier,imageid,@pathimg,b_region,c_nom\n"
             'ID-1,,,Bretagne,"Produit, spécial"\n'
-            'ID-2,img-2,/Users/victoria/Documents/export-jpg-resize/img-2.jpg,'
+            "ID-2,img-2,/Users/victoria/Documents/export-jpg-resize/img-2.jpg,"
             ',"Texte ""fin"""\n'
         )
         expected = b"\xff\xfe" + expected_text.encode("utf-16-le")
@@ -148,7 +150,9 @@ class CsvContractTest(unittest.TestCase):
         self.assertEqual(report.headers, headers)
         self.assertEqual(report.rows_count, 2)
 
-    def test_verifier_rejects_contract_breaks_without_normalizing_newlines(self) -> None:
+    def test_verifier_rejects_contract_breaks_without_normalizing_newlines(
+        self,
+    ) -> None:
         headers = ["id_dossier", "imageid", "@pathimg"]
         bad_text = "id_dossier,imageid,@pathimg\r\nID-1,#N/A,\r\nID-2\r\nID-3,n/c,\r\n"
         content = b"\xff\xfe" + bad_text.encode("utf-16-le")
@@ -166,8 +170,12 @@ class CsvContractTest(unittest.TestCase):
         )
         self.assertEqual(forbidden_count, 2)
 
-    def test_verifier_rejects_missing_bom_duplicate_headers_and_bad_positions(self) -> None:
-        content = "imageid,id_dossier,id_dossier,@pathimg\nimg-1,ID-1,ID-1,\n".encode("utf-16-le")
+    def test_verifier_rejects_missing_bom_duplicate_headers_and_bad_positions(
+        self,
+    ) -> None:
+        content = "imageid,id_dossier,id_dossier,@pathimg\nimg-1,ID-1,ID-1,\n".encode(
+            "utf-16-le"
+        )
 
         report = verify_indesign_csv_bytes(
             content,
@@ -181,7 +189,9 @@ class CsvContractTest(unittest.TestCase):
         self.assertIn("SIRCOM_CSV_HEADERS_ORDER_INVALID", codes)
         self.assertIn("SIRCOM_CSV_REQUIRED_HEADERS_INVALID", codes)
 
-    def test_structure_comparison_uses_reference_format_not_2025_header_list(self) -> None:
+    def test_structure_comparison_uses_reference_format_not_2025_header_list(
+        self,
+    ) -> None:
         candidate = write_indesign_csv_bytes(
             ["id_dossier", "imageid", "@pathimg", "z_champ"],
             [["ID-1", "", "", "Valeur"]],
@@ -197,7 +207,9 @@ class CsvContractTest(unittest.TestCase):
         self.assertGreater(comparison["reference"]["headers_count"], 4)
         self.assertEqual(comparison["candidate"]["headers_count"], 4)
 
-    def test_worker_verifies_current_normalization_payload_and_persists_report(self) -> None:
+    def test_worker_verifies_current_normalization_payload_and_persists_report(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "csv-contract.xlsx"
@@ -205,7 +217,9 @@ class CsvContractTest(unittest.TestCase):
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
 
-            lot_id = client.post("/api/lots", json={"title": "Lot CSV"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot CSV"}).json()["lot"][
+                "id"
+            ]
             upload = client.post(
                 f"/api/lots/{lot_id}/excel",
                 files=excel_file(workbook_path),

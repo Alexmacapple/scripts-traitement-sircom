@@ -99,7 +99,9 @@ def step_status(lot: dict[str, object], step_key: str) -> str:
     raise AssertionError(f"Missing step {step_key}.")
 
 
-def download_fusion_payload(client: TestClient, settings, lot_id: str) -> dict[str, Any]:
+def download_fusion_payload(
+    client: TestClient, settings, lot_id: str
+) -> dict[str, Any]:
     database = Database(settings.sqlite_path)
     with database.session() as repositories:
         step = repositories.steps.get_by_lot_key(lot_id, "fusion_multi_onglets")
@@ -121,7 +123,9 @@ def download_fusion_payload(client: TestClient, settings, lot_id: str) -> dict[s
 
 
 class FusionWorkerTest(unittest.TestCase):
-    def test_mapping_validation_schedules_and_worker_merges_multi_sheet_rows(self) -> None:
+    def test_mapping_validation_schedules_and_worker_merges_multi_sheet_rows(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "fusion.xlsx"
@@ -148,10 +152,14 @@ class FusionWorkerTest(unittest.TestCase):
             payload = download_fusion_payload(client, settings, lot_id)
 
         self.assertEqual(validate.status_code, 200, validate.text)
-        self.assertEqual(step_status(validate.json()["lot"], "fusion_multi_onglets"), "pret")
+        self.assertEqual(
+            step_status(validate.json()["lot"], "fusion_multi_onglets"), "pret"
+        )
         self.assertEqual(worker_result.outcome, "succeeded")
         self.assertEqual(worker_result.step_key, "fusion_multi_onglets")
-        self.assertEqual(step_status(lot, "fusion_multi_onglets"), "termine_avec_alertes")
+        self.assertEqual(
+            step_status(lot, "fusion_multi_onglets"), "termine_avec_alertes"
+        )
 
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["rules_version"], "flat-merge-v1")
@@ -177,7 +185,9 @@ class FusionWorkerTest(unittest.TestCase):
         self.assertEqual(row_by_id["ONLY-B"]["b_region"], "Occitanie")
         self.assertEqual(row_by_id["COMMON"]["imageid"], "")
         self.assertEqual(row_by_id["COMMON"]["@pathimg"], "")
-        self.assertNotIn("Ligne sans identifiant", str(payload["removed_rows_without_id"]))
+        self.assertNotIn(
+            "Ligne sans identifiant", str(payload["removed_rows_without_id"])
+        )
 
 
 if __name__ == "__main__":

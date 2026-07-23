@@ -26,6 +26,7 @@ from sircom2026.web_constants import (
     WORKFLOW_SCREEN_DEFINITIONS,
 )
 
+
 def lot_ui_summary(
     lot: dict[str, Any],
     *,
@@ -96,7 +97,9 @@ def lot_ui_summary(
     current_phase_number = (
         len(phase_navigation)
         if completed
-        else current_phase["number"] if current_phase else 0
+        else current_phase["number"]
+        if current_phase
+        else 0
     )
     active_step = selected_active_step(
         step_navigation,
@@ -105,7 +108,9 @@ def lot_ui_summary(
         current_step=step_navigation[current_index],
     )
     active_view_key = active_step["key"] if active_step else None
-    active_screen_key = screen_key_for_step(active_view_key) or active_screen_key or "excel"
+    active_screen_key = (
+        screen_key_for_step(active_view_key) or active_screen_key or "excel"
+    )
     step_navigation = enrich_step_navigation(
         step_navigation,
         lot_id=lot["id"],
@@ -138,7 +143,9 @@ def lot_ui_summary(
     )
     next_phase = (
         None
-        if completed or not current_phase_number or current_phase_number >= len(phase_navigation)
+        if completed
+        or not current_phase_number
+        or current_phase_number >= len(phase_navigation)
         else phase_navigation[current_phase_number]
     )
     csv_workflow_steps = [
@@ -213,7 +220,9 @@ def selected_active_step(
         )
         if current_step and current_step["key"] in screen_step_keys(active_screen_key):
             return current_step
-        return first_open_step(screen_steps) or (screen_steps[-1] if screen_steps else None)
+        return first_open_step(screen_steps) or (
+            screen_steps[-1] if screen_steps else None
+        )
     if current_step:
         return current_step
     return step_navigation[0] if step_navigation else None
@@ -308,7 +317,9 @@ def workflow_screen_navigation(
             step_navigation,
             active_screen_key=screen_key,
         )
-        target_step = first_open_step(screen_steps) or (screen_steps[-1] if screen_steps else None)
+        target_step = first_open_step(screen_steps) or (
+            screen_steps[-1] if screen_steps else None
+        )
         status = phase_status(screen_steps)
         navigation.append(
             {
@@ -695,8 +706,12 @@ def lot_sources_summary(repositories: Any, lot: dict[str, Any]) -> dict[str, Any
     )
     image_inspection = lot.get("image_inspection")
     if images["uploaded"] and isinstance(image_inspection, dict):
-        images["details"].append(("Images détectées", str(image_inspection.get("image_count", 0))))
-        images["details"].append(("Entrées du zip", str(image_inspection.get("entries_count", 0))))
+        images["details"].append(
+            ("Images détectées", str(image_inspection.get("image_count", 0)))
+        )
+        images["details"].append(
+            ("Entrées du zip", str(image_inspection.get("entries_count", 0)))
+        )
     return {
         "excel": excel,
         "images": images,
@@ -726,7 +741,9 @@ def source_card_summary(
     if uploaded and artifact is not None:
         details.append(("État du dépôt", uploaded_status))
         details.append(("Taille reçue", format_bytes(int(artifact["size_bytes"] or 0))))
-        details.append(("Reçu le", format_datetime_label(str(artifact.get("created_at") or ""))))
+        details.append(
+            ("Reçu le", format_datetime_label(str(artifact.get("created_at") or "")))
+        )
         extension = metadata.get("extension")
         if isinstance(extension, str) and extension:
             details.append(("Format", extension))
@@ -818,9 +835,11 @@ def sort_ui_payload(payload: dict[str, Any]) -> dict[str, Any]:
             )
         decision_detection_status = decision_payload.get("detection_status")
         if isinstance(decision_detection_status, str):
-            decision_payload["detection_status_label"] = SORT_DETECTION_STATUS_LABELS.get(
-                decision_detection_status,
-                "Statut de détection non traduit",
+            decision_payload["detection_status_label"] = (
+                SORT_DETECTION_STATUS_LABELS.get(
+                    decision_detection_status,
+                    "Statut de détection non traduit",
+                )
             )
 
     return {

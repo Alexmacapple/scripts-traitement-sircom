@@ -46,7 +46,9 @@ def record_problem(
 ) -> dict[str, Any]:
     if severity not in PROBLEM_SEVERITIES:
         allowed = ", ".join(PROBLEM_SEVERITIES)
-        raise ValueError(f"Invalid problem severity: {severity!r}. Allowed values: {allowed}.")
+        raise ValueError(
+            f"Invalid problem severity: {severity!r}. Allowed values: {allowed}."
+        )
     _require_step(repositories, lot_id, step_key)
     problem = repositories.problems.create(
         lot_id=lot_id,
@@ -275,7 +277,14 @@ def recompute_lot_status(repositories: Repositories, lot_id: str) -> dict[str, A
             )
         )
         status = "termine_avec_alertes" if has_alerts else "termine"
-    elif step_statuses & {"pret", "en_cours", "termine", "termine_avec_alertes", "ignore", "invalide"}:
+    elif step_statuses & {
+        "pret",
+        "en_cours",
+        "termine",
+        "termine_avec_alertes",
+        "ignore",
+        "invalide",
+    }:
         status = "en_cours"
     else:
         status = "brouillon"
@@ -285,7 +294,9 @@ def recompute_lot_status(repositories: Repositories, lot_id: str) -> dict[str, A
     return repositories.lots.update_status(lot_id, status)
 
 
-def _require_step(repositories: Repositories, lot_id: str, step_key: str) -> dict[str, Any]:
+def _require_step(
+    repositories: Repositories, lot_id: str, step_key: str
+) -> dict[str, Any]:
     step = repositories.steps.get_by_lot_key(lot_id, step_key)
     if step is None:
         raise KeyError(f"{lot_id}:{step_key}")

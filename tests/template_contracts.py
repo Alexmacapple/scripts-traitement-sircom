@@ -11,7 +11,9 @@ _INCLUDE_RE = re.compile(r'{%\s*include\s+(["\'])(?P<name>[^"\']+)\1\s*%}')
 _ENV = Environment(loader=FileSystemLoader(TEMPLATE_ROOT))
 
 
-def read_template_with_includes(template: str | Path, _stack: tuple[str, ...] = ()) -> str:
+def read_template_with_includes(
+    template: str | Path, _stack: tuple[str, ...] = ()
+) -> str:
     source, template_name = _load_template_source(template)
     if template_name in _stack:
         cycle = " -> ".join((*_stack, template_name))

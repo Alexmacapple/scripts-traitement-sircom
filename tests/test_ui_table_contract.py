@@ -41,7 +41,9 @@ class DescendantClassParser(HTMLParser):
                 return
 
     def _is_inside_ancestor(self) -> bool:
-        return any(attributes.get("id") == self.ancestor_id for _tag, attributes in self.stack)
+        return any(
+            attributes.get("id") == self.ancestor_id for _tag, attributes in self.stack
+        )
 
 
 class UiTableContractTest(unittest.TestCase):

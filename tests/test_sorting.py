@@ -201,7 +201,9 @@ class SortDecisionApiTest(unittest.TestCase):
         self.assertTrue(proposal.json()["proposal"]["can_sort"])
         self.assertEqual(decision.status_code, 200, decision.text)
         self.assertEqual(replay.status_code, 200, replay.text)
-        self.assertEqual(replay.json()["artifact"]["id"], decision.json()["artifact"]["id"])
+        self.assertEqual(
+            replay.json()["artifact"]["id"], decision.json()["artifact"]["id"]
+        )
         self.assertEqual(replay.json()["invalidated_steps"], [])
         self.assertEqual(conflicting_replay.status_code, 409)
         self.assertEqual(
@@ -257,18 +259,23 @@ class SortDecisionApiTest(unittest.TestCase):
             "SIRCOM_SORT_COLUMNS_NOT_CLEAR",
         )
         self.assertEqual(decision.status_code, 200, decision.text)
-        self.assertEqual(step_status(lot, "tri_region_departement"), "termine_avec_alertes")
+        self.assertEqual(
+            step_status(lot, "tri_region_departement"), "termine_avec_alertes"
+        )
         self.assertEqual(payload["decision"], "ordre_source")
-        self.assertEqual([row["id_dossier"] for row in payload["rows"]], ["ID-2", "ID-1"])
+        self.assertEqual(
+            [row["id_dossier"] for row in payload["rows"]], ["ID-2", "ID-1"]
+        )
         alert_codes = {
-            problem["code"]
-            for problem in lot["problem_groups"]["alerte"]["items"]
+            problem["code"] for problem in lot["problem_groups"]["alerte"]["items"]
         }
         self.assertIn("SIRCOM_SORT_COLUMNS_NOT_DETECTED", alert_codes)
 
     def test_ambiguous_sort_detection_does_not_auto_select_columns(self) -> None:
         def make_ambiguous(mapping: dict[str, Any]) -> None:
-            find_column(mapping, "Dossiers", "D", "Nom produit")["logical_role"] = "region"
+            find_column(mapping, "Dossiers", "D", "Nom produit")["logical_role"] = (
+                "region"
+            )
 
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
@@ -303,7 +310,9 @@ class SortDecisionApiTest(unittest.TestCase):
 
 
 class SortDecisionUiTest(unittest.TestCase):
-    def test_missing_sort_columns_show_source_order_as_the_only_available_decision(self) -> None:
+    def test_missing_sort_columns_show_source_order_as_the_only_available_decision(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "sans-tri.xlsx"
@@ -327,9 +336,11 @@ class SortDecisionUiTest(unittest.TestCase):
         self.assertIn("Choix disponible : conserver l'ordre source", sort_html)
         self.assertIn("Corriger le mapping", sort_html)
         self.assertIn("Aperçu de l'ordre source", sort_html)
-        self.assertNotIn("Confirmer le tri proposé ou conserver l'ordre source.", sort_html)
-        self.assertNotIn("<th scope=\"col\">Région</th>", sort_html)
-        self.assertNotIn("<th scope=\"col\">Département</th>", sort_html)
+        self.assertNotIn(
+            "Confirmer le tri proposé ou conserver l'ordre source.", sort_html
+        )
+        self.assertNotIn('<th scope="col">Région</th>', sort_html)
+        self.assertNotIn('<th scope="col">Département</th>', sort_html)
         self.assertNotIn('id="sort-confirm"', sort_html)
         self.assertIn('id="sort-order-source"', sort_html)
 

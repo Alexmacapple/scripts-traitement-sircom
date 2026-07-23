@@ -13,7 +13,7 @@ from sircom2026._database_shared import (
     _validate_choice,
 )
 
-__all__ = ['EventsRepository']
+__all__ = ["EventsRepository"]
 
 
 class EventsRepository:
@@ -58,7 +58,9 @@ class EventsRepository:
         return self.get_required(row_id)
 
     def get(self, event_id: str) -> dict[str, Any] | None:
-        return _fetch_one(self.connection, "SELECT * FROM evenements WHERE id = ?", (event_id,))
+        return _fetch_one(
+            self.connection, "SELECT * FROM evenements WHERE id = ?", (event_id,)
+        )
 
     def get_required(self, event_id: str) -> dict[str, Any]:
         row = self.get(event_id)

@@ -60,10 +60,15 @@ def format_date_columns(sheet):
                 changed_count += 1
     return indexes, changed_count
 
+
 # 2. Vérifier que le fichier source existe
 if not os.path.exists(input_file):
-    print(f"Erreur : Le fichier '{input_file}' n'existe pas dans le répertoire courant.")
-    print("Assurez-vous d'avoir exécuté le script '3-fusion_tri_region_departement.py' au préalable.")
+    print(
+        f"Erreur : Le fichier '{input_file}' n'existe pas dans le répertoire courant."
+    )
+    print(
+        "Assurez-vous d'avoir exécuté le script '3-fusion_tri_region_departement.py' au préalable."
+    )
     exit(1)
 
 print(f"Traitement du fichier : {input_file}")

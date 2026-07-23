@@ -71,9 +71,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot images"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot images"}).json()[
+                "lot"
+            ]["id"]
             content = zip_bytes(
                 [
                     ("photo-1.JPG", b"image-1"),
@@ -91,7 +91,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
             payload = response.json()
             artifact = payload["artifact"]
             inspection_job = payload["job"]
-            source_download = client.get(f"/api/lots/{lot_id}/downloads/{artifact['id']}")
+            source_download = client.get(
+                f"/api/lots/{lot_id}/downloads/{artifact['id']}"
+            )
 
             worker_result = run_worker_once(settings=settings)
             status_response = client.get(f"/api/lots/{lot_id}/images/status")
@@ -125,18 +127,22 @@ class ImageZipUploadApiTest(unittest.TestCase):
             ["photo-1.JPG", "photo-2.png"],
         )
         self.assertEqual(inspection["ignored_entries_count"], 2)
-        self.assertEqual(step_status(lot_response.json()["lot"], "inspection_images"), "termine")
+        self.assertEqual(
+            step_status(lot_response.json()["lot"], "inspection_images"), "termine"
+        )
         self.assertEqual(ui_response.status_code, 200)
         self.assertIn("Inspection images", ui_response.text)
         self.assertIn("photo-1.JPG", ui_response.text)
 
-    def test_new_zip_upload_replaces_previous_source_and_invalidates_downstream(self) -> None:
+    def test_new_zip_upload_replaces_previous_source_and_invalidates_downstream(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot nouveau zip"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot nouveau zip"}).json()[
+                "lot"
+            ]["id"]
 
             first_response = client.post(
                 f"/api/lots/{lot_id}/images",
@@ -150,7 +156,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
                 headers={"X-Idempotency-Key": "upload-images-second"},
             )
             payload = second_response.json()
-            old_download = client.get(f"/api/lots/{lot_id}/downloads/{first_artifact_id}")
+            old_download = client.get(
+                f"/api/lots/{lot_id}/downloads/{first_artifact_id}"
+            )
             new_download = client.get(payload["artifact"]["download_url"])
 
         self.assertEqual(second_response.status_code, 202)
@@ -165,9 +173,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot idempotent"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot idempotent"}).json()[
+                "lot"
+            ]["id"]
             headers = {"X-Idempotency-Key": "upload-images-idempotent"}
 
             first_response = client.post(
@@ -182,7 +190,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
             )
             artifact_files = [
                 path
-                for path in (settings.data_dir / "lots" / lot_id / "artifacts").glob("*/*")
+                for path in (settings.data_dir / "lots" / lot_id / "artifacts").glob(
+                    "*/*"
+                )
                 if path.is_file()
             ]
             temp_files = [
@@ -206,9 +216,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot idempotent"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot idempotent"}).json()[
+                "lot"
+            ]["id"]
             headers = {"X-Idempotency-Key": "upload-images-in-progress"}
             database = Database(
                 settings.sqlite_path,
@@ -238,9 +248,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
     def test_invalid_zip_extension_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot extension"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot extension"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.post(
                 f"/api/lots/{lot_id}/images",
@@ -256,9 +266,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
     def test_invalid_zip_signature_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot signature"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot signature"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.post(
                 f"/api/lots/{lot_id}/images",
@@ -266,12 +276,16 @@ class ImageZipUploadApiTest(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(response.json()["error"]["code"], "SIRCOM_IMAGE_ZIP_SIGNATURE_INVALID")
+        self.assertEqual(
+            response.json()["error"]["code"], "SIRCOM_IMAGE_ZIP_SIGNATURE_INVALID"
+        )
 
     def test_oversized_zip_is_rejected_before_signature_validation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp), max_zip_mb=1)))
-            lot_id = client.post("/api/lots", json={"title": "Lot taille"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot taille"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.post(
                 f"/api/lots/{lot_id}/images",
@@ -287,9 +301,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            deleted_lot_id = client.post("/api/lots", json={"title": "Lot supprime"}).json()[
-                "lot"
-            ]["id"]
+            deleted_lot_id = client.post(
+                "/api/lots", json={"title": "Lot supprime"}
+            ).json()["lot"]["id"]
             client.delete(f"/api/lots/{deleted_lot_id}")
 
             missing_response = client.post(
@@ -302,10 +316,14 @@ class ImageZipUploadApiTest(unittest.TestCase):
             )
 
         self.assertEqual(missing_response.status_code, 404)
-        self.assertEqual(missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND")
+        self.assertEqual(
+            missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND"
+        )
         self.assertFalse((settings.data_dir / "lots" / "lot_missing").exists())
         self.assertEqual(deleted_response.status_code, 409)
-        self.assertEqual(deleted_response.json()["error"]["code"], "SIRCOM_LOT_NOT_MUTABLE")
+        self.assertEqual(
+            deleted_response.json()["error"]["code"], "SIRCOM_LOT_NOT_MUTABLE"
+        )
 
     def test_unknown_lot_returns_structured_404(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -323,9 +341,9 @@ class ImageZipUploadApiTest(unittest.TestCase):
     def test_home_ui_exposes_image_zip_upload_form_for_selected_lot(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot UI images"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot UI images"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.get(f"/?lot_id={lot_id}&view=upload_images")
 
@@ -467,7 +485,9 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
                     status_response = client.get(f"/api/lots/{lot_id}/images/status")
                     lot_response = client.get(f"/api/lots/{lot_id}")
                     inspection_tmp = list(
-                        (settings.data_dir / "lots" / lot_id / "tmp").glob("inspection-*")
+                        (settings.data_dir / "lots" / lot_id / "tmp").glob(
+                            "inspection-*"
+                        )
                     )
 
                 self.assertEqual(upload.status_code, 202)
@@ -521,9 +541,9 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot attente"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot attente"}).json()[
+                "lot"
+            ]["id"]
 
             upload = client.post(
                 f"/api/lots/{lot_id}/images",

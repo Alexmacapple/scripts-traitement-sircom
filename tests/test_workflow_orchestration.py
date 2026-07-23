@@ -81,9 +81,9 @@ class WorkflowOrchestrationTest(unittest.TestCase):
             create_reports_workbook(workbook_path)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot workflow"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot workflow"}).json()[
+                "lot"
+            ]["id"]
             initial_lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
 
             upload_images = client.post(
@@ -188,7 +188,9 @@ class WorkflowOrchestrationTest(unittest.TestCase):
         for step in V1_STEPS:
             self.assertIn(final_statuses[step.key], DONE_STATUSES, step.key)
 
-    def test_synthetic_end_to_end_recipe_builds_inspectable_indesign_package(self) -> None:
+    def test_synthetic_end_to_end_recipe_builds_inspectable_indesign_package(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = create_synthetic_excels(
@@ -310,7 +312,9 @@ class WorkflowOrchestrationTest(unittest.TestCase):
         preview_payload = preview.json()["preview"]
         self.assertEqual(preview_payload["rows_count"], 3)
         self.assertEqual(preview_payload["removed_rows_without_id_count"], 1)
-        self.assertEqual(preview_payload["headers"][:3], ["id_dossier", "imageid", "@pathimg"])
+        self.assertEqual(
+            preview_payload["headers"][:3], ["id_dossier", "imageid", "@pathimg"]
+        )
         for row in preview_payload["rows"]:
             expected_image = image_id_for_dossier(row["id_dossier"])
             self.assertEqual(row["values"]["imageid"], expected_image)

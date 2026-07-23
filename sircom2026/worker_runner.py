@@ -35,7 +35,9 @@ def run_worker_once(
     with database.transaction() as repositories:
         repositories.jobs.expire_stale_leases()
 
-    effective_handlers = default_handlers(current_settings) if handlers is None else handlers
+    effective_handlers = (
+        default_handlers(current_settings) if handlers is None else handlers
+    )
     worker = LocalWorker(
         database,
         effective_handlers,

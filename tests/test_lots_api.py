@@ -36,7 +36,9 @@ def make_settings(tmpdir: Path):
 @dataclass
 class RecordingPolicy:
     denied_actions: set[AccessAction] = field(default_factory=set)
-    decisions: list[tuple[ActorContext, AccessAction, AccessResource]] = field(default_factory=list)
+    decisions: list[tuple[ActorContext, AccessAction, AccessResource]] = field(
+        default_factory=list
+    )
 
     def authorize(
         self,
@@ -54,7 +56,9 @@ class LotsApiTest(unittest.TestCase):
     def test_create_lot_initializes_v1_steps_and_records_access(self) -> None:
         policy = RecordingPolicy()
         with tempfile.TemporaryDirectory() as tmp:
-            client = TestClient(create_app(make_settings(Path(tmp)), access_policy=policy))
+            client = TestClient(
+                create_app(make_settings(Path(tmp)), access_policy=policy)
+            )
 
             response = client.post("/api/lots", json={"title": "  Lot   Sircom  "})
 
@@ -66,7 +70,9 @@ class LotsApiTest(unittest.TestCase):
         self.assertEqual(lot["status"], "brouillon")
         self.assertEqual(lot["status_label"], "Brouillon")
         self.assertEqual(lot["counters"]["steps_total"], len(V1_STEPS))
-        self.assertEqual([step["key"] for step in lot["steps"]], [step.key for step in V1_STEPS])
+        self.assertEqual(
+            [step["key"] for step in lot["steps"]], [step.key for step in V1_STEPS]
+        )
         self.assertEqual({step["status"] for step in lot["steps"]}, {"non_demarre"})
         self.assertIn("Déposer l'Excel", {step["label"] for step in lot["steps"]})
         self.assertEqual(policy.decisions[0][1], AccessAction.LOT_CREATE)
@@ -98,11 +104,15 @@ class LotsApiTest(unittest.TestCase):
         )
         self.assertEqual(list_response.json()["pagination"]["total"], 2)
 
-    def test_list_lots_excludes_deleted_by_default_and_paginates_without_steps(self) -> None:
+    def test_list_lots_excludes_deleted_by_default_and_paginates_without_steps(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
             created_ids = [
-                client.post("/api/lots", json={"title": f"Lot {index}"}).json()["lot"]["id"]
+                client.post("/api/lots", json={"title": f"Lot {index}"}).json()["lot"][
+                    "id"
+                ]
                 for index in range(3)
             ]
             client.delete(f"/api/lots/{created_ids[1]}")
@@ -119,7 +129,9 @@ class LotsApiTest(unittest.TestCase):
     def test_get_lot_returns_detail_and_unknown_uses_structured_404(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot detail"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot detail"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.get(f"/api/lots/{lot_id}")
             missing_response = client.get("/api/lots/lot_missing")
@@ -131,13 +143,17 @@ class LotsApiTest(unittest.TestCase):
         self.assertEqual(lot["steps"][0]["label"], "Déposer l'Excel")
 
         self.assertEqual(missing_response.status_code, 404)
-        self.assertEqual(missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND")
+        self.assertEqual(
+            missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND"
+        )
         self.assertNotIn("lot_missing", str(missing_response.json()))
 
     def test_delete_lot_purges_idle_lot_and_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot a supprimer"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot a supprimer"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.delete(f"/api/lots/{lot_id}")
             second_response = client.delete(f"/api/lots/{lot_id}")
@@ -157,7 +173,9 @@ class LotsApiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot job actif"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot job actif"}).json()[
+                "lot"
+            ]["id"]
             database = Database(
                 settings.sqlite_path,
                 busy_timeout_ms=settings.sqlite_busy_timeout_ms,
@@ -193,8 +211,12 @@ class LotsApiTest(unittest.TestCase):
     def test_lot_routes_verify_access_policy(self) -> None:
         policy = RecordingPolicy()
         with tempfile.TemporaryDirectory() as tmp:
-            client = TestClient(create_app(make_settings(Path(tmp)), access_policy=policy))
-            lot_id = client.post("/api/lots", json={"title": "Lot acces"}).json()["lot"]["id"]
+            client = TestClient(
+                create_app(make_settings(Path(tmp)), access_policy=policy)
+            )
+            lot_id = client.post("/api/lots", json={"title": "Lot acces"}).json()[
+                "lot"
+            ]["id"]
             policy.denied_actions.add(AccessAction.LOT_READ)
 
             list_response = client.get("/api/lots")
@@ -224,7 +246,9 @@ class LotsUiTest(unittest.TestCase):
     def test_home_ui_renders_create_form_lot_list_and_source_uploads(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot UI"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot UI"}).json()["lot"][
+                "id"
+            ]
 
             response = client.get(f"/?lot_id={lot_id}")
 
@@ -259,15 +283,17 @@ class LotsUiTest(unittest.TestCase):
         self.assertIn('href="#create-lot-title"', html)
         self.assertIn('href="#lots-title"', html)
         self.assertIn('href="#lot-actions-title"', html)
-        self.assertRegex(html, r'/static/sircom\.css\?v=\d+')
-        self.assertRegex(html, r'/static/app\.js\?v=\d+')
+        self.assertRegex(html, r"/static/sircom\.css\?v=\d+")
+        self.assertRegex(html, r"/static/app\.js\?v=\d+")
         self.assertNotIn('href="#"', html)
         self.assertNotIn(str(Path(tmp)), html)
 
     def test_lot_workflow_ui_renders_timeline_on_dedicated_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot UI"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot UI"}).json()["lot"][
+                "id"
+            ]
 
             response = client.get(f"/lots/{lot_id}")
             images_response = client.get(f"/lots/{lot_id}/images")
@@ -305,20 +331,30 @@ class LotsUiTest(unittest.TestCase):
     def test_legacy_workflow_query_redirects_to_lot_workflow_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot redirect"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot redirect"}).json()[
+                "lot"
+            ]["id"]
 
-            root_response = client.get(f"/?lot_id={lot_id}&view=mapping", follow_redirects=False)
-            lot_response = client.get(f"/lots/{lot_id}?view=mapping", follow_redirects=False)
+            root_response = client.get(
+                f"/?lot_id={lot_id}&view=mapping", follow_redirects=False
+            )
+            lot_response = client.get(
+                f"/lots/{lot_id}?view=mapping", follow_redirects=False
+            )
 
         self.assertEqual(root_response.status_code, 303)
-        self.assertEqual(root_response.headers["location"], f"/lots/{lot_id}/excel?view=mapping")
+        self.assertEqual(
+            root_response.headers["location"], f"/lots/{lot_id}/excel?view=mapping"
+        )
         self.assertEqual(lot_response.status_code, 303)
-        self.assertEqual(lot_response.headers["location"], f"/lots/{lot_id}/excel?view=mapping")
+        self.assertEqual(
+            lot_response.headers["location"], f"/lots/{lot_id}/excel?view=mapping"
+        )
 
     def test_delete_lot_button_requires_browser_confirmation(self) -> None:
-        app_js_path = Path(__file__).resolve().parents[1] / "sircom2026" / "static" / "app.js"
+        app_js_path = (
+            Path(__file__).resolve().parents[1] / "sircom2026" / "static" / "app.js"
+        )
         script = app_js_path.read_text(encoding="utf-8")
 
         self.assertIn("function confirmLotDeletion", script)
@@ -332,7 +368,9 @@ class LotsUiTest(unittest.TestCase):
     def test_home_ui_tolerates_steps_without_retry_actions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot = client.post("/api/lots", json={"title": "Lot ancien rendu"}).json()["lot"]
+            lot = client.post("/api/lots", json={"title": "Lot ancien rendu"}).json()[
+                "lot"
+            ]
             lot_id = lot["id"]
             legacy_lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
             legacy_lot.pop("excel_diagnostic", None)
@@ -350,7 +388,9 @@ class LotsUiTest(unittest.TestCase):
     def test_home_ui_hides_delete_for_deleted_lot_and_structures_errors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot supprime"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot supprime"}).json()[
+                "lot"
+            ]["id"]
             client.delete(f"/api/lots/{lot_id}")
 
             deleted_response = client.get(f"/?lot_id={lot_id}")
@@ -370,7 +410,9 @@ class LotsUiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings = make_settings(Path(tmp))
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot problemes"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot problemes"}).json()[
+                "lot"
+            ]["id"]
             database = Database(
                 settings.sqlite_path,
                 busy_timeout_ms=settings.sqlite_busy_timeout_ms,
@@ -434,10 +476,12 @@ class LotsUiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             client = TestClient(create_app(make_settings(tmpdir)))
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
-            lot_id = client.post("/api/lots", json={"title": "Lot diagnostic attente"}).json()[
-                "lot"
-            ]["id"]
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot diagnostic attente"}
+            ).json()["lot"]["id"]
 
             upload = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -451,7 +495,9 @@ class LotsUiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Vérifier l'Excel", html)
         self.assertIn("Diagnostic Excel en attente", html)
-        self.assertIn("Le fichier Excel est déposé et le diagnostic est prêt à être lancé.", html)
+        self.assertIn(
+            "Le fichier Excel est déposé et le diagnostic est prêt à être lancé.", html
+        )
         self.assertIn("Attendre la fin du traitement, puis actualiser la page.", html)
         self.assertIn(
             "Diagnostic non disponible tant que le traitement local n&#39;a pas terminé.",
@@ -459,15 +505,19 @@ class LotsUiTest(unittest.TestCase):
         )
         self.assertNotIn(str(tmpdir), html)
 
-    def test_home_ui_renders_refused_excel_diagnostic_without_hiding_other_errors(self) -> None:
+    def test_home_ui_renders_refused_excel_diagnostic_without_hiding_other_errors(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["multiple_blockers"])
-            lot_id = client.post("/api/lots", json={"title": "Lot Excel refuse"}).json()[
-                "lot"
-            ]["id"]
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["multiple_blockers"]
+            )
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot Excel refuse"}
+            ).json()["lot"]["id"]
 
             upload = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -483,8 +533,13 @@ class LotsUiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Excel refusé", html)
         self.assertIn('class="fr-alert fr-alert--error fr-mt-2v" role="alert"', html)
-        self.assertIn("La transformation est bloquée tant que les problèmes bloquants restent ouverts.", html)
-        self.assertIn("Corriger le fichier Excel puis déposer une nouvelle version.", html)
+        self.assertIn(
+            "La transformation est bloquée tant que les problèmes bloquants restent ouverts.",
+            html,
+        )
+        self.assertIn(
+            "Corriger le fichier Excel puis déposer une nouvelle version.", html
+        )
         self.assertIn("Bloquant", html)
         self.assertIn("Colonne id_dossier absente", html)
         self.assertIn("Colonnes masquées détectées", html)
@@ -502,10 +557,12 @@ class LotsUiTest(unittest.TestCase):
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
-            lot_id = client.post("/api/lots", json={"title": "Lot Excel alertes"}).json()[
-                "lot"
-            ]["id"]
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot Excel alertes"}
+            ).json()["lot"]["id"]
 
             upload = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -520,7 +577,9 @@ class LotsUiTest(unittest.TestCase):
         self.assertEqual(worker_result.outcome, "succeeded")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Excel importable avec alertes", html)
-        self.assertIn("Vous pouvez continuer jusqu&#39;au prochain point de validation.", html)
+        self.assertIn(
+            "Vous pouvez continuer jusqu&#39;au prochain point de validation.", html
+        )
         self.assertIn("Alerte", html)
         self.assertIn("Information", html)
         self.assertIn("Lignes sans id_dossier", html)

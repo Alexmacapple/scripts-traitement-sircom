@@ -20,7 +20,9 @@ file_path = "8-optimize-content.xlsx"
 # 2. Vérifier que le fichier source existe
 if not os.path.exists(file_path):
     print(f"Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
-    print("Assurez-vous d'avoir exécuté le script '8-optimize-content.py' au préalable.")
+    print(
+        "Assurez-vous d'avoir exécuté le script '8-optimize-content.py' au préalable."
+    )
     exit(1)
 
 print(f"Traitement du fichier : {file_path}")
@@ -48,12 +50,19 @@ try:
     # Compter les éléments spéciaux
     total_cells = len(df) * len(df.columns)
     na_count = (df == "#N/A").sum().sum()
-    br_count = df.astype(str).apply(lambda x: x.str.contains('<br>', case=False, na=False)).sum().sum()
+    br_count = (
+        df.astype(str)
+        .apply(lambda x: x.str.contains("<br>", case=False, na=False))
+        .sum()
+        .sum()
+    )
 
     # Vérifier les IDs
-    if 'f_id' in df.columns:
-        valid_ids = df[df['f_id'] != "#N/A"]['f_id'].tolist()
-        print(f"IDs détectés dans f_id : {len(valid_ids)} - {valid_ids[:5]}{'...' if len(valid_ids) > 5 else ''}")
+    if "f_id" in df.columns:
+        valid_ids = df[df["f_id"] != "#N/A"]["f_id"].tolist()
+        print(
+            f"IDs détectés dans f_id : {len(valid_ids)} - {valid_ids[:5]}{'...' if len(valid_ids) > 5 else ''}"
+        )
 
     print(f"Cellules #N/A : {na_count}/{total_cells}")
     print(f"Cellules avec <br> : {br_count}")
@@ -64,12 +73,14 @@ try:
     print("\nExport en CSV UTF-16 + BOM...")
 
     # 6. Exporter en CSV UTF-16 avec BOM (comme le fichier de référence)
-    with codecs.open(output_filename, 'w', encoding='utf-16') as csvfile:
-        writer = csv.writer(csvfile,
-                           delimiter=',',           # Virgule comme délimiteur
-                           lineterminator='\n',     # LF comme saut de ligne
-                           quoting=csv.QUOTE_MINIMAL,  # Guillemets seulement si nécessaire
-                           quotechar='"')           # Guillemets doubles
+    with codecs.open(output_filename, "w", encoding="utf-16") as csvfile:
+        writer = csv.writer(
+            csvfile,
+            delimiter=",",  # Virgule comme délimiteur
+            lineterminator="\n",  # LF comme saut de ligne
+            quoting=csv.QUOTE_MINIMAL,  # Guillemets seulement si nécessaire
+            quotechar='"',
+        )  # Guillemets doubles
 
         # Écrire l'en-tête
         writer.writerow(df.columns.tolist())
@@ -85,13 +96,13 @@ try:
 
     # 7. Vérifier la taille du fichier
     file_size = os.path.getsize(output_filename)
-    print(f"Taille du fichier : {file_size:,} octets ({file_size/1024:.1f} KB)")
+    print(f"Taille du fichier : {file_size:,} octets ({file_size / 1024:.1f} KB)")
 
     # 8. Afficher un échantillon des premières colonnes pour validation
     print("\nÉchantillon des en-têtes (10 premières colonnes) :")
     sample_headers = df.columns.tolist()[:10]
     for i, header in enumerate(sample_headers):
-        print(f"  {i+1:2d}. {header}")
+        print(f"  {i + 1:2d}. {header}")
 
     if len(df.columns) > 10:
         print(f"  ... et {len(df.columns) - 10} autres colonnes")
@@ -115,7 +126,9 @@ except FileNotFoundError:
     print(f"Erreur : Le fichier '{file_path}' est introuvable.")
     exit(1)
 except PermissionError:
-    print("Erreur : Permission refusée. Vérifiez que le fichier de sortie n'est pas ouvert.")
+    print(
+        "Erreur : Permission refusée. Vérifiez que le fichier de sortie n'est pas ouvert."
+    )
     exit(1)
 except Exception as e:
     print(f"Erreur lors de l'export : {e}")

@@ -91,7 +91,9 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.max_image_count, 1500)
         self.assertEqual(settings.max_image_mb, 50)
         self.assertEqual(settings.max_unzipped_mb, 3072)
-        self.assertEqual(settings.indesign_image_root, "/Users/victoria/Documents/export-jpg-resize")
+        self.assertEqual(
+            settings.indesign_image_root, "/Users/victoria/Documents/export-jpg-resize"
+        )
         self.assertEqual(settings.bind_host, "127.0.0.1")
         self.assertEqual(settings.port, 8000)
         self.assertTrue(settings.worker_enabled)
@@ -236,7 +238,9 @@ class WebSocleTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["code"], "SIRCOM_NOT_READY")
-        self.assertEqual(response.json()["checks"][1]["code"], "SIRCOM_DATA_DIR_NOT_WRITABLE")
+        self.assertEqual(
+            response.json()["checks"][1]["code"], "SIRCOM_DATA_DIR_NOT_WRITABLE"
+        )
 
     def test_ready_returns_503_when_disk_is_below_threshold(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -314,7 +318,9 @@ class WebSocleTest(unittest.TestCase):
         self.assertIn('class="fr-header__logo"', html)
         self.assertIn('class="fr-logo"', html)
         self.assertIn("République<br>Française", html)
-        self.assertIn('title="Accueil - Sircom - Made in France - traitements excel"', html)
+        self.assertIn(
+            'title="Accueil - Sircom - Made in France - traitements excel"', html
+        )
         self.assertIn(
             '<p class="fr-header__service-title">SIRCOM - Made in France - traitements excel</p>',
             html,
@@ -342,7 +348,9 @@ class WebSocleTest(unittest.TestCase):
         footer_html = html.split('<footer class="fr-footer" id="footer"', 1)[1]
         self.assertNotIn('href="/docs">API</a>', header_html)
         self.assertNotIn('href="/health">Santé</a>', header_html)
-        self.assertNotIn("https://github.com/Alexmacapple/scripts-traitement-sircom", header_html)
+        self.assertNotIn(
+            "https://github.com/Alexmacapple/scripts-traitement-sircom", header_html
+        )
         self.assertIn('href="/docs">API</a>', footer_html)
         self.assertIn('href="/health">Santé</a>', footer_html)
         self.assertIn(
@@ -355,12 +363,15 @@ class WebSocleTest(unittest.TestCase):
         self.assertNotIn("Mentions légales", html)
         self.assertNotIn("Données personnelles", html)
         self.assertNotIn("Gestion des cookies", html)
-        self.assertNotIn("Application locale. Contenus et mentions à finaliser avant publication.", html)
+        self.assertNotIn(
+            "Application locale. Contenus et mentions à finaliser avant publication.",
+            html,
+        )
         self.assertIn("/static/dsfr/1.14.4/dsfr.min.css", html)
         self.assertIn("/static/dsfr/1.14.4/utility/icons/icons.min.css", html)
         self.assertIn("/static/dsfr/1.14.4/dsfr.module.min.js", html)
-        self.assertRegex(html, r'/static/sircom\.css\?v=\d+')
-        self.assertRegex(html, r'/static/app\.js\?v=\d+')
+        self.assertRegex(html, r"/static/sircom\.css\?v=\d+")
+        self.assertRegex(html, r"/static/app\.js\?v=\d+")
         self.assertIn('class="fr-callout fr-icon-info-line"', html)
         self.assertNotIn("fr-icon-information-line", html)
         self.assertNotIn("cdn.jsdelivr.net", html)
@@ -407,7 +418,8 @@ class WebSocleTest(unittest.TestCase):
         missing_controls = [
             element.attrs
             for element in parser.elements
-            if element.attrs.get("aria-controls") and element.attrs["aria-controls"] not in parser.elements_by_id
+            if element.attrs.get("aria-controls")
+            and element.attrs["aria-controls"] not in parser.elements_by_id
         ]
         missing_labelledby = [
             element.attrs
@@ -415,7 +427,11 @@ class WebSocleTest(unittest.TestCase):
             for ref in element.attrs.get("aria-labelledby", "").split()
             if ref and ref not in parser.elements_by_id
         ]
-        missing_anchors = [anchor for anchor in parser.anchor_refs if anchor not in parser.elements_by_id]
+        missing_anchors = [
+            anchor
+            for anchor in parser.anchor_refs
+            if anchor not in parser.elements_by_id
+        ]
 
         self.assertEqual(missing_controls, [])
         self.assertEqual(missing_labelledby, [])
@@ -424,14 +440,18 @@ class WebSocleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
             missing_assets = [
-                path for path in parser.asset_paths if client.get(path).status_code != 200
+                path
+                for path in parser.asset_paths
+                if client.get(path).status_code != 200
             ]
         self.assertEqual(missing_assets, [])
 
     def test_lot_step_buttons_have_visible_labels(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot boutons"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot boutons"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.get(f"/?lot_id={lot_id}")
 
@@ -465,7 +485,10 @@ class WebSocleTest(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIn('<html lang="fr">', response.text)
                 self.assertIn('<header class="fr-header" role="banner">', response.text)
-                self.assertIn('<footer class="fr-footer" id="footer" role="contentinfo">', response.text)
+                self.assertIn(
+                    '<footer class="fr-footer" id="footer" role="contentinfo">',
+                    response.text,
+                )
                 self.assertIn('href="/docs">API</a>', response.text)
                 self.assertIn('href="/health">Santé</a>', response.text)
                 self.assertNotIn('href="#"', response.text)
@@ -476,7 +499,9 @@ class WebSocleTest(unittest.TestCase):
             client = TestClient(create_app(make_settings(Path(tmp))))
 
             css_response = client.get("/static/dsfr/1.14.4/dsfr.min.css")
-            icons_response = client.get("/static/dsfr/1.14.4/utility/icons/icons.min.css")
+            icons_response = client.get(
+                "/static/dsfr/1.14.4/utility/icons/icons.min.css"
+            )
             js_response = client.get("/static/dsfr/1.14.4/dsfr.module.min.js")
 
         self.assertEqual(css_response.status_code, 200)
@@ -486,8 +511,13 @@ class WebSocleTest(unittest.TestCase):
         self.assertEqual(js_response.status_code, 200)
 
     def test_local_dsfr_css_references_existing_assets(self) -> None:
-        dsfr_root = Path(__file__).parents[1] / "sircom2026" / "static" / "dsfr" / "1.14.4"
-        css_files = [dsfr_root / "dsfr.min.css", dsfr_root / "utility" / "icons" / "icons.min.css"]
+        dsfr_root = (
+            Path(__file__).parents[1] / "sircom2026" / "static" / "dsfr" / "1.14.4"
+        )
+        css_files = [
+            dsfr_root / "dsfr.min.css",
+            dsfr_root / "utility" / "icons" / "icons.min.css",
+        ]
         missing_paths = []
 
         for css_file in css_files:
@@ -506,7 +536,9 @@ class WebSocleTest(unittest.TestCase):
 
         self.assertIn(
             "fr--info-line.svg",
-            (dsfr_root / "utility" / "icons" / "icons.min.css").read_text(encoding="utf-8"),
+            (dsfr_root / "utility" / "icons" / "icons.min.css").read_text(
+                encoding="utf-8"
+            ),
         )
         self.assertEqual(missing_paths, [])
 

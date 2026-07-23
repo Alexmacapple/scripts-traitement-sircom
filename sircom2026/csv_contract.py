@@ -506,7 +506,13 @@ def _current_json_artifact(
             artifact_id=artifact["id"],
         )
         payload = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError):
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ):
         return None
     if not isinstance(payload, dict):
         return None
@@ -517,13 +523,16 @@ def _require_current_lease(
     repositories: Repositories,
     context: WorkerJobContext,
 ) -> None:
-    if repositories.jobs.get_committable_by_run(
-        lot_id=context.lot_id,
-        step_key=context.step_key,
-        run_id=context.run_id,
-        lease_version=context.leased_job.lease_version,
-        expected_input_fingerprint=context.leased_job.input_fingerprint,
-    ) is None:
+    if (
+        repositories.jobs.get_committable_by_run(
+            lot_id=context.lot_id,
+            step_key=context.step_key,
+            run_id=context.run_id,
+            lease_version=context.leased_job.lease_version,
+            expected_input_fingerprint=context.leased_job.input_fingerprint,
+        )
+        is None
+    ):
         raise WorkerLeaseLost("Worker lease is no longer current.")
 
 

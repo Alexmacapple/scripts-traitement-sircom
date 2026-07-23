@@ -18,7 +18,7 @@ from sircom2026._database_shared import (
     _validate_choice,
 )
 
-__all__ = ['JobsRepository']
+__all__ = ["JobsRepository"]
 
 
 class JobsRepository:
@@ -123,7 +123,9 @@ class JobsRepository:
             (lot_id, step_key, idempotency_key),
         )
 
-    def get_active_for_step(self, *, lot_id: str, step_key: str) -> dict[str, Any] | None:
+    def get_active_for_step(
+        self, *, lot_id: str, step_key: str
+    ) -> dict[str, Any] | None:
         return _fetch_one(
             self.connection,
             f"""
@@ -270,8 +272,7 @@ class JobsRepository:
             step_filter = f"AND jobs.step_key IN ({_placeholders(len(step_keys))})"
             params.extend(step_keys)
             priority_cases = " ".join(
-                f"WHEN ? THEN {index}"
-                for index, _step_key in enumerate(step_keys)
+                f"WHEN ? THEN {index}" for index, _step_key in enumerate(step_keys)
             )
             priority_order = (
                 "jobs.created_at ASC, "
@@ -476,15 +477,20 @@ class JobsRepository:
         allow_blocked_lot: bool = False,
     ) -> dict[str, Any] | None:
         if status not in {"succeeded", "failed", "canceled"}:
-            raise ValueError("Owned job can only finish as succeeded, failed or canceled.")
-        if self.get_owned_committable(
-            job_id=job_id,
-            worker_id=worker_id,
-            run_id=run_id,
-            lease_version=lease_version,
-            expected_input_fingerprint=expected_input_fingerprint,
-            allow_blocked_lot=allow_blocked_lot,
-        ) is None:
+            raise ValueError(
+                "Owned job can only finish as succeeded, failed or canceled."
+            )
+        if (
+            self.get_owned_committable(
+                job_id=job_id,
+                worker_id=worker_id,
+                run_id=run_id,
+                lease_version=lease_version,
+                expected_input_fingerprint=expected_input_fingerprint,
+                allow_blocked_lot=allow_blocked_lot,
+            )
+            is None
+        ):
             return None
         now = _now()
         self.connection.execute(

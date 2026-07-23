@@ -65,8 +65,7 @@ class AccessPolicy(Protocol):
         actor: ActorContext,
         action: AccessAction,
         resource: AccessResource,
-    ) -> AccessDecision:
-        ...
+    ) -> AccessDecision: ...
 
 
 class LocalAccessPolicy:
@@ -177,7 +176,11 @@ def _unsafe_cross_origin_reason(request: Request) -> str | None:
 
 def _source_matches_request_origin(source: str, request: Request) -> bool:
     source = source.strip()
-    if not source or source == "null" or any(character.isspace() for character in source):
+    if (
+        not source
+        or source == "null"
+        or any(character.isspace() for character in source)
+    ):
         return False
     source_parts = urlsplit(source)
     if source_parts.scheme not in {"http", "https"} or not source_parts.hostname:

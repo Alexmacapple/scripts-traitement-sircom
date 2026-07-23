@@ -37,11 +37,13 @@ class ExcelDiagnosticPipelineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot diagnostic OK"}).json()[
-                "lot"
-            ]["id"]
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot diagnostic OK"}
+            ).json()["lot"]["id"]
             upload = client.post(
                 f"/api/lots/{lot_id}/excel",
                 files=excel_file(fixtures["valid_multi_tabs"]),
@@ -78,7 +80,9 @@ class ExcelDiagnosticPipelineTest(unittest.TestCase):
         self.assertTrue(all(problem["title"] for problem in payload["problems"]))
         self.assertTrue(all(problem["cause"] for problem in payload["problems"]))
         self.assertTrue(all(problem["action"] for problem in payload["problems"]))
-        self.assertTrue(all(problem["location_label"] for problem in payload["problems"]))
+        self.assertTrue(
+            all(problem["location_label"] for problem in payload["problems"])
+        )
 
         lot = lot_response.json()["lot"]
         self.assertEqual(step_status(lot, "diagnostic_excel"), "termine_avec_alertes")
@@ -86,15 +90,17 @@ class ExcelDiagnosticPipelineTest(unittest.TestCase):
         self.assertIn("SIRCOM_EXCEL_EMPTY_SHEET_IGNORED", problem_codes)
         self.assertIn("SIRCOM_EXCEL_ID_BLANK_ROWS", problem_codes)
 
-    def test_worker_blocks_refused_diagnostic_and_keeps_result_consultable(self) -> None:
+    def test_worker_blocks_refused_diagnostic_and_keeps_result_consultable(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
             fixtures = create_synthetic_excels(tmpdir / "fixtures", ["missing_id"])
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot diagnostic refus"}).json()[
-                "lot"
-            ]["id"]
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot diagnostic refus"}
+            ).json()["lot"]["id"]
 
             upload = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -114,15 +120,16 @@ class ExcelDiagnosticPipelineTest(unittest.TestCase):
         self.assertEqual(lot["status"], "bloque")
         self.assertEqual(step_status(lot, "diagnostic_excel"), "bloque")
         blocking_codes = {
-            problem["code"]
-            for problem in lot["problem_groups"]["bloquant"]["items"]
+            problem["code"] for problem in lot["problem_groups"]["bloquant"]["items"]
         }
         self.assertIn("SIRCOM_EXCEL_ID_MISSING", blocking_codes)
         self.assertIn(
             "SIRCOM_EXCEL_ID_MISSING",
             {
                 problem["code"]
-                for problem in diagnostic_response.json()["problem_groups"]["bloquant"]["items"]
+                for problem in diagnostic_response.json()["problem_groups"]["bloquant"][
+                    "items"
+                ]
             },
         )
 

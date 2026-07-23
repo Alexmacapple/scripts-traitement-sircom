@@ -215,7 +215,9 @@ def purge_deleted_lots_once(
         ).isoformat(timespec="seconds")
 
     outcomes: list[PurgeOutcome] = []
-    for lot in repositories.lots.list_deleted_ready_for_purge(deleted_before=deleted_before):
+    for lot in repositories.lots.list_deleted_ready_for_purge(
+        deleted_before=deleted_before
+    ):
         repositories.jobs.request_cancel_for_lot(lot["id"])
         repositories.jobs.cancel_queued_for_lot(lot["id"])
         repositories.jobs.expire_stale_leases()
@@ -274,7 +276,9 @@ def prune_old_quarantine_files(*, settings: Settings) -> int:
     return removed_count
 
 
-def storage_summary(repositories: Repositories, *, settings: Settings) -> dict[str, Any]:
+def storage_summary(
+    repositories: Repositories, *, settings: Settings
+) -> dict[str, Any]:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     data_usage = directory_usage(settings.data_dir)
     disk_usage = shutil.disk_usage(settings.data_dir)
@@ -326,7 +330,9 @@ def storage_lot_items(
     for row in rows:
         lot_dir = lot_storage_dir(settings.data_dir, row["id"])
         disk_usage = directory_usage(lot_dir)
-        database_bytes = int(row["bytes_uploaded"] or 0) + int(row["bytes_artifacts"] or 0)
+        database_bytes = int(row["bytes_uploaded"] or 0) + int(
+            row["bytes_artifacts"] or 0
+        )
         size_bytes = max(disk_usage.bytes_count, database_bytes)
         items.append(
             {
@@ -337,7 +343,9 @@ def storage_lot_items(
                 "size_bytes": size_bytes,
                 "size_label": format_bytes(size_bytes),
                 "files_count": disk_usage.files_count,
-                "expires_at": lot_expiration(row["deleted_at"], settings.retention_days),
+                "expires_at": lot_expiration(
+                    row["deleted_at"], settings.retention_days
+                ),
             }
         )
     return items
@@ -350,7 +358,9 @@ def build_purge_trace(
     lot_dir: Path,
 ) -> dict[str, Any]:
     artifacts = repositories.artifacts.list_all()
-    lot_artifacts = [artifact for artifact in artifacts if artifact["lot_id"] == lot["id"]]
+    lot_artifacts = [
+        artifact for artifact in artifacts if artifact["lot_id"] == lot["id"]
+    ]
     jobs = repositories.connection.execute(
         """
         SELECT status, error_code, started_at, finished_at
@@ -360,7 +370,9 @@ def build_purge_trace(
         (lot["id"],),
     ).fetchall()
     steps = repositories.steps.list_for_lot(lot["id"])
-    problems = repositories.problems.list_for_lot(lot["id"], include_resolved=True, limit=10000)
+    problems = repositories.problems.list_for_lot(
+        lot["id"], include_resolved=True, limit=10000
+    )
     events = repositories.events.list_for_lot(lot["id"], limit=10000)
     disk_usage = directory_usage(lot_dir)
 
@@ -378,26 +390,28 @@ def build_purge_trace(
         },
         "sizes": {
             "lot_dir_bytes": disk_usage.bytes_count,
-            "artifact_bytes": sum(int(artifact["size_bytes"]) for artifact in lot_artifacts),
+            "artifact_bytes": sum(
+                int(artifact["size_bytes"]) for artifact in lot_artifacts
+            ),
         },
         "counters": {
             "files_count": disk_usage.files_count,
             "steps_by_status": counter_dict(step["status"] for step in steps),
             "jobs_by_status": counter_dict(job["status"] for job in jobs),
-            "artifacts_by_status": counter_dict(artifact["status"] for artifact in lot_artifacts),
+            "artifacts_by_status": counter_dict(
+                artifact["status"] for artifact in lot_artifacts
+            ),
             "artifacts_by_role": counter_dict(
                 f"{artifact['kind']}:{artifact['role']}" for artifact in lot_artifacts
             ),
             "problems_by_code": counter_dict(problem["code"] for problem in problems),
-            "problems_by_severity": counter_dict(problem["severity"] for problem in problems),
+            "problems_by_severity": counter_dict(
+                problem["severity"] for problem in problems
+            ),
             "events_by_type": counter_dict(event["event_type"] for event in events),
         },
         "technical_errors": sorted(
-            {
-                str(job["error_code"])
-                for job in jobs
-                if job["error_code"]
-            }
+            {str(job["error_code"]) for job in jobs if job["error_code"]}
         ),
     }
 
@@ -475,7 +489,9 @@ def lot_expiration(deleted_at: str | None, retention_days: int) -> str | None:
     deleted_at_datetime = parse_datetime(deleted_at)
     if deleted_at_datetime is None:
         return None
-    return (deleted_at_datetime + timedelta(days=retention_days)).isoformat(timespec="seconds")
+    return (deleted_at_datetime + timedelta(days=retention_days)).isoformat(
+        timespec="seconds"
+    )
 
 
 def step_durations(steps: list[dict[str, Any]]) -> dict[str, int | None]:
@@ -489,7 +505,9 @@ def step_durations(steps: list[dict[str, Any]]) -> dict[str, int | None]:
 def duration_stats(rows: list[Any]) -> dict[str, int]:
     durations = [
         value
-        for value in (duration_ms(row["started_at"], row["finished_at"]) for row in rows)
+        for value in (
+            duration_ms(row["started_at"], row["finished_at"]) for row in rows
+        )
         if value is not None
     ]
     return {

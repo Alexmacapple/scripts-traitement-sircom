@@ -15,27 +15,33 @@ import re
 import unicodedata
 from collections import Counter
 
+
 # Fonction pour nettoyer les noms des colonnes
 def clean_col_name(col_name):
     if col_name is None:
         return col_name
-    
+
     # Convertir en chaîne de caractères
     col_name = str(col_name)
-    
+
     # Convertir en minuscules
     col_name = col_name.lower()
-    
+
     # Supprimer les accents
-    col_name = unicodedata.normalize('NFKD', col_name).encode('ASCII', 'ignore').decode('utf-8')
-    
+    col_name = (
+        unicodedata.normalize("NFKD", col_name)
+        .encode("ASCII", "ignore")
+        .decode("utf-8")
+    )
+
     # Supprimer les caractères spéciaux (garder uniquement lettres, chiffres et underscore)
-    col_name = re.sub(r'[^\w]', '', col_name)
-    
+    col_name = re.sub(r"[^\w]", "", col_name)
+
     # Limiter la longueur à 10 caractères
     col_name = col_name[:10]
-    
+
     return col_name
+
 
 # 1. Définir le fichier source
 file_path = "5-livrable-final-word.xlsx"
@@ -52,14 +58,14 @@ try:
     # 3. Ouvrir le fichier Excel
     workbook = openpyxl.load_workbook(file_path)
     print("Fichier ouvert avec succès")
-    
+
     # 4. Traiter toutes les feuilles
     for sheet_name in workbook.sheetnames:
         print(f"Traitement de la feuille : {sheet_name}")
         sheet = workbook[sheet_name]
-        
+
         header_changes = []
-        
+
         # Parcourir les en-têtes de colonnes (première ligne) et les nettoyer
         for column in sheet.iter_cols(min_row=1, max_row=1):
             for cell in column:
@@ -68,8 +74,12 @@ try:
                     cleaned_value = clean_col_name(original_value)
                     header_changes.append((cell, original_value, cleaned_value))
 
-        cleaned_counts = Counter(cleaned for _cell, _original, cleaned in header_changes)
-        collisions = sorted(name for name, count in cleaned_counts.items() if name and count > 1)
+        cleaned_counts = Counter(
+            cleaned for _cell, _original, cleaned in header_changes
+        )
+        collisions = sorted(
+            name for name, count in cleaned_counts.items() if name and count > 1
+        )
         if collisions:
             raise ValueError(
                 f"Collisions d'en-têtes après nettoyage dans la feuille '{sheet_name}' : "
@@ -83,19 +93,21 @@ try:
         ):
             cell.value = cleaned_value
 
-                    # Afficher quelques exemples de transformation
+            # Afficher quelques exemples de transformation
             if headers_processed <= 10:
-                print(f"  Colonne {openpyxl.utils.get_column_letter(cell.column)}: '{original_value}' → '{cleaned_value}'")
+                print(
+                    f"  Colonne {openpyxl.utils.get_column_letter(cell.column)}: '{original_value}' → '{cleaned_value}'"
+                )
             elif headers_processed == 11:
                 print(f"  ... (et {sheet.max_column - 10} autres colonnes)")
-        
+
         print(f"{len(header_changes)} en-têtes nettoyés dans la feuille '{sheet_name}'")
-    
+
     # 5. Enregistrer le fichier modifié
     output_filename = "6-clean-headers.xlsx"
     workbook.save(output_filename)
     print(f"Fichier sauvegardé sous : {output_filename}")
-    
+
     # 6. Afficher un résumé des transformations
     print("\nRègles de nettoyage appliquées :")
     print("  Conversion en minuscules")
@@ -103,7 +115,7 @@ try:
     print("  Suppression des caractères spéciaux")
     print("  Limitation à 10 caractères maximum")
     print("  Conservation des préfixes pour éviter les collisions")
-    
+
     print("Nettoyage des en-têtes terminé avec succès !")
 
 except Exception as e:
@@ -111,6 +123,6 @@ except Exception as e:
     exit(1)
 finally:
     # 7. Fermer le fichier Excel
-    if 'workbook' in locals():
+    if "workbook" in locals():
         workbook.close()
     print("Fichier fermé")

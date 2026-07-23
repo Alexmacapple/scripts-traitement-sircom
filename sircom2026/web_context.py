@@ -6,7 +6,10 @@ from typing import Any
 from sircom2026.config import ConfigError, Settings
 from sircom2026.csv_preview import CsvPreviewError, get_csv_preview_payload
 from sircom2026.database import Database, SchemaVersionError
-from sircom2026.image_matching import ImageMatchingNotReady, get_persisted_image_matching
+from sircom2026.image_matching import (
+    ImageMatchingNotReady,
+    get_persisted_image_matching,
+)
 from sircom2026.images import ImageInspectionNotReady, get_persisted_image_inspection
 from sircom2026.lots import list_lots
 from sircom2026.mapping import MappingError
@@ -97,11 +100,13 @@ def load_index_context(
                     except CsvPreviewError:
                         selected_lot["csv_preview"] = None
                     try:
-                        selected_lot["image_inspection"] = get_persisted_image_inspection(
-                            repositories,
-                            settings=settings,
-                            lot_id=lot_id,
-                        ).inspection
+                        selected_lot["image_inspection"] = (
+                            get_persisted_image_inspection(
+                                repositories,
+                                settings=settings,
+                                lot_id=lot_id,
+                            ).inspection
+                        )
                     except ImageInspectionNotReady:
                         selected_lot["image_inspection"] = None
                     try:
@@ -111,7 +116,9 @@ def load_index_context(
                             lot_id=lot_id,
                         )
                         selected_lot["image_matching"] = {
-                            "matching": image_matching_ui_payload(image_matching.matching),
+                            "matching": image_matching_ui_payload(
+                                image_matching.matching
+                            ),
                             "artifact": image_matching.artifact,
                             "processed_images_artifact": (
                                 {

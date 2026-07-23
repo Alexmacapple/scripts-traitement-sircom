@@ -261,7 +261,9 @@ def list_lots(
     }
 
 
-def mark_lot_deleted(repositories: Repositories, lot_id: str) -> tuple[dict[str, Any], int]:
+def mark_lot_deleted(
+    repositories: Repositories, lot_id: str
+) -> tuple[dict[str, Any], int]:
     existing_lot = repositories.lots.get_required(lot_id)
     if existing_lot["status"] in {"supprime", "purge"}:
         return get_lot_detail(repositories, lot_id), 0
@@ -307,9 +309,7 @@ def serialize_lot(
             **lot_counters(lot),
             "steps_total": len(serialized_steps),
             "steps_done": sum(
-                1
-                for step in serialized_steps
-                if step["status"] in STEP_DONE_STATUSES
+                1 for step in serialized_steps if step["status"] in STEP_DONE_STATUSES
             ),
         },
     }
@@ -365,7 +365,11 @@ def build_excel_diagnostic_view(
     problems: list[dict[str, Any]],
 ) -> dict[str, Any]:
     step = next(
-        (candidate for candidate in steps if candidate["key"] == EXCEL_DIAGNOSTIC_STEP_KEY),
+        (
+            candidate
+            for candidate in steps
+            if candidate["key"] == EXCEL_DIAGNOSTIC_STEP_KEY
+        ),
         None,
     )
     diagnostic_problems = [
@@ -374,19 +378,14 @@ def build_excel_diagnostic_view(
         if problem["step_key"] == EXCEL_DIAGNOSTIC_STEP_KEY
     ]
     groups = group_problems_by_severity(diagnostic_problems)
-    counts = {
-        severity: len(group["items"])
-        for severity, group in groups.items()
-    }
+    counts = {severity: len(group["items"]) for severity, group in groups.items()}
     status = str(step["status"]) if step else "non_demarre"
     summary = excel_diagnostic_summary(status, counts)
     return {
         "step": step,
         "status": status,
         "status_label": (
-            str(step["status_label"])
-            if step
-            else STEP_STATUS_LABELS["non_demarre"]
+            str(step["status_label"]) if step else STEP_STATUS_LABELS["non_demarre"]
         ),
         "problems": diagnostic_problems,
         "problem_groups": groups,
@@ -496,7 +495,9 @@ def serialize_problem(problem: dict[str, Any]) -> dict[str, Any]:
         "step_label": step_label(problem["step_key"]),
         "run_id": problem["run_id"],
         "severity": problem["severity"],
-        "severity_label": PROBLEM_SEVERITY_LABELS.get(problem["severity"], problem["severity"]),
+        "severity_label": PROBLEM_SEVERITY_LABELS.get(
+            problem["severity"], problem["severity"]
+        ),
         "alert_class": PROBLEM_ALERT_CLASSES.get(problem["severity"], "info"),
         "code": problem["code"],
         "title": problem["title"],
@@ -536,7 +537,9 @@ def serialize_event(event: dict[str, Any]) -> dict[str, Any]:
         "id": event["id"],
         "created_at": event["created_at"],
         "step_key": event_step_key,
-        "step_label": step_label(event_step_key) if isinstance(event_step_key, str) else None,
+        "step_label": step_label(event_step_key)
+        if isinstance(event_step_key, str)
+        else None,
         "run_id": event["run_id"],
         "level": event["level"],
         "level_label": EVENT_LEVEL_LABELS.get(event["level"], event["level"]),
@@ -547,7 +550,9 @@ def serialize_event(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def sorted_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return sorted(steps, key=lambda step: (STEP_ORDER.get(step["step_key"], 999), step["id"]))
+    return sorted(
+        steps, key=lambda step: (STEP_ORDER.get(step["step_key"], 999), step["id"])
+    )
 
 
 def lot_counters(lot: dict[str, Any]) -> dict[str, int]:
@@ -621,7 +626,11 @@ def format_technical_value(key: str, value: Any) -> str:
 def format_location(location: dict[str, Any]) -> str:
     parts: list[str] = []
     sheet = location.get("onglet") or location.get("sheet")
-    column = location.get("colonne") or location.get("column") or location.get("column_letter")
+    column = (
+        location.get("colonne")
+        or location.get("column")
+        or location.get("column_letter")
+    )
     row = location.get("ligne") or location.get("row")
     artifact_id = location.get("artifact_id")
     archive = location.get("archive")

@@ -13,6 +13,7 @@ import openpyxl
 import os
 import re
 
+
 # Fonction pour vérifier si une cellule est considérée comme vide
 def is_empty_cell(value):
     # Cas simples
@@ -23,10 +24,13 @@ def is_empty_cell(value):
     str_value = str(value).strip()
 
     # Considérer comme vide si :
-    return (str_value == "" or
-            str_value == "#N/A" or
-            str_value.lower() == "none" or
-            str_value.lower() == "undefined")
+    return (
+        str_value == ""
+        or str_value == "#N/A"
+        or str_value.lower() == "none"
+        or str_value.lower() == "undefined"
+    )
+
 
 # Fonction pour nettoyer le contenu d'une cellule
 def clean_cell_content(value):
@@ -44,14 +48,15 @@ def clean_cell_content(value):
         return "#N/A"
 
     # Remplacer les sauts de ligne par le marqueur InDesign recherché ensuite.
-    content = content.replace('\r\n', '\n')
-    content = content.replace('\r', '\n')
-    content = content.replace('\n', '<br>')
+    content = content.replace("\r\n", "\n")
+    content = content.replace("\r", "\n")
+    content = content.replace("\n", "<br>")
 
     # Supprimer les espaces multiples (remplacer par un seul espace)
-    content = re.sub(r' +', ' ', content)
+    content = re.sub(r" +", " ", content)
 
     return content
+
 
 # 1. Définir le fichier source
 file_path = "7-add-pathimg.xlsx"
@@ -103,7 +108,9 @@ try:
         # Vérifier si toute la colonne est vide (sauf l'en-tête qu'on garde toujours)
         column_empty = True
 
-        for row_num in range(2, worksheet.max_row + 1):  # Commence à la ligne 2 (garde l'en-tête)
+        for row_num in range(
+            2, worksheet.max_row + 1
+        ):  # Commence à la ligne 2 (garde l'en-tête)
             cell_value = worksheet.cell(row=row_num, column=col_num).value
             if not is_empty_cell(cell_value):
                 column_empty = False
@@ -132,13 +139,17 @@ try:
         header_value = worksheet.cell(row=1, column=col_num).value
         if header_value:
             header_clean = str(header_value).lower().strip()
-            if header_clean in ['f_id', 'imageid']:
+            if header_clean in ["f_id", "imageid"]:
                 critical_columns[header_clean] = col_num
-                print(f"  Colonne critique identifiée : '{header_value}' en position {col_num}")
+                print(
+                    f"  Colonne critique identifiée : '{header_value}' en position {col_num}"
+                )
 
     rows_to_delete = []
 
-    for row_num in range(2, worksheet.max_row + 1):  # Commence à la ligne 2 (garde l'en-tête)
+    for row_num in range(
+        2, worksheet.max_row + 1
+    ):  # Commence à la ligne 2 (garde l'en-tête)
         # Vérifier si la ligne doit être supprimée
         should_delete = False
         delete_reason = ""
@@ -156,8 +167,10 @@ try:
             delete_reason = "entièrement vide"
 
         # Critère 2 : Colonnes critiques vides (ID manquant = dossier invalide)
-        elif 'f_id' in critical_columns:
-            f_id_value = worksheet.cell(row=row_num, column=critical_columns['f_id']).value
+        elif "f_id" in critical_columns:
+            f_id_value = worksheet.cell(
+                row=row_num, column=critical_columns["f_id"]
+            ).value
             if is_empty_cell(f_id_value):
                 should_delete = True
                 delete_reason = "ID manquant (f_id vide)"
@@ -189,7 +202,9 @@ try:
     final_cols = worksheet.max_column
 
     print(f"\nDimensions finales : {final_rows} lignes × {final_cols} colonnes")
-    print(f"Réduction : {original_rows - final_rows} lignes, {original_cols - final_cols} colonnes")
+    print(
+        f"Réduction : {original_rows - final_rows} lignes, {original_cols - final_cols} colonnes"
+    )
 
     # 9. Enregistrer le fichier optimisé
     output_filename = "8-optimize-content.xlsx"
@@ -214,6 +229,6 @@ except Exception as e:
     exit(1)
 finally:
     # 11. Fermer le fichier Excel
-    if 'workbook' in locals():
+    if "workbook" in locals():
         workbook.close()
     print("Fichier fermé")

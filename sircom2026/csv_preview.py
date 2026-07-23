@@ -16,10 +16,18 @@ from sircom2026.csv_contract import (
 )
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
 from sircom2026.image_naming import image_id_for_dossier
-from sircom2026.invalidation import record_human_validation_snapshot, step_input_fingerprint
+from sircom2026.invalidation import (
+    record_human_validation_snapshot,
+    step_input_fingerprint,
+)
 from sircom2026.lots import get_lot_detail
 from sircom2026.pipeline import downstream_step_keys
-from sircom2026.state import complete_step, record_problem, require_human_validation, transition_step
+from sircom2026.state import (
+    complete_step,
+    record_problem,
+    require_human_validation,
+    transition_step,
+)
 
 
 CSV_PREVIEW_STEP_KEY = "previsualisation_csv"
@@ -78,7 +86,10 @@ def get_csv_preview_payload(
 ) -> dict[str, Any]:
     preview = _build_current_preview(repositories, settings=settings, lot_id=lot_id)
     current = _current_preview_artifacts(repositories, settings=settings, lot_id=lot_id)
-    if current is not None and current["input_fingerprint"] == preview["input_fingerprint"]:
+    if (
+        current is not None
+        and current["input_fingerprint"] == preview["input_fingerprint"]
+    ):
         return {
             "preview": current["preview"],
             "preview_artifact": current["preview_artifact"],
@@ -221,7 +232,9 @@ def validate_csv_preview(
             mime_type=CSV_PREVIEW_MIME_TYPE,
             lease_version=int(job["lease_version"]),
         )
-        committed_artifact_paths.append(store.path_for(preview_artifact["relative_path"]))
+        committed_artifact_paths.append(
+            store.path_for(preview_artifact["relative_path"])
+        )
         csv_artifact = store.put_temp_then_commit(
             repositories,
             lot_id=lot_id,
@@ -300,7 +313,9 @@ def validate_csv_preview(
                 "artifact_id": csv_artifact["id"],
                 "columns_count": len(headers),
                 "rows_count": len(rows),
-                "status": "termine_avec_alertes" if public_preview["warnings"] else "termine",
+                "status": "termine_avec_alertes"
+                if public_preview["warnings"]
+                else "termine",
                 "step_key": CSV_PREVIEW_STEP_KEY,
             },
         )
@@ -457,7 +472,9 @@ def _build_current_preview(
         "input_fingerprint": input_fingerprint,
         "source_sort_artifact_id": sort.artifact["id"],
         "source_csv_contract_artifact_id": contract.artifact["id"],
-        "source_image_matching_artifact_id": matching.artifact["id"] if matching else None,
+        "source_image_matching_artifact_id": matching.artifact["id"]
+        if matching
+        else None,
         "validated": False,
         "validated_at": None,
         "headers": headers,
@@ -502,7 +519,9 @@ def _headers_and_rows_from_sort(
         id_dossier = str(source_row.get("id_dossier") or "").strip()
         if "imageid" in row_values and id_dossier:
             binding_values = (image_bindings or {}).get(id_dossier, {})
-            row_values["imageid"] = binding_values.get("imageid") or image_id_for_dossier(id_dossier)
+            row_values["imageid"] = binding_values.get(
+                "imageid"
+            ) or image_id_for_dossier(id_dossier)
             if "@pathimg" in row_values:
                 row_values["@pathimg"] = binding_values.get("@pathimg", "")
         rows.append(
@@ -515,7 +534,9 @@ def _headers_and_rows_from_sort(
     return headers, rows
 
 
-def _csv_content_from_preview(preview: dict[str, Any]) -> tuple[list[str], list[list[str]], bytes]:
+def _csv_content_from_preview(
+    preview: dict[str, Any],
+) -> tuple[list[str], list[list[str]], bytes]:
     headers = [str(header) for header in preview["headers"]]
     rows = [
         [str(row.get("values", {}).get(header, "")) for header in headers]
@@ -527,9 +548,7 @@ def _csv_content_from_preview(preview: dict[str, Any]) -> tuple[list[str], list[
 
 def _public_preview(preview: dict[str, Any]) -> dict[str, Any]:
     public_preview = {
-        key: value
-        for key, value in preview.items()
-        if not key.startswith("_")
+        key: value for key, value in preview.items() if not key.startswith("_")
     }
     rows_limit = int(public_preview.get("preview_rows_limit") or CSV_PREVIEW_ROWS_LIMIT)
     rows = public_preview.get("rows")
@@ -538,7 +557,9 @@ def _public_preview(preview: dict[str, Any]) -> dict[str, Any]:
     return public_preview
 
 
-def _image_bindings_by_id(matching_payload: dict[str, Any] | None) -> dict[str, dict[str, str]]:
+def _image_bindings_by_id(
+    matching_payload: dict[str, Any] | None,
+) -> dict[str, dict[str, str]]:
     if not matching_payload:
         return {}
     result: dict[str, dict[str, str]] = {}
@@ -896,7 +917,13 @@ def _read_json_artifact(
             artifact_id=artifact["id"],
         )
         payload = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ) as exc:
         raise CsvPreviewError(
             409,
             "SIRCOM_CSV_ARTIFACT_UNAVAILABLE",

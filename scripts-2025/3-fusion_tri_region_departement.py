@@ -23,9 +23,13 @@ def normalize_header(value):
 
 def find_column_indexes(sheet):
     headers = [cell.value for cell in sheet[1]]
-    normalized = {normalize_header(header): index for index, header in enumerate(headers, start=1)}
+    normalized = {
+        normalize_header(header): index for index, header in enumerate(headers, start=1)
+    }
     region_index = find_prefixed_header(normalized, {"region"})
-    departement_index = find_prefixed_header(normalized, {"departement", "departements"})
+    departement_index = find_prefixed_header(
+        normalized, {"departement", "departements"}
+    )
     return region_index, departement_index
 
 
@@ -55,7 +59,9 @@ def sort_region_departement(sheet):
     rows = [list(row) for row in sheet.iter_rows(min_row=2, values_only=True)]
     rows.sort(
         key=lambda row: (
-            "" if row[region_index - 1] is None else str(row[region_index - 1]).casefold(),
+            ""
+            if row[region_index - 1] is None
+            else str(row[region_index - 1]).casefold(),
             department_sort_key(row[departement_index - 1]),
         )
     )
@@ -64,9 +70,12 @@ def sort_region_departement(sheet):
             sheet.cell(row=row_index, column=column_index, value=value)
     return True
 
+
 # 2. Vérifier que le fichier source existe
 if not os.path.exists(input_file):
-    print(f"Erreur : Le fichier '{input_file}' n'existe pas dans le répertoire courant.")
+    print(
+        f"Erreur : Le fichier '{input_file}' n'existe pas dans le répertoire courant."
+    )
     print("Assurez-vous d'avoir exécuté le script '2-image_id_adder.py' au préalable.")
     exit(1)
 

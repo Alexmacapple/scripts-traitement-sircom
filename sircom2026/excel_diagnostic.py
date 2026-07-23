@@ -22,7 +22,10 @@ from openpyxl.utils import get_column_letter
 ID_HEADER_RE = re.compile(r"^(id|id[_\s-]*dossier|dossier[_\s-]*id)$", re.I)
 REGION_RE = re.compile(r"\bregion\b|\brégion\b", re.I)
 DEPARTMENT_RE = re.compile(r"departement|département|code\s*postal", re.I)
-DATE_RE = re.compile(r"\bdate\b|\bcréé\b|\bcree\b|\bdéposé\b|\bdepose\b|\btraité\b|\btraite\b|\ble$", re.I)
+DATE_RE = re.compile(
+    r"\bdate\b|\bcréé\b|\bcree\b|\bdéposé\b|\bdepose\b|\btraité\b|\btraite\b|\ble$",
+    re.I,
+)
 IMAGE_RE = re.compile(r"photo|image|logo|piece|pièce|fichier", re.I)
 SENSITIVE_RE = re.compile(
     r"id|siret|siren|téléphone|telephone|code\s*postal|département|departement|code\s+insee|rna|tva",
@@ -120,14 +123,23 @@ def detect_header_row(ws, max_scan: int = 8) -> int | None:
     best_row = None
     best_score = 0.0
     for row in range(1, min(max_scan, ws.max_row) + 1):
-        values = [normalize_header(ws.cell(row=row, column=col).value) for col in range(1, ws.max_column + 1)]
+        values = [
+            normalize_header(ws.cell(row=row, column=col).value)
+            for col in range(1, ws.max_column + 1)
+        ]
         present = [value for value in values if value]
         if len(present) < 2:
             continue
-        text_ratio = sum(any(char.isalpha() for char in value) for value in present) / len(present)
+        text_ratio = sum(
+            any(char.isalpha() for char in value) for value in present
+        ) / len(present)
         unique_ratio = len(set(present)) / len(present)
         density = len(present) / max(1, ws.max_column)
-        id_header_bonus = 0.75 if any(ID_HEADER_RE.match(ascii_key(value)) for value in present) else 0
+        id_header_bonus = (
+            0.75
+            if any(ID_HEADER_RE.match(ascii_key(value)) for value in present)
+            else 0
+        )
         score = text_ratio + unique_ratio + density + id_header_bonus
         if score > best_score:
             best_score = score
@@ -194,17 +206,25 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
 
     diagnostic.hidden_columns = hidden_column_ranges(ws)
     diagnostic.hidden_rows = hidden_row_numbers(ws)
-    diagnostic.merged_ranges = [str(cell_range) for cell_range in ws.merged_cells.ranges]
+    diagnostic.merged_ranges = [
+        str(cell_range) for cell_range in ws.merged_cells.ranges
+    ]
     diagnostic.formula_cells_sample = formula_cell_sample(ws)
 
     if ws.sheet_state != "visible":
         diagnostic.blockers.append("Onglet masqué.")
     if diagnostic.hidden_columns:
-        diagnostic.blockers.append(f"{len(diagnostic.hidden_columns)} colonne(s) masquée(s).")
+        diagnostic.blockers.append(
+            f"{len(diagnostic.hidden_columns)} colonne(s) masquée(s)."
+        )
     if diagnostic.hidden_rows:
-        diagnostic.blockers.append(f"{len(diagnostic.hidden_rows)} ligne(s) masquée(s).")
+        diagnostic.blockers.append(
+            f"{len(diagnostic.hidden_rows)} ligne(s) masquée(s)."
+        )
     if diagnostic.merged_ranges:
-        diagnostic.blockers.append(f"{len(diagnostic.merged_ranges)} cellule(s) fusionnée(s).")
+        diagnostic.blockers.append(
+            f"{len(diagnostic.merged_ranges)} cellule(s) fusionnée(s)."
+        )
     if diagnostic.formula_cells_sample:
         diagnostic.blockers.append("Formules détectées.")
 
@@ -218,13 +238,17 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     if header_row != 1:
         diagnostic.blockers.append("En-tête détecté hors première ligne.")
 
-    headers = [normalize_header(ws.cell(row=header_row, column=column).value) for column in range(1, ws.max_column + 1)]
-    non_empty_headers = [(index, header) for index, header in enumerate(headers, start=1) if header]
+    headers = [
+        normalize_header(ws.cell(row=header_row, column=column).value)
+        for column in range(1, ws.max_column + 1)
+    ]
+    non_empty_headers = [
+        (index, header) for index, header in enumerate(headers, start=1) if header
+    ]
     diagnostic.non_empty_headers = len(non_empty_headers)
     diagnostic.headers_preview = [header for _, header in non_empty_headers[:30]]
     diagnostic.source_headers = [
-        make_simple_candidate(index, header)
-        for index, header in non_empty_headers
+        make_simple_candidate(index, header) for index, header in non_empty_headers
     ]
 
     for index, header in enumerate(headers, start=1):
@@ -239,7 +263,9 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     seen_headers: dict[str, int] = {}
     for _, header in non_empty_headers:
         seen_headers[header] = seen_headers.get(header, 0) + 1
-    diagnostic.duplicate_headers = sorted(header for header, count in seen_headers.items() if count > 1)
+    diagnostic.duplicate_headers = sorted(
+        header for header, count in seen_headers.items() if count > 1
+    )
     if diagnostic.duplicate_headers:
         diagnostic.warnings.append(
             "En-têtes sources dupliqués ; la provenance par lettre de colonne permet de les distinguer."
@@ -249,18 +275,24 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     for index, header in non_empty_headers:
         cleaned = clean_indesign_header(f"{get_column_letter(index)}_{header}")
         cleaned_headers[cleaned] = cleaned_headers.get(cleaned, 0) + 1
-    diagnostic.cleaned_header_collisions = sorted(name for name, count in cleaned_headers.items() if count > 1)
+    diagnostic.cleaned_header_collisions = sorted(
+        name for name, count in cleaned_headers.items() if count > 1
+    )
     if diagnostic.cleaned_header_collisions:
         diagnostic.blockers.append("Collision après nettoyage des en-têtes InDesign.")
 
     for index, header in non_empty_headers:
         key = ascii_key(header)
         if ID_HEADER_RE.match(key):
-            diagnostic.id_candidates.append(make_id_candidate(ws, index, header, header_row))
+            diagnostic.id_candidates.append(
+                make_id_candidate(ws, index, header, header_row)
+            )
         if REGION_RE.search(header) or REGION_RE.search(key):
             diagnostic.region_candidates.append(make_simple_candidate(index, header))
         if DEPARTMENT_RE.search(header) or DEPARTMENT_RE.search(key):
-            diagnostic.department_candidates.append(make_simple_candidate(index, header))
+            diagnostic.department_candidates.append(
+                make_simple_candidate(index, header)
+            )
         if DATE_RE.search(header) or DATE_RE.search(key):
             diagnostic.date_candidates.append(make_simple_candidate(index, header))
         if IMAGE_RE.search(header) or IMAGE_RE.search(key):
@@ -277,7 +309,9 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
         if candidate.duplicate_values:
             diagnostic.blockers.append("Valeurs id_dossier dupliquées dans l'onglet.")
         if candidate.blank_values:
-            diagnostic.warnings.append("Ligne(s) sans id_dossier à signaler et supprimer à l'export.")
+            diagnostic.warnings.append(
+                "Ligne(s) sans id_dossier à signaler et supprimer à l'export."
+            )
 
     diagnostic.importable = not diagnostic.blockers
     return diagnostic
@@ -323,7 +357,9 @@ def workbook_cleaned_header_collisions(
         for source_header in sheet.source_headers:
             if ID_HEADER_RE.match(ascii_key(source_header.header)):
                 continue
-            cleaned = clean_indesign_header(f"{source_header.column}_{source_header.header}")
+            cleaned = clean_indesign_header(
+                f"{source_header.column}_{source_header.header}"
+            )
             cleaned_headers.setdefault(cleaned, []).append(
                 f"{sheet.name}!{source_header.column}"
             )
@@ -350,10 +386,14 @@ def format_text_report(diagnostics: list[WorkbookDiagnostic]) -> str:
         for sheet in workbook.sheets:
             ignored = " ignored" if sheet.ignored else ""
             sheet_status = "OK" if sheet.importable else "BLOCKED"
-            lines.append(f"- sheet {sheet.name!r}: {sheet_status}{ignored}, {sheet.rows} rows x {sheet.columns} cols")
+            lines.append(
+                f"- sheet {sheet.name!r}: {sheet_status}{ignored}, {sheet.rows} rows x {sheet.columns} cols"
+            )
             if sheet.ignore_reason:
                 lines.append(f"  ignore_reason: {sheet.ignore_reason}")
-            lines.append(f"  header_row: {sheet.header_row}, non_empty_headers: {sheet.non_empty_headers}")
+            lines.append(
+                f"  header_row: {sheet.header_row}, non_empty_headers: {sheet.non_empty_headers}"
+            )
             if sheet.id_candidates:
                 ids = ", ".join(
                     f"{candidate.column}:{candidate.header} "
@@ -367,37 +407,60 @@ def format_text_report(diagnostics: list[WorkbookDiagnostic]) -> str:
             if sheet.region_candidates:
                 lines.append(
                     "  region_candidates: "
-                    + ", ".join(f"{candidate.column}:{candidate.header}" for candidate in sheet.region_candidates[:8])
+                    + ", ".join(
+                        f"{candidate.column}:{candidate.header}"
+                        for candidate in sheet.region_candidates[:8]
+                    )
                 )
             if sheet.department_candidates:
                 lines.append(
                     "  department_candidates: "
-                    + ", ".join(f"{candidate.column}:{candidate.header}" for candidate in sheet.department_candidates[:8])
+                    + ", ".join(
+                        f"{candidate.column}:{candidate.header}"
+                        for candidate in sheet.department_candidates[:8]
+                    )
                 )
             if sheet.date_candidates:
                 lines.append(f"  date_candidates: {len(sheet.date_candidates)}")
             if sheet.image_candidates:
                 lines.append(
                     "  image_candidates: "
-                    + ", ".join(f"{candidate.column}:{candidate.header}" for candidate in sheet.image_candidates[:8])
+                    + ", ".join(
+                        f"{candidate.column}:{candidate.header}"
+                        for candidate in sheet.image_candidates[:8]
+                    )
                 )
             if sheet.duplicate_headers:
-                lines.append("  duplicate_headers: " + ", ".join(sheet.duplicate_headers[:12]))
+                lines.append(
+                    "  duplicate_headers: " + ", ".join(sheet.duplicate_headers[:12])
+                )
             if sheet.headers_preview:
-                lines.append("  headers_preview: " + " | ".join(sheet.headers_preview[:12]))
+                lines.append(
+                    "  headers_preview: " + " | ".join(sheet.headers_preview[:12])
+                )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Diagnose Sircom 2026 Excel input structure.")
+    parser = argparse.ArgumentParser(
+        description="Diagnose Sircom 2026 Excel input structure."
+    )
     parser.add_argument("workbooks", nargs="+", type=Path)
-    parser.add_argument("--json", action="store_true", help="Print JSON instead of a text report.")
+    parser.add_argument(
+        "--json", action="store_true", help="Print JSON instead of a text report."
+    )
     args = parser.parse_args(argv)
 
     diagnostics = [diagnose_workbook(path) for path in args.workbooks]
     if args.json:
-        print(json.dumps([asdict(diagnostic) for diagnostic in diagnostics], ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                [asdict(diagnostic) for diagnostic in diagnostics],
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
     else:
         print(format_text_report(diagnostics), end="")
 

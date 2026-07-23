@@ -25,7 +25,9 @@ from sircom2026.worker_runner import run_worker_once
 
 
 class LocalWorkerTest(unittest.TestCase):
-    def test_worker_runner_initializes_database_and_is_idle_without_handlers(self) -> None:
+    def test_worker_runner_initializes_database_and_is_idle_without_handlers(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = load_settings(
                 {
@@ -99,7 +101,9 @@ class LocalWorkerTest(unittest.TestCase):
                 settings = load_settings(
                     {
                         "SIRCOM_DATA_DIR": str(Path(tmp) / "data"),
-                        "SIRCOM_SQLITE_PATH": str(Path(tmp) / "data" / "sircom.sqlite3"),
+                        "SIRCOM_SQLITE_PATH": str(
+                            Path(tmp) / "data" / "sircom.sqlite3"
+                        ),
                         "SIRCOM_WORKER_POLL_SECONDS": "5",
                     }
                 )
@@ -147,7 +151,9 @@ class LocalWorkerTest(unittest.TestCase):
                 settings = load_settings(
                     {
                         "SIRCOM_DATA_DIR": str(Path(tmp) / "data"),
-                        "SIRCOM_SQLITE_PATH": str(Path(tmp) / "data" / "sircom.sqlite3"),
+                        "SIRCOM_SQLITE_PATH": str(
+                            Path(tmp) / "data" / "sircom.sqlite3"
+                        ),
                         "SIRCOM_WORKER_ENABLED": "true",
                     }
                 )
@@ -409,7 +415,11 @@ class LocalWorkerTest(unittest.TestCase):
                 )
                 repositories.connection.execute(
                     "UPDATE jobs SET created_at = ?, updated_at = ? WHERE lot_id = ?",
-                    ("2026-07-21T00:00:00+00:00", "2026-07-21T00:00:00+00:00", lot["id"]),
+                    (
+                        "2026-07-21T00:00:00+00:00",
+                        "2026-07-21T00:00:00+00:00",
+                        lot["id"],
+                    ),
                 )
 
             worker = LocalWorker(
@@ -461,7 +471,9 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertIsNotNone(first)
             self.assertIsNone(second)
 
-    def test_max_active_jobs_prevents_parallel_processing_on_different_steps(self) -> None:
+    def test_max_active_jobs_prevents_parallel_processing_on_different_steps(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             database = migrated_database(tmp)
             with database.transaction() as repositories:
@@ -590,11 +602,15 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertEqual(reclaimed["lease_owner"], "worker-b")
             self.assertEqual(reclaimed["lease_version"], 2)
 
-    def test_enqueue_returns_existing_expired_reclaimable_job_for_same_key(self) -> None:
+    def test_enqueue_returns_existing_expired_reclaimable_job_for_same_key(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             database = migrated_database(tmp)
             with database.transaction() as repositories:
-                lot = create_lot_with_steps(repositories, title="Lot expired idempotence")
+                lot = create_lot_with_steps(
+                    repositories, title="Lot expired idempotence"
+                )
                 first = enqueue_job(
                     repositories,
                     lot_id=lot["id"],
@@ -681,16 +697,22 @@ class LocalWorkerTest(unittest.TestCase):
             self.assertTrue(worker.start_job(leased))
 
             with database.transaction() as repositories:
-                step = repositories.steps.get_by_lot_key(lot["id"], "previsualisation_csv")
+                step = repositories.steps.get_by_lot_key(
+                    lot["id"], "previsualisation_csv"
+                )
                 if step is None:
                     self.fail("Expected previsualisation_csv step to exist.")
-                repositories.steps.update_status(step["id"], "en_cours", run_id="run_preview_new")
+                repositories.steps.update_status(
+                    step["id"], "en_cours", run_id="run_preview_new"
+                )
 
             finished = worker.finish_success(leased)
 
             with database.session() as repositories:
                 job = repositories.jobs.get_required(leased.job_id)
-                step_after = repositories.steps.get_by_lot_key(lot["id"], "previsualisation_csv")
+                step_after = repositories.steps.get_by_lot_key(
+                    lot["id"], "previsualisation_csv"
+                )
                 event_types = {
                     row["event_type"]
                     for row in repositories.events.list_for_lot(lot["id"], limit=20)
@@ -732,7 +754,9 @@ class LocalWorkerTest(unittest.TestCase):
                 step = repositories.steps.get_by_lot_key(lot["id"], "upload_images")
                 if step is None:
                     self.fail("Expected upload_images step to exist.")
-                repositories.steps.update_status(step["id"], "pret", run_id="run_images_new")
+                repositories.steps.update_status(
+                    step["id"], "pret", run_id="run_images_new"
+                )
                 new_job = repositories.jobs.create(
                     lot_id=lot["id"],
                     step_key="upload_images",
@@ -780,7 +804,9 @@ class LocalWorkerTest(unittest.TestCase):
                 step = repositories.steps.get_by_lot_key(lot["id"], "rapports")
                 if step is None:
                     self.fail("Expected rapports step to exist.")
-                repositories.steps.update_status(step["id"], "en_cours", run_id="run_reports_new")
+                repositories.steps.update_status(
+                    step["id"], "en_cours", run_id="run_reports_new"
+                )
 
             context = WorkerJobContext(
                 database=database,
@@ -828,11 +854,15 @@ class LocalWorkerTest(unittest.TestCase):
                     ("input_new", lot["id"], "verification_csv_indesign"),
                 )
 
-            finished = worker.finish_success(leased, JobResult(output_fingerprint="output_old"))
+            finished = worker.finish_success(
+                leased, JobResult(output_fingerprint="output_old")
+            )
 
             with database.session() as repositories:
                 job = repositories.jobs.get_required(queued.job["id"])
-                step = repositories.steps.get_by_lot_key(lot["id"], "verification_csv_indesign")
+                step = repositories.steps.get_by_lot_key(
+                    lot["id"], "verification_csv_indesign"
+                )
                 event_types = {
                     row["event_type"]
                     for row in repositories.events.list_for_lot(lot["id"], limit=20)
@@ -848,7 +878,9 @@ class LocalWorkerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             database = migrated_database(tmp)
             with database.transaction() as repositories:
-                lot = create_lot_with_steps(repositories, title="Lot missing fingerprint")
+                lot = create_lot_with_steps(
+                    repositories, title="Lot missing fingerprint"
+                )
                 queued = enqueue_job(
                     repositories,
                     lot_id=lot["id"],
@@ -859,7 +891,11 @@ class LocalWorkerTest(unittest.TestCase):
 
             worker = LocalWorker(
                 database,
-                {"mapping": lambda _context: JobResult(output_fingerprint="output_mapping")},
+                {
+                    "mapping": lambda _context: JobResult(
+                        output_fingerprint="output_mapping"
+                    )
+                },
                 worker_id="worker-a",
                 lease_seconds=60,
             )
@@ -886,7 +922,9 @@ class LocalWorkerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             database = migrated_database(tmp)
             with database.transaction() as repositories:
-                lot = create_lot_with_steps(repositories, title="Lot output fingerprint")
+                lot = create_lot_with_steps(
+                    repositories, title="Lot output fingerprint"
+                )
                 enqueue_job(
                     repositories,
                     lot_id=lot["id"],
@@ -909,7 +947,9 @@ class LocalWorkerTest(unittest.TestCase):
             result = worker.run_once()
 
             with database.session() as repositories:
-                step = repositories.steps.get_by_lot_key(lot["id"], "verification_csv_indesign")
+                step = repositories.steps.get_by_lot_key(
+                    lot["id"], "verification_csv_indesign"
+                )
 
             self.assertEqual(result.outcome, "succeeded")
             self.assertEqual(step["status"], "termine")

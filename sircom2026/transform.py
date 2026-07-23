@@ -219,7 +219,9 @@ def run_flat_merge_job(context: WorkerJobContext, *, settings: Settings) -> JobR
                 "columns_count": merge_result.payload["columns_count"],
                 "rows_count": merge_result.payload["rows_count"],
                 "rows_removed": merge_result.removed_rows_without_id_count,
-                "status": "termine_avec_alertes" if merge_result.has_warnings else "termine",
+                "status": "termine_avec_alertes"
+                if merge_result.has_warnings
+                else "termine",
                 "step_key": FUSION_STEP_KEY,
             },
         )
@@ -232,7 +234,9 @@ def run_flat_merge_job(context: WorkerJobContext, *, settings: Settings) -> JobR
     )
 
 
-def run_content_normalization_job(context: WorkerJobContext, *, settings: Settings) -> JobResult:
+def run_content_normalization_job(
+    context: WorkerJobContext, *, settings: Settings
+) -> JobResult:
     store = ArtifactStore(
         settings.data_dir,
         pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
@@ -401,11 +405,17 @@ def build_flat_merge(workbook_path, mapping: dict[str, Any]) -> FlatMergeResult:
                 ).value
                 id_dossier = _identifier_text(id_value)
                 if not id_dossier:
-                    removed_rows.append({"source_sheet": sheet_name, "row_number": row_number})
+                    removed_rows.append(
+                        {"source_sheet": sheet_name, "row_number": row_number}
+                    )
                     continue
                 if id_dossier in seen_ids_in_sheet:
                     duplicate_locations.append(
-                        {"onglet": sheet_name, "ligne": row_number, "colonne": id_column["source_column_letter"]}
+                        {
+                            "onglet": sheet_name,
+                            "ligne": row_number,
+                            "colonne": id_column["source_column_letter"],
+                        }
                     )
                     continue
                 seen_ids_in_sheet.add(id_dossier)
@@ -416,7 +426,9 @@ def build_flat_merge(workbook_path, mapping: dict[str, Any]) -> FlatMergeResult:
                     row = {
                         "source_rank": source_rank,
                         "id_dossier": id_dossier,
-                        "values": {column["csv_name"]: "" for column in exported_columns},
+                        "values": {
+                            column["csv_name"]: "" for column in exported_columns
+                        },
                     }
                     row["values"]["id_dossier"] = id_dossier
                     rows_by_id[id_dossier] = row
@@ -488,7 +500,11 @@ def normalize_flat_merge(
     for source_row in fusion_payload.get("rows", []):
         if not isinstance(source_row, dict):
             continue
-        source_values = source_row.get("values") if isinstance(source_row.get("values"), dict) else {}
+        source_values = (
+            source_row.get("values")
+            if isinstance(source_row.get("values"), dict)
+            else {}
+        )
         values: dict[str, Any] = {}
         for column in columns:
             csv_name = str(column["csv_name"])
@@ -550,12 +566,18 @@ def normalize_flat_merge(
             "removed_rows_without_id_count",
             0,
         ),
-        "upstream_removed_empty_columns": fusion_payload.get("removed_empty_columns", []),
-        "upstream_removed_rows_without_id": fusion_payload.get("removed_rows_without_id", []),
+        "upstream_removed_empty_columns": fusion_payload.get(
+            "removed_empty_columns", []
+        ),
+        "upstream_removed_rows_without_id": fusion_payload.get(
+            "removed_rows_without_id", []
+        ),
         "columns": [_public_column(column) for column in kept_columns],
         "rows": rows,
         "date_issues": date_issues[:100],
-        "removed_empty_columns": [_public_column(column) for column in removed_empty_columns],
+        "removed_empty_columns": [
+            _public_column(column) for column in removed_empty_columns
+        ],
     }
     return ContentNormalizationResult(
         payload=payload,
@@ -572,7 +594,9 @@ def _ordered_exported_columns(mapping: dict[str, Any]) -> list[dict[str, Any]]:
         for column in mapping.get("columns", [])
         if isinstance(column, dict) and column.get("status") == "exporte"
     ]
-    return sorted(columns, key=lambda column: int(column.get("output_position") or 999_999))
+    return sorted(
+        columns, key=lambda column: int(column.get("output_position") or 999_999)
+    )
 
 
 def _ordered_sheets(mapping: dict[str, Any]) -> list[dict[str, Any]]:
@@ -693,8 +717,7 @@ def _parse_date_text(text: str) -> date | None:
 def _normalize_text_value(value: str) -> str:
     normalized = value.replace("\r\n", "\n").replace("\r", "\n")
     parts = [
-        _HORIZONTAL_SPACE_RE.sub(" ", part).strip()
-        for part in normalized.split("\n")
+        _HORIZONTAL_SPACE_RE.sub(" ", part).strip() for part in normalized.split("\n")
     ]
     return "<br>".join(parts).strip()
 
@@ -762,7 +785,13 @@ def _current_validated_mapping(
             artifact_id=artifact["id"],
         )
         payload = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError):
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ):
         return None
     if not isinstance(payload, dict):
         return None
@@ -800,7 +829,13 @@ def _current_json_artifact(
             artifact_id=artifact["id"],
         )
         payload = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError):
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ):
         return None
     if not isinstance(payload, dict):
         return None
@@ -829,13 +864,16 @@ def _require_current_lease(
     repositories: Repositories,
     context: WorkerJobContext,
 ) -> None:
-    if repositories.jobs.get_committable_by_run(
-        lot_id=context.lot_id,
-        step_key=context.step_key,
-        run_id=context.run_id,
-        lease_version=context.leased_job.lease_version,
-        expected_input_fingerprint=context.leased_job.input_fingerprint,
-    ) is None:
+    if (
+        repositories.jobs.get_committable_by_run(
+            lot_id=context.lot_id,
+            step_key=context.step_key,
+            run_id=context.run_id,
+            lease_version=context.leased_job.lease_version,
+            expected_input_fingerprint=context.leased_job.input_fingerprint,
+        )
+        is None
+    ):
         raise WorkerLeaseLost("Worker lease is no longer current.")
 
 

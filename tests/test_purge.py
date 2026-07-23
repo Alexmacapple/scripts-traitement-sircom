@@ -125,12 +125,16 @@ class PurgeTest(unittest.TestCase):
             second_response = client.delete(f"/api/lots/{lot_id}")
             detail_response = client.get(f"/api/lots/{lot_id}")
             list_response = client.get("/api/lots")
-            download_response = client.get(f"/api/lots/{lot_id}/downloads/{artifact['id']}")
+            download_response = client.get(
+                f"/api/lots/{lot_id}/downloads/{artifact['id']}"
+            )
             storage_after = client.get("/api/storage")
 
             with database.session() as repositories:
                 lot = repositories.lots.get_required(lot_id)
-                trace = repositories.purge_traces.get_by_lot_id_hash(lot_id_hash(lot_id))
+                trace = repositories.purge_traces.get_by_lot_id_hash(
+                    lot_id_hash(lot_id)
+                )
             row_counts = count_lot_rows(database, lot_id)
             artifact_exists_after_delete = artifact_path.exists()
             serialized = json.dumps(
@@ -158,13 +162,16 @@ class PurgeTest(unittest.TestCase):
         self.assertIsNone(detail_response.json()["lot"]["title"])
         self.assertEqual(list_response.json()["items"], [])
         self.assertEqual(download_response.status_code, 404)
-        self.assertEqual(row_counts, {
-            "etapes": 0,
-            "jobs": 0,
-            "artefacts": 0,
-            "evenements": 0,
-            "problemes": 0,
-        })
+        self.assertEqual(
+            row_counts,
+            {
+                "etapes": 0,
+                "jobs": 0,
+                "artefacts": 0,
+                "evenements": 0,
+                "problemes": 0,
+            },
+        )
         self.assertEqual(lot["title"], None)
         self.assertEqual(lot["status"], "purge")
         self.assertIsNotNone(trace)
@@ -174,13 +181,17 @@ class PurgeTest(unittest.TestCase):
         self.assertNotIn(str(settings.data_dir), serialized)
         self.assertIn("lot_id_hash", serialized)
 
-    def test_delete_during_running_job_cancels_then_purges_after_worker_cycle(self) -> None:
+    def test_delete_during_running_job_cancels_then_purges_after_worker_cycle(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
             database = Database(settings.sqlite_path)
-            lot_id = client.post("/api/lots", json={"title": "Lot actif"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot actif"}).json()[
+                "lot"
+            ]["id"]
             delete_status_codes: list[int] = []
 
             with database.transaction() as repositories:
@@ -193,8 +204,12 @@ class PurgeTest(unittest.TestCase):
                 )
 
             def handler(context: WorkerJobContext) -> JobResult:
-                (settings.data_dir / "lots" / lot_id / "tmp").mkdir(parents=True, exist_ok=True)
-                (settings.data_dir / "lots" / lot_id / "tmp" / "worker.part").write_text(
+                (settings.data_dir / "lots" / lot_id / "tmp").mkdir(
+                    parents=True, exist_ok=True
+                )
+                (
+                    settings.data_dir / "lots" / lot_id / "tmp" / "worker.part"
+                ).write_text(
                     "temporary",
                     encoding="utf-8",
                 )
@@ -210,7 +225,9 @@ class PurgeTest(unittest.TestCase):
 
             with database.session() as repositories:
                 lot = repositories.lots.get_required(lot_id)
-                trace = repositories.purge_traces.get_by_lot_id_hash(lot_id_hash(lot_id))
+                trace = repositories.purge_traces.get_by_lot_id_hash(
+                    lot_id_hash(lot_id)
+                )
             lot_dir_exists = (settings.data_dir / "lots" / lot_id).exists()
             row_counts = count_lot_rows(database, lot_id)
 
@@ -219,13 +236,16 @@ class PurgeTest(unittest.TestCase):
         self.assertEqual(lot["status"], "purge")
         self.assertIsNotNone(trace)
         self.assertFalse(lot_dir_exists)
-        self.assertEqual(row_counts, {
-            "etapes": 0,
-            "jobs": 0,
-            "artefacts": 0,
-            "evenements": 0,
-            "problemes": 0,
-        })
+        self.assertEqual(
+            row_counts,
+            {
+                "etapes": 0,
+                "jobs": 0,
+                "artefacts": 0,
+                "evenements": 0,
+                "problemes": 0,
+            },
+        )
 
     def test_delete_lot_expires_stale_lease_before_purging(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -233,7 +253,9 @@ class PurgeTest(unittest.TestCase):
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
             database = Database(settings.sqlite_path)
-            lot_id = client.post("/api/lots", json={"title": "Lot bail expire"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot bail expire"}).json()[
+                "lot"
+            ]["id"]
             lot_dir = settings.data_dir / "lots" / lot_id
             lot_dir.mkdir(parents=True)
             (lot_dir / "fichier.txt").write_text("contenu", encoding="utf-8")
@@ -257,7 +279,9 @@ class PurgeTest(unittest.TestCase):
             response = client.delete(f"/api/lots/{lot_id}")
             with database.session() as repositories:
                 lot = repositories.lots.get_required(lot_id)
-                trace = repositories.purge_traces.get_by_lot_id_hash(lot_id_hash(lot_id))
+                trace = repositories.purge_traces.get_by_lot_id_hash(
+                    lot_id_hash(lot_id)
+                )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["purge"]["status"], "purged")
@@ -285,7 +309,9 @@ class PurgeTest(unittest.TestCase):
         self.assertFalse(old_file_exists)
         self.assertTrue(fresh_file_exists)
 
-    def test_purge_resumes_after_files_deleted_but_sql_finalization_failed(self) -> None:
+    def test_purge_resumes_after_files_deleted_but_sql_finalization_failed(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
@@ -297,15 +323,21 @@ class PurgeTest(unittest.TestCase):
                 lot_id = lot["id"]
                 lot_dir = settings.data_dir / "lots" / lot_id
                 lot_dir.mkdir(parents=True)
-                (lot_dir / "artefact.txt").write_text("contenu temporaire", encoding="utf-8")
+                (lot_dir / "artefact.txt").write_text(
+                    "contenu temporaire", encoding="utf-8"
+                )
 
             real_remove_lot_directory = purge_module.remove_lot_directory
 
             def remove_then_fail(path: Path):
                 usage = real_remove_lot_directory(path)
-                raise RuntimeError(f"panne apres suppression de {usage.files_count} fichier")
+                raise RuntimeError(
+                    f"panne apres suppression de {usage.files_count} fichier"
+                )
 
-            with patch("sircom2026.purge.remove_lot_directory", side_effect=remove_then_fail):
+            with patch(
+                "sircom2026.purge.remove_lot_directory", side_effect=remove_then_fail
+            ):
                 with self.assertRaises(RuntimeError):
                     with database.transaction() as repositories:
                         delete_lot_and_purge_if_idle(
@@ -326,7 +358,13 @@ class PurgeTest(unittest.TestCase):
                             (lot_id,),
                         ).fetchone()[0]
                     )
-                    for table in ("etapes", "jobs", "artefacts", "evenements", "problemes")
+                    for table in (
+                        "etapes",
+                        "jobs",
+                        "artefacts",
+                        "evenements",
+                        "problemes",
+                    )
                 }
                 lot_dir_exists_after_failure = lot_dir.exists()
 
@@ -348,18 +386,23 @@ class PurgeTest(unittest.TestCase):
         self.assertEqual(lot_after_failure["status"], "supprime")
         self.assertFalse(lot_dir_exists_after_failure)
         self.assertIsNotNone(trace_after_failure)
-        self.assertEqual(json.loads(trace_after_failure["trace_json"])["purge"]["status"], "started")
+        self.assertEqual(
+            json.loads(trace_after_failure["trace_json"])["purge"]["status"], "started"
+        )
         self.assertGreater(rows_after_failure["etapes"], 0)
         self.assertEqual(resumed_outcome.purge_status, "purged")
         self.assertEqual(lot_after_resume["status"], "purge")
         self.assertFalse(lot_dir_exists_after_resume)
-        self.assertEqual(rows_after_resume, {
-            "etapes": 0,
-            "jobs": 0,
-            "artefacts": 0,
-            "evenements": 0,
-            "problemes": 0,
-        })
+        self.assertEqual(
+            rows_after_resume,
+            {
+                "etapes": 0,
+                "jobs": 0,
+                "artefacts": 0,
+                "evenements": 0,
+                "problemes": 0,
+            },
+        )
         resumed_trace = json.loads(trace_after_resume["trace_json"])
         self.assertEqual(resumed_trace["purge"]["status"], "completed")
         self.assertEqual(resumed_trace["purge"]["files_deleted"], 1)
@@ -371,9 +414,9 @@ class PurgeTest(unittest.TestCase):
             settings = make_settings(tmpdir, SIRCOM_RETENTION_DAYS="7")
             database = Database(settings.sqlite_path)
             database.migrate()
-            old_deleted_at = (
-                datetime.now(UTC) - timedelta(days=8)
-            ).isoformat(timespec="seconds")
+            old_deleted_at = (datetime.now(UTC) - timedelta(days=8)).isoformat(
+                timespec="seconds"
+            )
 
             with database.transaction() as repositories:
                 old_lot = create_lot_with_steps(repositories, title="Ancien lot")
@@ -391,7 +434,9 @@ class PurgeTest(unittest.TestCase):
                 old_after = repositories.lots.get_required(old_lot["id"])
                 fresh_after = repositories.lots.get_required(fresh_lot["id"])
                 old_dir_exists = (settings.data_dir / "lots" / old_lot["id"]).exists()
-                fresh_dir_exists = (settings.data_dir / "lots" / fresh_lot["id"]).exists()
+                fresh_dir_exists = (
+                    settings.data_dir / "lots" / fresh_lot["id"]
+                ).exists()
 
         self.assertEqual([outcome.lot["id"] for outcome in outcomes], [old_lot["id"]])
         self.assertEqual(old_after["status"], "purge")

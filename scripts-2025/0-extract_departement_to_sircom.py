@@ -43,7 +43,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def extract_departements_to_sircom(source_file=DEFAULT_SOURCE_FILE, output_file=DEFAULT_OUTPUT_FILE):
+def extract_departements_to_sircom(
+    source_file=DEFAULT_SOURCE_FILE, output_file=DEFAULT_OUTPUT_FILE
+):
     """
     Extrait l'onglet Départements et crée le fichier Sircom.xlsx
     """
@@ -96,8 +98,12 @@ def extract_departements_to_sircom(source_file=DEFAULT_SOURCE_FILE, output_file=
         # Si le fichier existe déjà, le sauvegarder
         if output_path.exists():
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            backup_path = output_path.with_name(f"{output_path.stem}_backup_{timestamp}{output_path.suffix}")
-            print(f"Le fichier existe déjà, création d'une sauvegarde : {backup_path.name}")
+            backup_path = output_path.with_name(
+                f"{output_path.stem}_backup_{timestamp}{output_path.suffix}"
+            )
+            print(
+                f"Le fichier existe déjà, création d'une sauvegarde : {backup_path.name}"
+            )
             output_path.rename(backup_path)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +126,9 @@ def extract_departements_to_sircom(source_file=DEFAULT_SOURCE_FILE, output_file=
         print(f"   - Lignes : {max(verif_sheet.max_row - 1, 0)}")
         print(f"   - Colonnes : {verif_sheet.max_column}")
 
-        if max(verif_sheet.max_row - 1, 0) == len(data_rows) and verif_sheet.max_column == len(headers):
+        if max(verif_sheet.max_row - 1, 0) == len(
+            data_rows
+        ) and verif_sheet.max_column == len(headers):
             print("   Intégrité des données confirmée")
         else:
             print("   Attention : différence détectée dans les dimensions")

@@ -11,8 +11,12 @@ from PIL import Image
 
 
 def load_process_images_module():
-    script_path = Path(__file__).resolve().parents[1] / "scripts-2025" / "10-process-images.py"
-    spec = importlib.util.spec_from_file_location("sircom2025_process_images", script_path)
+    script_path = (
+        Path(__file__).resolve().parents[1] / "scripts-2025" / "10-process-images.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "sircom2025_process_images", script_path
+    )
     if spec is None or spec.loader is None:
         raise RuntimeError("Unable to load 2025 process images script.")
     module = importlib.util.module_from_spec(spec)

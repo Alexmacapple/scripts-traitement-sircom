@@ -19,7 +19,15 @@ LOGGER = logging.getLogger(__name__)
 MASKED_PATH = "[chemin masque]"
 _POSIX_PATH_RE = re.compile(r"(?<![:\w])(?:~|/)[^\s'\"<>]+(?:/[^\s'\"<>]+)+")
 _WINDOWS_PATH_RE = re.compile(r"\b[A-Za-z]:[\\/][^\s'\"<>]+")
-_SENSITIVE_DETAIL_KEY_PARTS = ("path", "chemin", "file", "filename", "directory", "dir", "sqlite")
+_SENSITIVE_DETAIL_KEY_PARTS = (
+    "path",
+    "chemin",
+    "file",
+    "filename",
+    "directory",
+    "dir",
+    "sqlite",
+)
 _TRAILING_PATH_PUNCTUATION = ".,;:!?)"
 
 
@@ -56,7 +64,9 @@ def register_error_handlers(app: FastAPI) -> None:
 
 
 def correlation_id_from_request(request: Request) -> str | None:
-    raw_value = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+    raw_value = request.headers.get("x-correlation-id") or request.headers.get(
+        "x-request-id"
+    )
     if raw_value is None:
         return None
     value = raw_value.strip()
@@ -74,7 +84,9 @@ def hidden_artifact_not_found(
 ) -> ApiError:
     event: dict[str, str] = {
         "event": "artifact_hidden_not_found",
-        "reason": reason.value if isinstance(reason, ArtifactHiddenReason) else "unknown",
+        "reason": reason.value
+        if isinstance(reason, ArtifactHiddenReason)
+        else "unknown",
         "lot_id_hash": _hash_identifier(lot_id),
         "artifact_id_hash": _hash_identifier(artifact_id),
     }
@@ -102,7 +114,9 @@ async def _api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
     )
 
 
-async def _validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def _validation_error_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     details = {
         "errors": [
             {
@@ -122,7 +136,9 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
     )
 
 
-async def _http_error_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def _http_error_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
     detail = exc.detail
     if isinstance(detail, dict) and "code" in detail and "message" in detail:
         code = str(detail["code"])
@@ -193,14 +209,21 @@ def _error_response(
 
 
 def _sanitize_details(value: Any, *, key: str | None = None) -> Any:
-    if key is not None and _is_sensitive_detail_key(key) and value not in (None, "", {}, []):
+    if (
+        key is not None
+        and _is_sensitive_detail_key(key)
+        and value not in (None, "", {}, [])
+    ):
         return MASKED_PATH
     if isinstance(value, Path):
         return MASKED_PATH
     if isinstance(value, str):
         return _mask_paths_in_text(value)
     if isinstance(value, Mapping):
-        return {str(child_key): _sanitize_details(child, key=str(child_key)) for child_key, child in value.items()}
+        return {
+            str(child_key): _sanitize_details(child, key=str(child_key))
+            for child_key, child in value.items()
+        }
     if isinstance(value, tuple | list):
         return [_sanitize_details(child) for child in value]
     return value
@@ -213,7 +236,9 @@ def _looks_like_absolute_path(value: str) -> bool:
 
 
 def _mask_paths_in_text(value: str) -> str:
-    if _looks_like_absolute_path(value) and not any(character.isspace() for character in value):
+    if _looks_like_absolute_path(value) and not any(
+        character.isspace() for character in value
+    ):
         return MASKED_PATH
     value = _POSIX_PATH_RE.sub(_masked_path_replacement, value)
     return _WINDOWS_PATH_RE.sub(_masked_path_replacement, value)

@@ -15,7 +15,7 @@ from sircom2026._database_shared import (
     _validate_choice,
 )
 
-__all__ = ['ArtifactsRepository']
+__all__ = ["ArtifactsRepository"]
 
 
 class ArtifactsRepository:
@@ -71,7 +71,9 @@ class ArtifactsRepository:
         return self.get_required(row_id)
 
     def get(self, artifact_id: str) -> dict[str, Any] | None:
-        return _fetch_one(self.connection, "SELECT * FROM artefacts WHERE id = ?", (artifact_id,))
+        return _fetch_one(
+            self.connection, "SELECT * FROM artefacts WHERE id = ?", (artifact_id,)
+        )
 
     def get_required(self, artifact_id: str) -> dict[str, Any]:
         row = self.get(artifact_id)
@@ -80,7 +82,9 @@ class ArtifactsRepository:
         return row
 
     def list_all(self) -> list[dict[str, Any]]:
-        rows = self.connection.execute("SELECT * FROM artefacts ORDER BY created_at, id").fetchall()
+        rows = self.connection.execute(
+            "SELECT * FROM artefacts ORDER BY created_at, id"
+        ).fetchall()
         return [dict(row) for row in rows]
 
     def get_for_lot(self, lot_id: str, artifact_id: str) -> dict[str, Any] | None:
@@ -137,7 +141,9 @@ class ArtifactsRepository:
             )
         return self.get_required(artifact_id)
 
-    def mark_obsolete_for_steps(self, *, lot_id: str, step_keys: tuple[str, ...]) -> int:
+    def mark_obsolete_for_steps(
+        self, *, lot_id: str, step_keys: tuple[str, ...]
+    ) -> int:
         if not step_keys:
             return 0
         now = _now()

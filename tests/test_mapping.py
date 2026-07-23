@@ -64,11 +64,15 @@ def prepare_importable_lot(
 
 
 class MappingApiTest(unittest.TestCase):
-    def test_default_mapping_selects_useful_columns_and_keeps_structural_provenance(self) -> None:
+    def test_default_mapping_selects_useful_columns_and_keeps_structural_provenance(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
             client = TestClient(create_app(settings))
             lot_id = prepare_importable_lot(
                 client,
@@ -102,13 +106,14 @@ class MappingApiTest(unittest.TestCase):
         )
 
         exported_csv_names = [
-            column["csv_name"]
-            for column in columns
-            if column["status"] == "exporte"
+            column["csv_name"] for column in columns if column["status"] == "exporte"
         ]
         self.assertEqual(exported_csv_names.count("id_dossier"), 1)
         id_position = exported_csv_names.index("id_dossier")
-        self.assertEqual(exported_csv_names[id_position + 1 : id_position + 3], ["imageid", "@pathimg"])
+        self.assertEqual(
+            exported_csv_names[id_position + 1 : id_position + 3],
+            ["imageid", "@pathimg"],
+        )
         self.assertIn("d_nomdupro", exported_csv_names)
         self.assertIn("b_region", exported_csv_names)
         self.assertIn("g_datedede", exported_csv_names)
@@ -119,13 +124,17 @@ class MappingApiTest(unittest.TestCase):
             if column["logical_role"] == "id_dossier" and column["status"] == "supprime"
         ]
         self.assertEqual(len(duplicate_id_columns), 2)
-        self.assertTrue(all(column["suppression_reason"] for column in duplicate_id_columns))
+        self.assertTrue(
+            all(column["suppression_reason"] for column in duplicate_id_columns)
+        )
 
     def test_mapping_draft_validation_and_profile_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
             client = TestClient(create_app(settings))
             lot_id = prepare_importable_lot(
                 client,
@@ -165,7 +174,9 @@ class MappingApiTest(unittest.TestCase):
             )
             mapping_view = client.get(f"/?lot_id={lot_id}&view=mapping")
             detail = client.get(f"/api/lots/{lot_id}").json()["lot"]
-            validated_mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
+            validated_mapping = client.get(f"/api/lots/{lot_id}/mapping").json()[
+                "mapping"
+            ]
 
         self.assertEqual(draft.status_code, 200, draft.text)
         self.assertEqual(draft.json()["mapping"]["source"], "draft")
@@ -185,12 +196,19 @@ class MappingApiTest(unittest.TestCase):
             "SIRCOM_MAPPING_IDEMPOTENCY_REUSED",
         )
         self.assertEqual(step_status(detail, "mapping"), "termine")
-        self.assertEqual(validated_mapping["columns"][product_column["output_position"] - 1]["csv_name"], "d_produit")
+        self.assertEqual(
+            validated_mapping["columns"][product_column["output_position"] - 1][
+                "csv_name"
+            ],
+            "d_produit",
+        )
 
         self.assertEqual(profile.status_code, 201, profile.text)
         saved_profile = profile.json()["profile"]
         self.assertEqual(saved_profile["version"], 1)
-        self.assertEqual(saved_profile["structural_fingerprint"], mapping["structural_fingerprint"])
+        self.assertEqual(
+            saved_profile["structural_fingerprint"], mapping["structural_fingerprint"]
+        )
         self.assertEqual(saved_profile["sheets"], mapping["sheets"])
         self.assertTrue(saved_profile["headers"])
         self.assertTrue(saved_profile["letters"])
@@ -203,11 +221,15 @@ class MappingApiTest(unittest.TestCase):
         self.assertNotIn("Sauvegarder un profil", mapping_view.text)
         self.assertNotIn('id="mapping-profile-form"', mapping_view.text)
 
-    def test_compatible_profile_is_only_applied_as_draft_after_user_action(self) -> None:
+    def test_compatible_profile_is_only_applied_as_draft_after_user_action(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
             client = TestClient(create_app(settings))
             first_lot_id = prepare_importable_lot(
                 client,
@@ -216,8 +238,12 @@ class MappingApiTest(unittest.TestCase):
                 title="Lot profil source",
                 key="profile-source",
             )
-            first_mapping = client.get(f"/api/lots/{first_lot_id}/mapping").json()["mapping"]
-            find_column(first_mapping, "Dossiers", "D", "Nom du produit")["csv_name"] = "d_produit"
+            first_mapping = client.get(f"/api/lots/{first_lot_id}/mapping").json()[
+                "mapping"
+            ]
+            find_column(first_mapping, "Dossiers", "D", "Nom du produit")[
+                "csv_name"
+            ] = "d_produit"
             validate = client.post(
                 f"/api/lots/{first_lot_id}/mapping/validate",
                 json=mapping_submission(first_mapping),
@@ -246,16 +272,22 @@ class MappingApiTest(unittest.TestCase):
         self.assertEqual(validate.status_code, 200, validate.text)
         self.assertEqual(before_apply["mapping"]["source"], "default")
         self.assertEqual(
-            find_column(before_apply["mapping"], "Dossiers", "D", "Nom du produit")["csv_name"],
+            find_column(before_apply["mapping"], "Dossiers", "D", "Nom du produit")[
+                "csv_name"
+            ],
             "d_nomdupro",
         )
         self.assertEqual(len(before_apply["profiles"]["compatible"]), 1)
         self.assertEqual(before_apply["profiles"]["compatible"][0]["id"], profile["id"])
         self.assertEqual(apply_profile.status_code, 200, apply_profile.text)
         self.assertEqual(after_apply["mapping"]["source"], "profile_draft")
-        self.assertEqual(step_status(apply_profile.json()["lot"], "mapping"), "action_requise")
         self.assertEqual(
-            find_column(after_apply["mapping"], "Dossiers", "D", "Nom du produit")["csv_name"],
+            step_status(apply_profile.json()["lot"], "mapping"), "action_requise"
+        )
+        self.assertEqual(
+            find_column(after_apply["mapping"], "Dossiers", "D", "Nom du produit")[
+                "csv_name"
+            ],
             "d_produit",
         )
 
@@ -275,7 +307,9 @@ class MappingApiTest(unittest.TestCase):
                 title="Lot profil incompatible source",
                 key="profile-incompatible-source",
             )
-            source_mapping = client.get(f"/api/lots/{source_lot_id}/mapping").json()["mapping"]
+            source_mapping = client.get(f"/api/lots/{source_lot_id}/mapping").json()[
+                "mapping"
+            ]
             client.post(
                 f"/api/lots/{source_lot_id}/mapping/validate",
                 json=mapping_submission(source_mapping),
@@ -293,7 +327,9 @@ class MappingApiTest(unittest.TestCase):
                 key="profile-incompatible-target",
             )
 
-            profile_view = client.get(f"/api/lots/{target_lot_id}/mapping").json()["profiles"]
+            profile_view = client.get(f"/api/lots/{target_lot_id}/mapping").json()[
+                "profiles"
+            ]
             apply_profile = client.post(
                 f"/api/lots/{target_lot_id}/mapping/profile-draft",
                 json={"profile_id": profile["id"]},
@@ -309,7 +345,9 @@ class MappingApiTest(unittest.TestCase):
             "SIRCOM_MAPPING_PROFILE_INCOMPATIBLE",
         )
 
-    def test_validation_blocks_collisions_and_default_cleaning_handles_accents(self) -> None:
+    def test_validation_blocks_collisions_and_default_cleaning_handles_accents(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "accent.xlsx"
@@ -335,7 +373,9 @@ class MappingApiTest(unittest.TestCase):
                 key="mapping-collision",
             )
             mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
-            accented = find_column(mapping, "Dossiers", "B", "Élégance supérieure longue")
+            accented = find_column(
+                mapping, "Dossiers", "B", "Élégance supérieure longue"
+            )
             complement_column = find_column(mapping, "Complement", "B", "Autre libellé")
             accented["csv_name"] = "Élégance supérieure longue"
             complement_column["csv_name"] = "elegancesuperieurelongue"
@@ -349,8 +389,12 @@ class MappingApiTest(unittest.TestCase):
 
         self.assertEqual(accented["default_csv_name"], "b_elegance")
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(response.json()["error"]["code"], "SIRCOM_MAPPING_CSV_HEADER_COLLISION")
-        self.assertEqual(response.json()["error"]["details"]["warning_code"], "b_elegance")
+        self.assertEqual(
+            response.json()["error"]["code"], "SIRCOM_MAPPING_CSV_HEADER_COLLISION"
+        )
+        self.assertEqual(
+            response.json()["error"]["details"]["warning_code"], "b_elegance"
+        )
         self.assertEqual(step_status(lot, "mapping"), "bloque")
         self.assertIn(
             "SIRCOM_MAPPING_CSV_HEADER_COLLISION",
@@ -361,7 +405,9 @@ class MappingApiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
             client = TestClient(create_app(settings))
             lot_id = prepare_importable_lot(
                 client,
@@ -383,7 +429,9 @@ class MappingApiTest(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(response.json()["error"]["code"], "SIRCOM_MAPPING_NO_BUSINESS_COLUMN")
+        self.assertEqual(
+            response.json()["error"]["code"], "SIRCOM_MAPPING_NO_BUSINESS_COLUMN"
+        )
 
 
 class MappingUiTest(unittest.TestCase):
@@ -392,7 +440,9 @@ class MappingUiTest(unittest.TestCase):
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot ancien"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot ancien"}).json()[
+                "lot"
+            ]["id"]
 
             with patch(
                 "sircom2026.app.get_mapping_payload",
@@ -414,7 +464,9 @@ class MappingUiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
-            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["valid_multi_tabs"])
+            fixtures = create_synthetic_excels(
+                tmpdir / "fixtures", ["valid_multi_tabs"]
+            )
             client = TestClient(create_app(settings))
             lot_id = prepare_importable_lot(
                 client,
@@ -455,9 +507,13 @@ class MappingUiTest(unittest.TestCase):
         self.assertIn("Nom du produit", html)
         self.assertIn("d_nomdupro", html)
         self.assertIn("Décision à prendre sur le mapping", html)
-        self.assertIn('class="fr-link fr-icon-arrow-right-line fr-link--icon-right"', html)
+        self.assertIn(
+            'class="fr-link fr-icon-arrow-right-line fr-link--icon-right"', html
+        )
         self.assertIn("Vérifier les colonnes", html)
-        self.assertIn('class="fr-link fr-icon-arrow-down-line fr-link--icon-right"', html)
+        self.assertIn(
+            'class="fr-link fr-icon-arrow-down-line fr-link--icon-right"', html
+        )
         self.assertIn('data-mapping-bulk-action="select"', html)
         self.assertIn("Tout sélectionner", html)
         self.assertIn('data-mapping-bulk-action="deselect"', html)

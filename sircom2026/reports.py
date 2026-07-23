@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError, cleanup_artifact_paths
+from sircom2026.artifacts import (
+    ArtifactStore,
+    ArtifactUnavailableError,
+    cleanup_artifact_paths,
+)
 from sircom2026.config import Settings
 from sircom2026.csv_contract import CSV_CONTRACT_ARTIFACT_ROLE, CSV_CONTRACT_STEP_KEY
 from sircom2026.csv_preview import (
@@ -14,7 +18,10 @@ from sircom2026.csv_preview import (
     CSV_PREVIEW_STEP_KEY,
 )
 from sircom2026.database import Repositories, TECHNICAL_EVENT_PAYLOAD_KEYS
-from sircom2026.excel_diagnostic_pipeline import DIAGNOSTIC_ARTIFACT_ROLE, DIAGNOSTIC_STEP_KEY
+from sircom2026.excel_diagnostic_pipeline import (
+    DIAGNOSTIC_ARTIFACT_ROLE,
+    DIAGNOSTIC_STEP_KEY,
+)
 from sircom2026.image_matching import (
     MATCHING_ARTIFACT_ROLE,
     MATCHING_IMAGES_STEP_KEY,
@@ -96,7 +103,9 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
 
     context.set_progress(2, 4)
     generated_at = datetime.now(UTC).isoformat(timespec="seconds")
-    business_content = build_business_report(snapshot, generated_at=generated_at).encode("utf-8")
+    business_content = build_business_report(
+        snapshot, generated_at=generated_at
+    ).encode("utf-8")
     technical_report = build_technical_report(snapshot, generated_at=generated_at)
     technical_content = json.dumps(
         technical_report,
@@ -133,7 +142,9 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
                 mime_type=BUSINESS_REPORT_MIME_TYPE,
                 lease_version=context.leased_job.lease_version,
             )
-            committed_artifact_paths.append(store.path_for(business_artifact["relative_path"]))
+            committed_artifact_paths.append(
+                store.path_for(business_artifact["relative_path"])
+            )
             technical_artifact = store.put_temp_then_commit(
                 repositories,
                 lot_id=context.lot_id,
@@ -147,7 +158,9 @@ def run_reports_job(context: WorkerJobContext, *, settings: Settings) -> JobResu
                 mime_type=TECHNICAL_REPORT_MIME_TYPE,
                 lease_version=context.leased_job.lease_version,
             )
-            committed_artifact_paths.append(store.path_for(technical_artifact["relative_path"]))
+            committed_artifact_paths.append(
+                store.path_for(technical_artifact["relative_path"])
+            )
             output_fingerprint = fingerprint_payload(
                 {
                     "business_artifact_id": business_artifact["id"],
@@ -234,8 +247,12 @@ def get_persisted_reports(
         pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
     )
     try:
-        store.open_for_read(repositories, lot_id=lot_id, artifact_id=business_artifact["id"])
-        store.open_for_read(repositories, lot_id=lot_id, artifact_id=technical_artifact["id"])
+        store.open_for_read(
+            repositories, lot_id=lot_id, artifact_id=business_artifact["id"]
+        )
+        store.open_for_read(
+            repositories, lot_id=lot_id, artifact_id=technical_artifact["id"]
+        )
     except (ArtifactUnavailableError, KeyError, ValueError) as exc:
         raise ReportsNotReady("Reports artifacts are unavailable.") from exc
 
@@ -361,7 +378,9 @@ def build_business_report(snapshot: dict[str, Any], *, generated_at: str) -> str
     return "\n".join(lines)
 
 
-def build_technical_report(snapshot: dict[str, Any], *, generated_at: str) -> dict[str, Any]:
+def build_technical_report(
+    snapshot: dict[str, Any], *, generated_at: str
+) -> dict[str, Any]:
     steps = snapshot["steps"]
     artifacts = snapshot["artifacts"]
     problems = snapshot["problems"]
@@ -390,15 +409,23 @@ def build_technical_report(snapshot: dict[str, Any], *, generated_at: str) -> di
             "fusion": {
                 "source_rows_count": _int(snapshot["fusion"].get("source_rows_count")),
                 "rows_count": _int(snapshot["fusion"].get("rows_count")),
-                "rows_removed": _int(snapshot["fusion"].get("removed_rows_without_id_count")),
+                "rows_removed": _int(
+                    snapshot["fusion"].get("removed_rows_without_id_count")
+                ),
                 "columns_count": _int(snapshot["fusion"].get("columns_count")),
             },
             "normalisation": {
                 "rows_count": _int(snapshot["normalization"].get("rows_count")),
                 "columns_count": _int(snapshot["normalization"].get("columns_count")),
-                "date_issues_count": _int(snapshot["normalization"].get("date_issues_count")),
-                "invalid_dates_count": _int(snapshot["normalization"].get("invalid_dates_count")),
-                "missing_dates_count": _int(snapshot["normalization"].get("missing_dates_count")),
+                "date_issues_count": _int(
+                    snapshot["normalization"].get("date_issues_count")
+                ),
+                "invalid_dates_count": _int(
+                    snapshot["normalization"].get("invalid_dates_count")
+                ),
+                "missing_dates_count": _int(
+                    snapshot["normalization"].get("missing_dates_count")
+                ),
             },
             "csv": {
                 "rows_count": snapshot["integrity"]["csv_rows_count"],
@@ -412,7 +439,9 @@ def build_technical_report(snapshot: dict[str, Any], *, generated_at: str) -> di
                 "processed_images_count": _int(
                     snapshot["matching"].get("processed_images_count")
                 ),
-                "unreferenced_count": _int(snapshot["matching"].get("unreferenced_count")),
+                "unreferenced_count": _int(
+                    snapshot["matching"].get("unreferenced_count")
+                ),
                 "conversion_failed_count": _int(
                     snapshot["matching"].get("conversion_failed_count")
                 ),
@@ -663,7 +692,13 @@ def _required_json_artifact(
             artifact_id=artifact["id"],
         )
         payload = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ) as exc:
         raise ReportsPrerequisiteMissing(step_key, role) from exc
     if not isinstance(payload, dict):
         raise ReportsPrerequisiteMissing(step_key, role)
@@ -699,7 +734,11 @@ def _current_artifact(
     ready_statuses: tuple[str, ...],
 ) -> dict[str, Any] | None:
     step = repositories.steps.get_by_lot_key(lot_id, step_key)
-    if step is None or not step["current_run_id"] or step["status"] not in ready_statuses:
+    if (
+        step is None
+        or not step["current_run_id"]
+        or step["status"] not in ready_statuses
+    ):
         return None
     artifact = repositories.artifacts.get_for_step_run_role(
         lot_id=lot_id,
@@ -742,13 +781,16 @@ def _require_current_lease(
     repositories: Repositories,
     context: WorkerJobContext,
 ) -> None:
-    if repositories.jobs.get_committable_by_run(
-        lot_id=context.lot_id,
-        step_key=context.step_key,
-        run_id=context.run_id,
-        lease_version=context.leased_job.lease_version,
-        expected_input_fingerprint=context.leased_job.input_fingerprint,
-    ) is None:
+    if (
+        repositories.jobs.get_committable_by_run(
+            lot_id=context.lot_id,
+            step_key=context.step_key,
+            run_id=context.run_id,
+            lease_version=context.leased_job.lease_version,
+            expected_input_fingerprint=context.leased_job.input_fingerprint,
+        )
+        is None
+    ):
         raise WorkerLeaseLost("Worker lease is no longer current.")
 
 
@@ -764,9 +806,9 @@ def _integrity_payload(
         for row in normalization.get("rows", [])
         if isinstance(row, dict) and str(row.get("id_dossier") or "").strip()
     }
-    removed_empty_columns_count = _int(normalization.get("removed_empty_columns_count")) + _int(
-        normalization.get("upstream_removed_empty_columns_count")
-    )
+    removed_empty_columns_count = _int(
+        normalization.get("removed_empty_columns_count")
+    ) + _int(normalization.get("upstream_removed_empty_columns_count"))
     return {
         "source_ids_count": len(source_ids),
         "csv_rows_count": _int(csv_preview.get("rows_count")),
@@ -784,9 +826,7 @@ def _integrity_payload(
 def _mapping_table_lines(mapping: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     columns = [
-        column
-        for column in mapping.get("columns", [])
-        if isinstance(column, dict)
+        column for column in mapping.get("columns", []) if isinstance(column, dict)
     ]
     for column in sorted(
         columns,
@@ -798,7 +838,11 @@ def _mapping_table_lines(mapping: dict[str, Any]) -> list[str]:
         ),
     ):
         sheet = "Système" if column.get("system") else _text(column.get("source_sheet"))
-        letter = "Système" if column.get("system") else _text(column.get("source_column_letter"))
+        letter = (
+            "Système"
+            if column.get("system")
+            else _text(column.get("source_column_letter"))
+        )
         lines.append(
             "| {sheet} | {letter} | {source} | {csv_name} | {status} |".format(
                 sheet=_md_cell(sheet),
@@ -809,12 +853,16 @@ def _mapping_table_lines(mapping: dict[str, Any]) -> list[str]:
             )
         )
     if not lines:
-        lines.append("| Non précisé | Non précisé | Non précisé | Non précisé | Non précisé |")
+        lines.append(
+            "| Non précisé | Non précisé | Non précisé | Non précisé | Non précisé |"
+        )
     return lines
 
 
 def _sheet_lines(diagnostic: dict[str, Any]) -> list[str]:
-    sheets = [sheet for sheet in diagnostic.get("sheets", []) if isinstance(sheet, dict)]
+    sheets = [
+        sheet for sheet in diagnostic.get("sheets", []) if isinstance(sheet, dict)
+    ]
     if not sheets:
         return ["- Onglets utiles : non précisé"]
     useful = [sheet for sheet in sheets if not sheet.get("ignored")]
@@ -830,20 +878,16 @@ def _sheet_lines(diagnostic: dict[str, Any]) -> list[str]:
 
 def _csv_warning_lines(preview: dict[str, Any], contract: dict[str, Any]) -> list[str]:
     warnings = [
-        warning
-        for warning in preview.get("warnings", [])
-        if isinstance(warning, dict)
+        warning for warning in preview.get("warnings", []) if isinstance(warning, dict)
     ]
-    issues = [
-        issue
-        for issue in contract.get("issues", [])
-        if isinstance(issue, dict)
-    ]
+    issues = [issue for issue in contract.get("issues", []) if isinstance(issue, dict)]
     if not warnings and not issues:
         return ["- Alertes CSV : aucune"]
     lines = ["- Alertes CSV :"]
     for warning in warnings:
-        lines.append(f"  - {_text(warning.get('code'))} : {_text(warning.get('title'))}")
+        lines.append(
+            f"  - {_text(warning.get('code'))} : {_text(warning.get('title'))}"
+        )
     for issue in issues:
         lines.append(f"  - {_text(issue.get('code'))} : {_text(issue.get('title'))}")
     return lines

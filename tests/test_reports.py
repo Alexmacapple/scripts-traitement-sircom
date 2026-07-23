@@ -83,7 +83,9 @@ def create_reports_workbook(path: Path) -> None:
             None,
         ]
     )
-    sheet.append([None, "Bretagne", "22", "sans-id.png", "Produit Sans ID", "Entreprise", None])
+    sheet.append(
+        [None, "Bretagne", "22", "sans-id.png", "Produit Sans ID", "Entreprise", None]
+    )
     workbook.save(path)
     workbook.close()
 
@@ -141,7 +143,9 @@ class ReportsApiTest(unittest.TestCase):
             create_reports_workbook(workbook_path)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot rapports"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot rapports"}).json()[
+                "lot"
+            ]["id"]
 
             upload_images = client.post(
                 f"/api/lots/{lot_id}/images",
@@ -214,7 +218,14 @@ class ReportsApiTest(unittest.TestCase):
         self.assertEqual(validate_mapping.status_code, 200, validate_mapping.text)
         self.assertEqual(validate_sort.status_code, 200, validate_sort.text)
         self.assertEqual(validate_preview.status_code, 200, validate_preview.text)
-        for result in (inspection, diagnostic, fusion, normalization, csv_contract, matching):
+        for result in (
+            inspection,
+            diagnostic,
+            fusion,
+            normalization,
+            csv_contract,
+            matching,
+        ):
             self.assertEqual(result.outcome, "succeeded")
         self.assertEqual(reports_job.outcome, "succeeded")
         self.assertEqual(reports.status_code, 200, reports.text)
@@ -222,7 +233,9 @@ class ReportsApiTest(unittest.TestCase):
         self.assertEqual(lot["status"], "action_requise")
 
         business_text = business_download.content.decode("utf-8")
-        self.assertIn("rapport-metier.md", business_download.headers["content-disposition"])
+        self.assertIn(
+            "rapport-metier.md", business_download.headers["content-disposition"]
+        )
         for section in (
             "## Résumé du lot",
             "## Entrées",
@@ -237,7 +250,9 @@ class ReportsApiTest(unittest.TestCase):
             "## Actions attendues",
         ):
             self.assertIn(section, business_text)
-        self.assertIn("| Dossiers | A | id_dossier | id_dossier | exporte |", business_text)
+        self.assertIn(
+            "| Dossiers | A | id_dossier | id_dossier | exporte |", business_text
+        )
         self.assertIn("| Dossiers | E | Nom produit |", business_text)
         self.assertIn("Lignes supprimées sans id_dossier : 1", business_text)
         self.assertIn("Images présentes : 1", business_text)
@@ -245,7 +260,9 @@ class ReportsApiTest(unittest.TestCase):
         self.assertIn("plan-secret-client.png", business_text)
 
         technical = technical_download.json()
-        self.assertIn("rapport-technique.json", technical_download.headers["content-disposition"])
+        self.assertIn(
+            "rapport-technique.json", technical_download.headers["content-disposition"]
+        )
         self.assertEqual(
             set(technical),
             {
@@ -263,7 +280,9 @@ class ReportsApiTest(unittest.TestCase):
         self.assertIn("duration_ms", technical["etapes"][0])
         self.assertEqual(technical["compteurs"]["csv"]["rows_count"], 1)
         self.assertEqual(technical["compteurs"]["images"]["processed_images_count"], 1)
-        self.assertIn("SIRCOM_IMAGE_MATCHING_UNREFERENCED", str(technical["codes_erreur"]))
+        self.assertIn(
+            "SIRCOM_IMAGE_MATCHING_UNREFERENCED", str(technical["codes_erreur"])
+        )
         self.assertEqual(html.status_code, 200)
         self.assertIn("Télécharger le rapport métier", html.text)
         self.assertIn("Télécharger le rapport technique", html.text)
@@ -288,9 +307,9 @@ class ReportsApiTest(unittest.TestCase):
             create_reports_workbook(workbook_path)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot sans images"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot sans images"}).json()[
+                "lot"
+            ]["id"]
 
             upload_excel = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -327,7 +346,9 @@ class ReportsApiTest(unittest.TestCase):
             database = Database(settings.sqlite_path)
             with database.session() as repositories:
                 report_step = repositories.steps.get_by_lot_key(lot_id, "rapports")
-                matching_step = repositories.steps.get_by_lot_key(lot_id, "matching_images")
+                matching_step = repositories.steps.get_by_lot_key(
+                    lot_id, "matching_images"
+                )
                 problem_codes = [
                     problem["code"]
                     for problem in repositories.problems.list_for_lot(
@@ -352,14 +373,15 @@ class ReportsApiTest(unittest.TestCase):
         self.assertIn("Images détectées dans le zip : 0", business_text)
         self.assertIn("Flux images : aucun zip images fourni", business_text)
         self.assertIn("Images présentes : 0", business_text)
-        self.assertIn("Images renommées et optimisées : aucune image fournie", business_text)
+        self.assertIn(
+            "Images renommées et optimisées : aucune image fournie", business_text
+        )
 
         technical = technical_download.json()
         self.assertEqual(technical["compteurs"]["images"]["processed_images_count"], 0)
         self.assertEqual(technical["compteurs"]["images"]["missing_count"], 0)
         source_steps = {
-            (source["step_key"], source["role"])
-            for source in technical["sources"]
+            (source["step_key"], source["role"]) for source in technical["sources"]
         }
         self.assertNotIn(("upload_images", "source"), source_steps)
         self.assertNotIn(("inspection_images", "result"), source_steps)

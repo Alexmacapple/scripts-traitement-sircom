@@ -7,7 +7,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from sircom2026.database import ACTIVE_JOB_STATUSES, LOT_WRITE_BLOCKED_STATUSES, Repositories
+from sircom2026.database import (
+    ACTIVE_JOB_STATUSES,
+    LOT_WRITE_BLOCKED_STATUSES,
+    Repositories,
+)
 from sircom2026.pipeline import (
     V1_INVALIDATION_DAG,
     V1_INVALIDATION_PARENTS,
@@ -82,8 +86,7 @@ def step_input_fingerprint(
 ) -> str:
     _require_known_step(step_key)
     steps_by_key = {
-        step["step_key"]: step
-        for step in repositories.steps.list_for_lot(lot_id)
+        step["step_key"]: step for step in repositories.steps.list_for_lot(lot_id)
     }
     ordered_parents = [
         steps_by_key[parent_key]
@@ -127,7 +130,9 @@ def invalidate_downstream(
     )
 
     for step_key in invalidated_steps:
-        canceled_jobs_count += repositories.jobs.cancel_active_for_step(lot_id, step_key)
+        canceled_jobs_count += repositories.jobs.cancel_active_for_step(
+            lot_id, step_key
+        )
         obsolete_for_step = repositories.artifacts.mark_obsolete_for_steps(
             lot_id=lot_id,
             step_keys=(step_key,),
@@ -303,9 +308,13 @@ def retry_step(
         raise RetryNotAllowedError("Cette clé d'idempotence a déjà été consommée.")
 
     if step["status"] not in RETRYABLE_STEP_STATUSES:
-        raise RetryNotAllowedError("Cette étape ne peut pas être relancée dans son état courant.")
+        raise RetryNotAllowedError(
+            "Cette étape ne peut pas être relancée dans son état courant."
+        )
     if step_key not in V1_WORKER_STEP_KEYS:
-        raise RetryNotAllowedError("Cette étape attend une action utilisateur, pas un worker.")
+        raise RetryNotAllowedError(
+            "Cette étape attend une action utilisateur, pas un worker."
+        )
 
     input_fingerprint = step_input_fingerprint(
         repositories,
@@ -366,7 +375,9 @@ def _require_known_step(step_key: str) -> None:
 def _require_mutable_lot(repositories: Repositories, lot_id: str) -> dict[str, Any]:
     lot = repositories.lots.get_required(lot_id)
     if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:
-        raise RetryNotAllowedError("Le lot annulé ou supprimé ne peut plus être modifié.")
+        raise RetryNotAllowedError(
+            "Le lot annulé ou supprimé ne peut plus être modifié."
+        )
     return lot
 
 

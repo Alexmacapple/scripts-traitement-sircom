@@ -194,7 +194,9 @@ class CsvPreviewApiTest(unittest.TestCase):
             html_after_validation = client.get(
                 f"/?lot_id={lot_id}&view=previsualisation_csv"
             )
-            final_csv = client.get(export_after_validation.json()["artifact"]["download_url"])
+            final_csv = client.get(
+                export_after_validation.json()["artifact"]["download_url"]
+            )
             lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
             preview_payload = download_step_artifact(
                 client,
@@ -209,10 +211,14 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertFalse(payload["validated"])
         self.assertEqual(payload["headers"][:3], ["id_dossier", "imageid", "@pathimg"])
         self.assertEqual(payload["rows_count"], 3)
-        self.assertEqual([row["id_dossier"] for row in payload["rows"]], ["ID-1", "ID-2", "ID-3"])
+        self.assertEqual(
+            [row["id_dossier"] for row in payload["rows"]], ["ID-1", "ID-2", "ID-3"]
+        )
         self.assertEqual(payload["rows"][0]["values"]["imageid"], "dossier-id-1.jpg")
         self.assertEqual(payload["rows"][0]["values"]["@pathimg"], "")
-        self.assertEqual(payload["rows"][0]["values"][payload["headers"][3]], "Bretagne")
+        self.assertEqual(
+            payload["rows"][0]["values"][payload["headers"][3]], "Bretagne"
+        )
         self.assertIn("removed_columns", payload)
         self.assertIn("removed_rows", payload)
         self.assertEqual(payload["removed_columns_count"], 1)
@@ -233,10 +239,15 @@ class CsvPreviewApiTest(unittest.TestCase):
             validation.json()["csv_artifact"]["id"],
             replay.json()["csv_artifact"]["id"],
         )
-        self.assertEqual(export_after_validation.status_code, 200, export_after_validation.text)
+        self.assertEqual(
+            export_after_validation.status_code, 200, export_after_validation.text
+        )
         self.assertEqual(html_after_validation.status_code, 200)
         self.assertIn("Télécharger le CSV final", html_after_validation.text)
-        self.assertIn(validation.json()["csv_artifact"]["download_url"], html_after_validation.text)
+        self.assertIn(
+            validation.json()["csv_artifact"]["download_url"],
+            html_after_validation.text,
+        )
         self.assertEqual(final_csv.status_code, 200, final_csv.text)
         self.assertTrue(final_csv.content.startswith(b"\xff\xfe"))
         self.assertTrue(verify_indesign_csv_bytes(final_csv.content).valid)
@@ -244,7 +255,9 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertIn(b"\x2c\x00", final_csv.content)
         self.assertIn(b"\x0a\x00", final_csv.content)
         self.assertIn(b"schema_version", preview_payload)
-        csv_step = next(step for step in lot["steps"] if step["key"] == "previsualisation_csv")
+        csv_step = next(
+            step for step in lot["steps"] if step["key"] == "previsualisation_csv"
+        )
         self.assertEqual(csv_step["status"], "termine_avec_alertes")
 
     def test_preview_public_payload_and_ui_are_limited_to_ten_rows(self) -> None:
@@ -273,7 +286,10 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertEqual(html.status_code, 200, html.text)
         self.assertIn("Lignes affichées : 10 sur 12", html.text)
         self.assertIn("sircom-csv-preview-table", html.text)
-        self.assertNotIn("fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll", html.text)
+        self.assertNotIn(
+            "fr-table--no-scroll fr-table--layout-fixed fr-mt-3v sircom-table-no-scroll",
+            html.text,
+        )
 
     def test_export_refuses_non_current_or_unreadable_final_artifact(self) -> None:
         for case_name, expected_code in (
@@ -303,10 +319,14 @@ class CsvPreviewApiTest(unittest.TestCase):
                     database = Database(settings.sqlite_path)
                     if case_name == "obsolete":
                         with database.transaction() as repositories:
-                            repositories.artifacts.update_status(csv_artifact_id, "obsolete")
+                            repositories.artifacts.update_status(
+                                csv_artifact_id, "obsolete"
+                            )
                     else:
                         with database.session() as repositories:
-                            artifact = repositories.artifacts.get_required(csv_artifact_id)
+                            artifact = repositories.artifacts.get_required(
+                                csv_artifact_id
+                            )
                         store = ArtifactStore(
                             settings.data_dir,
                             pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
@@ -319,14 +339,18 @@ class CsvPreviewApiTest(unittest.TestCase):
                 self.assertEqual(export.status_code, 409)
                 self.assertEqual(export.json()["error"]["code"], expected_code)
 
-    def test_preview_requires_sort_and_contract_without_blocking_missing_images(self) -> None:
+    def test_preview_requires_sort_and_contract_without_blocking_missing_images(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "missing-sort.xlsx"
             create_no_sort_workbook(workbook_path)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot bloqué"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot bloqué"}).json()[
+                "lot"
+            ]["id"]
             upload = client.post(
                 f"/api/lots/{lot_id}/excel",
                 files=excel_file(workbook_path),
@@ -363,7 +387,9 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertEqual(validate_sort.status_code, 200, validate_sort.text)
         self.assertEqual(preview_after_sort.status_code, 200, preview_after_sort.text)
         warnings = preview_after_sort.json()["preview"]["warnings"]
-        self.assertIn("SIRCOM_CSV_IMAGES_NOT_PROVIDED", {warning["code"] for warning in warnings})
+        self.assertIn(
+            "SIRCOM_CSV_IMAGES_NOT_PROVIDED", {warning["code"] for warning in warnings}
+        )
 
     def test_excel_mapping_and_sort_changes_invalidate_validated_export(self) -> None:
         for change in ("excel", "mapping", "sort"):
@@ -394,7 +420,9 @@ class CsvPreviewApiTest(unittest.TestCase):
                             headers={"X-Idempotency-Key": "upload-new-excel"},
                         )
                     elif change == "mapping":
-                        mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
+                        mapping = client.get(f"/api/lots/{lot_id}/mapping").json()[
+                            "mapping"
+                        ]
                         mutation = client.post(
                             f"/api/lots/{lot_id}/mapping/validate",
                             json=mapping_submission(mapping),

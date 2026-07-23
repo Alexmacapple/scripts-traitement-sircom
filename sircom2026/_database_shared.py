@@ -35,7 +35,15 @@ STEP_STATUSES = (
     "annule",
     "invalide",
 )
-JOB_STATUSES = ("queued", "leased", "running", "succeeded", "failed", "canceled", "expired")
+JOB_STATUSES = (
+    "queued",
+    "leased",
+    "running",
+    "succeeded",
+    "failed",
+    "canceled",
+    "expired",
+)
 ARTIFACT_STATUSES = ("pending", "committed", "obsolete", "deleted", "quarantined")
 PROBLEM_SEVERITIES = ("bloquant", "alerte", "information")
 PROBLEM_STATUSES = ("open", "resolved", "obsolete")
@@ -248,7 +256,9 @@ def _now() -> str:
 
 
 def _now_plus(*, seconds: int) -> str:
-    return (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat(timespec="seconds")
+    return (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat(
+        timespec="seconds"
+    )
 
 
 def _new_id(prefix: str) -> str:
@@ -256,7 +266,9 @@ def _new_id(prefix: str) -> str:
 
 
 def _json(payload: Mapping[str, Any]) -> str:
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
 
 
 def _json_technical_payload(payload: Mapping[str, Any]) -> str:
@@ -269,7 +281,9 @@ def _json_technical_payload(payload: Mapping[str, Any]) -> str:
         if not isinstance(value, str | int | float | bool | type(None)):
             raise ValueError(f"Event payload value for {key!r} must be scalar.")
         if isinstance(value, str) and ("/" in value or "\\" in value):
-            raise ValueError(f"Event payload value for {key!r} must not contain a path.")
+            raise ValueError(
+                f"Event payload value for {key!r} must not contain a path."
+            )
 
     return _json(payload)
 

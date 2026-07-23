@@ -194,15 +194,27 @@ class ContentNormalizationWorkerTest(unittest.TestCase):
             )
             mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
             names = {
-                "description": find_column(mapping, "Dossiers", "B", "Description")["csv_name"],
+                "description": find_column(mapping, "Dossiers", "B", "Description")[
+                    "csv_name"
+                ],
                 "date": find_column(mapping, "Dossiers", "C", "Date dépôt")["csv_name"],
                 "siret": find_column(mapping, "Dossiers", "D", "SIRET")["csv_name"],
-                "telephone": find_column(mapping, "Dossiers", "E", "Téléphone")["csv_name"],
-                "code_postal": find_column(mapping, "Dossiers", "F", "Code postal")["csv_name"],
-                "departement": find_column(mapping, "Dossiers", "G", "Département")["csv_name"],
-                "code_insee": find_column(mapping, "Dossiers", "H", "Code INSEE")["csv_name"],
+                "telephone": find_column(mapping, "Dossiers", "E", "Téléphone")[
+                    "csv_name"
+                ],
+                "code_postal": find_column(mapping, "Dossiers", "F", "Code postal")[
+                    "csv_name"
+                ],
+                "departement": find_column(mapping, "Dossiers", "G", "Département")[
+                    "csv_name"
+                ],
+                "code_insee": find_column(mapping, "Dossiers", "H", "Code INSEE")[
+                    "csv_name"
+                ],
                 "prix": find_column(mapping, "Dossiers", "I", "Prix TTC")["csv_name"],
-                "spaces": find_column(mapping, "Dossiers", "J", "Colonne espaces")["csv_name"],
+                "spaces": find_column(mapping, "Dossiers", "J", "Colonne espaces")[
+                    "csv_name"
+                ],
             }
 
             validate = client.post(
@@ -227,7 +239,9 @@ class ContentNormalizationWorkerTest(unittest.TestCase):
         self.assertEqual(step_status(after_fusion, "normalisation_contenu"), "pret")
         self.assertEqual(normalization_result.step_key, "normalisation_contenu")
         self.assertEqual(normalization_result.outcome, "succeeded")
-        self.assertEqual(step_status(lot, "normalisation_contenu"), "termine_avec_alertes")
+        self.assertEqual(
+            step_status(lot, "normalisation_contenu"), "termine_avec_alertes"
+        )
 
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["rules_version"], "content-normalisation-v1")
@@ -236,7 +250,9 @@ class ContentNormalizationWorkerTest(unittest.TestCase):
         self.assertEqual(payload["invalid_dates_count"], 1)
         self.assertEqual(payload["missing_dates_count"], 1)
         self.assertEqual(payload["removed_empty_columns_count"], 1)
-        self.assertNotIn(names["spaces"], [column["csv_name"] for column in payload["columns"]])
+        self.assertNotIn(
+            names["spaces"], [column["csv_name"] for column in payload["columns"]]
+        )
 
         row_by_id = {row["id_dossier"]: row["values"] for row in payload["rows"]}
         first_row = row_by_id["00123"]
@@ -257,8 +273,7 @@ class ContentNormalizationWorkerTest(unittest.TestCase):
         self.assertNotIn("nan", str(payload["rows"]).lower())
 
         alert_codes = {
-            problem["code"]
-            for problem in lot["problem_groups"]["alerte"]["items"]
+            problem["code"] for problem in lot["problem_groups"]["alerte"]["items"]
         }
         self.assertIn("SIRCOM_NORMALIZATION_DATE_VALUES_INVALID", alert_codes)
 

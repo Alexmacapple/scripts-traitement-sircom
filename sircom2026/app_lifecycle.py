@@ -17,6 +17,7 @@ from sircom2026.worker_runner import run_worker_once
 
 LOGGER = logging.getLogger(__name__)
 
+
 @dataclass(frozen=True)
 class ReadinessCheck:
     name: str
@@ -25,7 +26,11 @@ class ReadinessCheck:
     details: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
-        payload: dict[str, object] = {"name": self.name, "ok": self.ok, "code": self.code}
+        payload: dict[str, object] = {
+            "name": self.name,
+            "ok": self.ok,
+            "code": self.code,
+        }
         if self.details:
             payload["details"] = self.details
         return payload
@@ -75,7 +80,9 @@ def reconcile_artifacts_at_startup(
             report = store.reconcile(repositories)
             purge_outcomes = purge_expired_lots(repositories, settings=settings)
     except (OSError, SchemaVersionError, sqlite3.Error, ValueError):
-        LOGGER.warning("technical_event=artifact_reconciliation_startup_failed", exc_info=True)
+        LOGGER.warning(
+            "technical_event=artifact_reconciliation_startup_failed", exc_info=True
+        )
         return
 
     report_counts = report.to_dict()

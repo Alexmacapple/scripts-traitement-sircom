@@ -108,7 +108,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             30,
             minimum=1,
         ),
-        sqlite_busy_timeout_ms=_int(values, "SIRCOM_SQLITE_BUSY_TIMEOUT_MS", 5000, minimum=0),
+        sqlite_busy_timeout_ms=_int(
+            values, "SIRCOM_SQLITE_BUSY_TIMEOUT_MS", 5000, minimum=0
+        ),
         artifact_pending_ttl_seconds=_int(
             values,
             "SIRCOM_ARTIFACT_PENDING_TTL_SECONDS",

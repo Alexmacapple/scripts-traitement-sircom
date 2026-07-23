@@ -15,7 +15,7 @@ from sircom2026._database_shared import (
     _validate_choice,
 )
 
-__all__ = ['StepsRepository']
+__all__ = ["StepsRepository"]
 
 
 class StepsRepository:
@@ -43,7 +43,9 @@ class StepsRepository:
         return self.get_required(row_id)
 
     def get(self, step_id: str) -> dict[str, Any] | None:
-        return _fetch_one(self.connection, "SELECT * FROM etapes WHERE id = ?", (step_id,))
+        return _fetch_one(
+            self.connection, "SELECT * FROM etapes WHERE id = ?", (step_id,)
+        )
 
     def get_required(self, step_id: str) -> dict[str, Any]:
         row = self.get(step_id)
@@ -78,7 +80,9 @@ class StepsRepository:
     ) -> dict[str, Any]:
         _validate_choice("step status", status, STEP_STATUSES)
         step = self.get_required(step_id)
-        lot_status = LotsRepository(self.connection).get_required(step["lot_id"])["status"]
+        lot_status = LotsRepository(self.connection).get_required(step["lot_id"])[
+            "status"
+        ]
         if lot_status in {"supprime", "purge"} or (
             lot_status == "annule" and status != "annule"
         ):
@@ -100,13 +104,18 @@ class StepsRepository:
                 )
         now = _now()
         is_started = 1 if status == "en_cours" else 0
-        is_finished = 1 if status in {
-            "termine",
-            "termine_avec_alertes",
-            "echoue",
-            "ignore",
-            "annule",
-        } else 0
+        is_finished = (
+            1
+            if status
+            in {
+                "termine",
+                "termine_avec_alertes",
+                "echoue",
+                "ignore",
+                "annule",
+            }
+            else 0
+        )
         self.connection.execute(
             """
             UPDATE etapes
@@ -212,10 +221,18 @@ class StepsRepository:
             raise KeyError(f"{lot_id}:{step_key}")
         lot_status = LotsRepository(self.connection).get_required(lot_id)["status"]
         if lot_status in LOT_WRITE_BLOCKED_STATUSES:
-            raise ValueError("Cannot update a fingerprint for a canceled or deleted lot.")
+            raise ValueError(
+                "Cannot update a fingerprint for a canceled or deleted lot."
+            )
         current_run_id = step["current_run_id"]
-        if run_id is not None and current_run_id is not None and current_run_id != run_id:
-            raise ValueError("Fingerprint run_id does not match the current step run_id.")
+        if (
+            run_id is not None
+            and current_run_id is not None
+            and current_run_id != run_id
+        ):
+            raise ValueError(
+                "Fingerprint run_id does not match the current step run_id."
+            )
 
         now = _now()
         self.connection.execute(
@@ -244,7 +261,9 @@ class StepsRepository:
             raise KeyError(f"{lot_id}:{step_key}")
         lot_status = LotsRepository(self.connection).get_required(lot_id)["status"]
         if lot_status in LOT_WRITE_BLOCKED_STATUSES:
-            raise ValueError("Cannot update a step summary for a canceled or deleted lot.")
+            raise ValueError(
+                "Cannot update a step summary for a canceled or deleted lot."
+            )
 
         now = _now()
         self.connection.execute(

@@ -64,7 +64,11 @@ def register_web_routes(app: FastAPI) -> None:
         lot_id = request.query_params.get("lot_id")
         active_view_key = request.query_params.get("view")
         uploaded = request.query_params.get("uploaded")
-        if lot_id and active_view_key and active_view_key not in {"upload_excel", "upload_images"}:
+        if (
+            lot_id
+            and active_view_key
+            and active_view_key not in {"upload_excel", "upload_images"}
+        ):
             return RedirectResponse(
                 lot_view_href(lot_id, active_view_key),
                 status_code=303,
@@ -85,10 +89,14 @@ def register_web_routes(app: FastAPI) -> None:
     ):
         active_view_key = request.query_params.get("view")
         if active_view_key in {"upload_excel", "upload_images"}:
-            anchor = "excel-file" if active_view_key == "upload_excel" else "image-zip-file"
+            anchor = (
+                "excel-file" if active_view_key == "upload_excel" else "image-zip-file"
+            )
             return RedirectResponse(lot_sources_href(lot_id, anchor), status_code=303)
         if active_view_key:
-            return RedirectResponse(lot_view_href(lot_id, active_view_key), status_code=303)
+            return RedirectResponse(
+                lot_view_href(lot_id, active_view_key), status_code=303
+            )
         return render_app_page(
             request,
             page_mode="workflow",
@@ -107,7 +115,9 @@ def register_web_routes(app: FastAPI) -> None:
             raise HTTPException(status_code=404, detail="Not Found")
         active_view_key = request.query_params.get("view")
         if active_view_key and screen_key_for_step(active_view_key) != workflow_screen:
-            return RedirectResponse(lot_view_href(lot_id, active_view_key), status_code=303)
+            return RedirectResponse(
+                lot_view_href(lot_id, active_view_key), status_code=303
+            )
         return render_app_page(
             request,
             page_mode="workflow",

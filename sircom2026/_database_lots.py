@@ -11,7 +11,7 @@ from sircom2026._database_shared import (
     _validate_choice,
 )
 
-__all__ = ['LotsRepository']
+__all__ = ["LotsRepository"]
 
 
 class LotsRepository:

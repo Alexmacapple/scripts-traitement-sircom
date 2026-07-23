@@ -35,7 +35,9 @@ class ImageFormatDecisionTest(unittest.TestCase):
         self.assertNotIn(".heic", ACCEPTED_SOURCE_IMAGE_EXTENSIONS)
         self.assertNotIn(".heif", ACCEPTED_SOURCE_IMAGE_EXTENSIONS)
 
-    def test_pillow_support_report_documents_required_codecs_and_heic_refusal(self) -> None:
+    def test_pillow_support_report_documents_required_codecs_and_heic_refusal(
+        self,
+    ) -> None:
         report = pillow_support_report()
 
         self.assertRegex(report["pillow_version"], r"^\d+\.\d+\.\d+")

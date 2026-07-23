@@ -135,7 +135,9 @@ class WorkflowFailurePathsTest(unittest.TestCase):
 
                     with database.session() as repositories:
                         lot_after = repositories.lots.get_required(lot["id"])
-                        step_after = repositories.steps.get_by_lot_key(lot["id"], step_key)
+                        step_after = repositories.steps.get_by_lot_key(
+                            lot["id"], step_key
+                        )
                         problems = repositories.problems.list_for_lot(lot["id"])
 
                 self.assertEqual(result.outcome, "succeeded")
@@ -175,7 +177,9 @@ class WorkflowFailurePathsTest(unittest.TestCase):
             with _database(settings).session() as repositories:
                 lot = repositories.lots.get_required(lot_id)
                 reports_step = repositories.steps.get_by_lot_key(lot_id, "rapports")
-                package_step = repositories.steps.get_by_lot_key(lot_id, "package_final")
+                package_step = repositories.steps.get_by_lot_key(
+                    lot_id, "package_final"
+                )
                 problems = repositories.problems.list_for_lot(
                     lot_id,
                     include_resolved=True,
@@ -199,9 +203,13 @@ class WorkflowFailurePathsTest(unittest.TestCase):
         self.assertEqual(package_step["status"], "action_requise")
         self.assertEqual(lot["status"], "action_requise")
         self.assertTrue(prerequisite_problems)
-        self.assertEqual({problem["status"] for problem in prerequisite_problems}, {"obsolete"})
+        self.assertEqual(
+            {problem["status"] for problem in prerequisite_problems}, {"obsolete"}
+        )
 
-    def test_package_worker_blocks_when_report_artifact_disappears_after_enqueue(self) -> None:
+    def test_package_worker_blocks_when_report_artifact_disappears_after_enqueue(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "package-missing-report.xlsx"
@@ -231,7 +239,9 @@ class WorkflowFailurePathsTest(unittest.TestCase):
 
             with _database(settings).session() as repositories:
                 lot = repositories.lots.get_required(lot_id)
-                package_step = repositories.steps.get_by_lot_key(lot_id, "package_final")
+                package_step = repositories.steps.get_by_lot_key(
+                    lot_id, "package_final"
+                )
                 problems = repositories.problems.list_for_lot(lot_id)
 
         self.assertEqual(enqueue_package.status_code, 202, enqueue_package.text)
@@ -252,7 +262,9 @@ def _prepare_lot_until_preview_without_images(
     settings,
     workbook_path: Path,
 ) -> str:
-    lot_id = client.post("/api/lots", json={"title": "Lot reports retry"}).json()["lot"]["id"]
+    lot_id = client.post("/api/lots", json={"title": "Lot reports retry"}).json()[
+        "lot"
+    ]["id"]
     upload_excel = client.post(
         f"/api/lots/{lot_id}/excel",
         files=excel_file(workbook_path),

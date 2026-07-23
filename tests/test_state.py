@@ -20,7 +20,9 @@ from sircom2026.state import (
 
 
 class BusinessStateTest(unittest.TestCase):
-    def test_statuses_and_problem_severities_are_stable_and_displayed_in_french(self) -> None:
+    def test_statuses_and_problem_severities_are_stable_and_displayed_in_french(
+        self,
+    ) -> None:
         self.assertTrue(
             {
                 "non_demarre",
@@ -37,9 +39,13 @@ class BusinessStateTest(unittest.TestCase):
         )
         self.assertEqual(set(PROBLEM_SEVERITIES), {"bloquant", "alerte", "information"})
         self.assertEqual(STEP_STATUS_LABELS["action_requise"], "Action requise")
-        self.assertEqual(STEP_STATUS_LABELS["termine_avec_alertes"], "Terminée avec alertes")
+        self.assertEqual(
+            STEP_STATUS_LABELS["termine_avec_alertes"], "Terminée avec alertes"
+        )
 
-    def test_complete_step_without_warning_marks_termine_and_persists_event_only(self) -> None:
+    def test_complete_step_without_warning_marks_termine_and_persists_event_only(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             database = migrated_database(tmp)
             with database.transaction() as repositories:
@@ -86,7 +92,9 @@ class BusinessStateTest(unittest.TestCase):
                         "nested": {"path": "/private/tmp/source.xlsx"},
                     },
                 )
-                step_before = repositories.steps.get_by_lot_key(lot["id"], "diagnostic_excel")
+                step_before = repositories.steps.get_by_lot_key(
+                    lot["id"], "diagnostic_excel"
+                )
                 if step_before is None:
                     self.fail("Expected diagnostic_excel step to exist.")
 
@@ -112,9 +120,18 @@ class BusinessStateTest(unittest.TestCase):
 
             self.assertEqual(step["status"], "termine_avec_alertes")
             self.assertEqual(detail["counters"]["problems_open_count"], 1)
-            self.assertEqual(problem["cause"], "Le classeur contient une colonne masquée dans un onglet utile.")
-            self.assertEqual(problem["action"], "Afficher ou supprimer la colonne, puis relancer le diagnostic.")
-            self.assertEqual(detail["problem_groups"]["alerte"]["items"][0]["code"], "SIRCOM_EXCEL_HIDDEN_COLUMNS")
+            self.assertEqual(
+                problem["cause"],
+                "Le classeur contient une colonne masquée dans un onglet utile.",
+            )
+            self.assertEqual(
+                problem["action"],
+                "Afficher ou supprimer la colonne, puis relancer le diagnostic.",
+            )
+            self.assertEqual(
+                detail["problem_groups"]["alerte"]["items"][0]["code"],
+                "SIRCOM_EXCEL_HIDDEN_COLUMNS",
+            )
             self.assertEqual(
                 detail["problem_groups"]["alerte"]["items"][0]["location_label"],
                 "Onglet Produits, Colonne C",
@@ -128,7 +145,9 @@ class BusinessStateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             database = migrated_database(tmp)
             with database.transaction() as repositories:
-                lot = create_lot_with_steps(repositories, title="Lot diagnostic en cours")
+                lot = create_lot_with_steps(
+                    repositories, title="Lot diagnostic en cours"
+                )
                 transition_step(
                     repositories,
                     lot_id=lot["id"],
@@ -227,7 +246,9 @@ class BusinessStateTest(unittest.TestCase):
                 step = repositories.steps.get_by_lot_key(lot["id"], "rapports")
                 if step is None:
                     self.fail("Expected rapports step to exist.")
-                repositories.steps.update_status(step["id"], "en_cours", run_id="run_current")
+                repositories.steps.update_status(
+                    step["id"], "en_cours", run_id="run_current"
+                )
 
                 with self.assertRaises(ValueError):
                     record_problem(
@@ -316,7 +337,10 @@ class BusinessStateTest(unittest.TestCase):
             self.assertEqual(len(event_rows), 1)
             self.assertEqual(len(problem_rows), 1)
             self.assertEqual(problem_rows[0]["code"], "SIRCOM_PREVIEW_READY")
-            self.assertEqual(json.loads(event_rows[0]["payload_json"])["code"], "SIRCOM_PREVIEW_READY")
+            self.assertEqual(
+                json.loads(event_rows[0]["payload_json"])["code"],
+                "SIRCOM_PREVIEW_READY",
+            )
             self.assertIn(
                 "Enregistrement d'artefact refusé",
                 {event["label"] for event in detail["events"]},

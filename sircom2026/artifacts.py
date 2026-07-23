@@ -145,7 +145,9 @@ class ArtifactStore:
         temp_path.write_bytes(content)
         sha256 = sha256_file(temp_path)
         size_bytes = temp_path.stat().st_size
-        relative_path = f"lots/{safe_lot_id}/artifacts/{safe_row_id}/{internal_filename}"
+        relative_path = (
+            f"lots/{safe_lot_id}/artifacts/{safe_row_id}/{internal_filename}"
+        )
         try:
             return repositories.artifacts.create(
                 lot_id=lot_id,
@@ -180,7 +182,9 @@ class ArtifactStore:
         safe_lot_id = safe_path_part(lot_id, "lot_id")
         safe_row_id = safe_path_part(row_id, "artifact_id")
         internal_filename = internal_artifact_filename(safe_row_id, filename)
-        relative_path = f"lots/{safe_lot_id}/artifacts/{safe_row_id}/{internal_filename}"
+        relative_path = (
+            f"lots/{safe_lot_id}/artifacts/{safe_row_id}/{internal_filename}"
+        )
         final_path = self.path_for(relative_path)
         final_path.parent.mkdir(parents=True, exist_ok=True)
         os.replace(source_path, final_path)
@@ -354,12 +358,15 @@ class ArtifactStore:
         run_id: str,
         lease_version: int,
     ) -> None:
-        if repositories.jobs.get_committable_by_run(
-            lot_id=lot_id,
-            step_key=step_key,
-            run_id=run_id,
-            lease_version=lease_version,
-        ) is not None:
+        if (
+            repositories.jobs.get_committable_by_run(
+                lot_id=lot_id,
+                step_key=step_key,
+                run_id=run_id,
+                lease_version=lease_version,
+            )
+            is not None
+        ):
             return
         repositories.events.create(
             lot_id=lot_id,
@@ -395,9 +402,13 @@ class ArtifactStore:
             return True
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=UTC)
-        return datetime.now(UTC) - created_at > timedelta(seconds=self.pending_ttl_seconds)
+        return datetime.now(UTC) - created_at > timedelta(
+            seconds=self.pending_ttl_seconds
+        )
 
-    def _quarantine_orphan_files(self, known_paths: set[str], known_temp_paths: set[str]) -> int:
+    def _quarantine_orphan_files(
+        self, known_paths: set[str], known_temp_paths: set[str]
+    ) -> int:
         artifact_root = self.root / "lots"
         if not artifact_root.exists():
             return 0

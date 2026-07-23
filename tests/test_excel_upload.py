@@ -47,7 +47,9 @@ class ExcelUploadApiTest(unittest.TestCase):
     def test_valid_excel_is_stored_as_artifact_and_schedules_diagnostic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot Excel"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot Excel"}).json()[
+                "lot"
+            ]["id"]
             content = valid_xlsx_bytes()
 
             response = client.post(
@@ -77,12 +79,14 @@ class ExcelUploadApiTest(unittest.TestCase):
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download.content, content)
 
-    def test_new_excel_upload_obsoletes_previous_source_and_invalidates_downstream(self) -> None:
+    def test_new_excel_upload_obsoletes_previous_source_and_invalidates_downstream(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot nouvel Excel"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot nouvel Excel"}
+            ).json()["lot"]["id"]
             first_content = valid_xlsx_bytes()
             second_content = valid_xlsx_bytes()
 
@@ -98,12 +102,16 @@ class ExcelUploadApiTest(unittest.TestCase):
                 headers={"X-Idempotency-Key": "upload-excel-second"},
             )
             payload = second_response.json()
-            old_download = client.get(f"/api/lots/{lot_id}/downloads/{first_artifact_id}")
+            old_download = client.get(
+                f"/api/lots/{lot_id}/downloads/{first_artifact_id}"
+            )
             new_download = client.get(payload["artifact"]["download_url"])
 
         self.assertEqual(second_response.status_code, 202)
         self.assertEqual(old_download.status_code, 404)
-        self.assertEqual(old_download.json()["error"]["code"], "SIRCOM_ARTIFACT_NOT_FOUND")
+        self.assertEqual(
+            old_download.json()["error"]["code"], "SIRCOM_ARTIFACT_NOT_FOUND"
+        )
         self.assertEqual(new_download.status_code, 200)
         self.assertIn("diagnostic_excel", payload["invalidated_steps"])
         self.assertIn("mapping", payload["invalidated_steps"])
@@ -113,9 +121,9 @@ class ExcelUploadApiTest(unittest.TestCase):
     def test_upload_excel_reuses_successful_idempotency_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot idempotent"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot idempotent"}).json()[
+                "lot"
+            ]["id"]
             headers = {"X-Idempotency-Key": "upload-excel-idempotent"}
 
             first_response = client.post(
@@ -141,9 +149,9 @@ class ExcelUploadApiTest(unittest.TestCase):
     def test_invalid_extension_is_rejected_with_structured_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot extension"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot extension"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -151,12 +159,16 @@ class ExcelUploadApiTest(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 415)
-        self.assertEqual(response.json()["error"]["code"], "SIRCOM_EXCEL_EXTENSION_UNSUPPORTED")
+        self.assertEqual(
+            response.json()["error"]["code"], "SIRCOM_EXCEL_EXTENSION_UNSUPPORTED"
+        )
 
     def test_oversized_excel_is_rejected_before_archive_validation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp), max_excel_mb=1)))
-            lot_id = client.post("/api/lots", json={"title": "Lot taille"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot taille"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -171,9 +183,9 @@ class ExcelUploadApiTest(unittest.TestCase):
     def test_corrupted_excel_archive_is_rejected_with_structured_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot corrompu"}).json()["lot"][
-                "id"
-            ]
+            lot_id = client.post("/api/lots", json={"title": "Lot corrompu"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.post(
                 f"/api/lots/{lot_id}/excel",
@@ -186,9 +198,9 @@ class ExcelUploadApiTest(unittest.TestCase):
     def test_lot_target_is_checked_before_excel_validation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            deleted_lot_id = client.post("/api/lots", json={"title": "Lot supprime"}).json()[
-                "lot"
-            ]["id"]
+            deleted_lot_id = client.post(
+                "/api/lots", json={"title": "Lot supprime"}
+            ).json()["lot"]["id"]
             client.delete(f"/api/lots/{deleted_lot_id}")
 
             missing_response = client.post(
@@ -201,9 +213,13 @@ class ExcelUploadApiTest(unittest.TestCase):
             )
 
         self.assertEqual(missing_response.status_code, 404)
-        self.assertEqual(missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND")
+        self.assertEqual(
+            missing_response.json()["error"]["code"], "SIRCOM_LOT_NOT_FOUND"
+        )
         self.assertEqual(deleted_response.status_code, 409)
-        self.assertEqual(deleted_response.json()["error"]["code"], "SIRCOM_LOT_NOT_MUTABLE")
+        self.assertEqual(
+            deleted_response.json()["error"]["code"], "SIRCOM_LOT_NOT_MUTABLE"
+        )
 
     def test_unknown_lot_returns_structured_404(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -221,7 +237,9 @@ class ExcelUploadApiTest(unittest.TestCase):
     def test_home_ui_exposes_excel_upload_form_for_selected_lot(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
-            lot_id = client.post("/api/lots", json={"title": "Lot UI Excel"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot UI Excel"}).json()[
+                "lot"
+            ]["id"]
 
             response = client.get(f"/?lot_id={lot_id}")
 

@@ -25,7 +25,9 @@ from tests.test_reports import (
 
 
 class PackageApiTest(unittest.TestCase):
-    def test_package_requires_warning_acceptance_then_generates_zip_manifest(self) -> None:
+    def test_package_requires_warning_acceptance_then_generates_zip_manifest(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             workbook_path = tmpdir / "fixtures" / "package.xlsx"
@@ -57,7 +59,9 @@ class PackageApiTest(unittest.TestCase):
             database = Database(settings.sqlite_path)
             with database.session() as repositories:
                 lot = repositories.lots.get_required(lot_id)
-                package_step = repositories.steps.get_by_lot_key(lot_id, "package_final")
+                package_step = repositories.steps.get_by_lot_key(
+                    lot_id, "package_final"
+                )
 
         self.assertEqual(without_warning_acceptance.status_code, 409)
         self.assertEqual(
@@ -102,7 +106,8 @@ class PackageApiTest(unittest.TestCase):
             image_entries = sorted(
                 name
                 for name in names
-                if name.startswith("export-jpg-resize/") and name != "export-jpg-resize/"
+                if name.startswith("export-jpg-resize/")
+                and name != "export-jpg-resize/"
             )
             self.assertEqual(len(image_entries), 1)
             self.assertTrue(image_entries[0].endswith(".jpg"))
@@ -123,7 +128,9 @@ class PackageApiTest(unittest.TestCase):
                 *image_entries,
             },
         )
-        self.assertNotIn("manifest.json", {entry["path"] for entry in manifest["entries"]})
+        self.assertNotIn(
+            "manifest.json", {entry["path"] for entry in manifest["entries"]}
+        )
         for entry in manifest["entries"]:
             self.assertIn("role", entry)
             self.assertGreater(entry["size_bytes"], 0)
@@ -161,7 +168,9 @@ class PackageApiTest(unittest.TestCase):
             tmpdir = Path(tmp)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = client.post("/api/lots", json={"title": "Lot bloqué"}).json()["lot"]["id"]
+            lot_id = client.post("/api/lots", json={"title": "Lot bloqué"}).json()[
+                "lot"
+            ]["id"]
             database = Database(settings.sqlite_path)
             with database.transaction() as repositories:
                 repositories.problems.create(
@@ -187,7 +196,9 @@ class PackageApiTest(unittest.TestCase):
                 )
 
         self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.json()["error"]["code"], "SIRCOM_PACKAGE_BLOCKERS_OPEN")
+        self.assertEqual(
+            response.json()["error"]["code"], "SIRCOM_PACKAGE_BLOCKERS_OPEN"
+        )
         self.assertIsNone(active_job)
 
     def test_package_generates_without_image_zip_when_reports_are_ready(self) -> None:
@@ -197,7 +208,9 @@ class PackageApiTest(unittest.TestCase):
             create_reports_workbook(workbook_path)
             settings = make_settings(tmpdir)
             client = TestClient(create_app(settings))
-            lot_id = _prepare_lot_until_reports_without_images(client, settings, workbook_path)
+            lot_id = _prepare_lot_until_reports_without_images(
+                client, settings, workbook_path
+            )
 
             without_warning_acceptance = client.post(
                 f"/api/lots/{lot_id}/package",
@@ -232,7 +245,8 @@ class PackageApiTest(unittest.TestCase):
             image_entries = sorted(
                 name
                 for name in names
-                if name.startswith("export-jpg-resize/") and name != "export-jpg-resize/"
+                if name.startswith("export-jpg-resize/")
+                and name != "export-jpg-resize/"
             )
             manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
 
@@ -281,7 +295,9 @@ def _prepare_lot_until_reports(
     )
     fusion = run_until_step(settings, "fusion_multi_onglets")
     normalization = run_until_step(settings, "normalisation_contenu")
-    downstream = run_until_steps(settings, {"verification_csv_indesign", "matching_images"})
+    downstream = run_until_steps(
+        settings, {"verification_csv_indesign", "matching_images"}
+    )
     validate_sort = client.post(
         f"/api/lots/{lot_id}/tri/validate",
         json={"decision": "tri_region_departement"},
@@ -322,9 +338,9 @@ def _prepare_lot_until_reports_without_images(
     settings,
     workbook_path: Path,
 ) -> str:
-    lot_id = client.post("/api/lots", json={"title": "Lot package sans images"}).json()["lot"][
-        "id"
-    ]
+    lot_id = client.post("/api/lots", json={"title": "Lot package sans images"}).json()[
+        "lot"
+    ]["id"]
     upload_excel = client.post(
         f"/api/lots/{lot_id}/excel",
         files=excel_file(workbook_path),

@@ -13,15 +13,17 @@ import openpyxl
 import os
 from collections import defaultdict
 
+
 def normalize_image_id(image_id):
     """Normalise l'ID pour le nom de fichier : minuscules, sans points ni espaces"""
     # Mettre en minuscules
     normalized = image_id.lower()
     # Remplacer les points par rien (sauf l'extension)
-    normalized = normalized.replace('.', '')
+    normalized = normalized.replace(".", "")
     # Remplacer les espaces par rien
-    normalized = normalized.replace(' ', '')
+    normalized = normalized.replace(" ", "")
     return normalized
+
 
 # Configuration du chemin des images (format POSIX pour InDesign 19.4+)
 DEFAULT_IMAGE_BASE_PATH = "/Users/victoria/Documents/export-jpg-resize"
@@ -43,7 +45,7 @@ try:
     # 3. Ouvrir le fichier Excel
     workbook = openpyxl.load_workbook(file_path)
     print("Fichier ouvert avec succès")
-    
+
     # 4. Traiter la feuille active
     worksheet = workbook.active
     sheet_name = worksheet.title
@@ -55,7 +57,9 @@ try:
         for cell in col:
             if cell.value == "imageid":
                 imageid_column = cell.column
-                print(f"Colonne 'imageid' trouvée en position : {openpyxl.utils.get_column_letter(imageid_column)}")
+                print(
+                    f"Colonne 'imageid' trouvée en position : {openpyxl.utils.get_column_letter(imageid_column)}"
+                )
                 break
         if imageid_column:
             break
@@ -65,25 +69,31 @@ try:
         pathimg_column = imageid_column + 1
         worksheet.insert_cols(pathimg_column)
         worksheet.cell(row=1, column=pathimg_column).value = "@pathimg"
-        print(f"Colonne '@pathimg' ajoutée en position : {openpyxl.utils.get_column_letter(pathimg_column)}")
+        print(
+            f"Colonne '@pathimg' ajoutée en position : {openpyxl.utils.get_column_letter(pathimg_column)}"
+        )
 
         # 7. Parcourir les données et générer les chemins d'images
         rows_processed = 0
         paths_generated = 0
         normalized_ids_by_imageid = defaultdict(list)
-        
+
         for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
             rows_processed += 1
-            
+
             # Récupérer la valeur de imageid (décalée d'une position à cause de l'insertion)
-            imageid_cell = row[imageid_column - 1]  # -1 car l'index de la liste commence à 0
-            
+            imageid_cell = row[
+                imageid_column - 1
+            ]  # -1 car l'index de la liste commence à 0
+
             if imageid_cell.value is not None and imageid_cell.value != "#N/A":
                 # Extraire l'ID depuis le nom de fichier "dossier-XXXXX.jpg"
                 imageid_value = str(imageid_cell.value)
-                
+
                 # Si c'est déjà au format "dossier-ID.jpg", extraire l'ID
-                if imageid_value.startswith("dossier-") and imageid_value.endswith(".jpg"):
+                if imageid_value.startswith("dossier-") and imageid_value.endswith(
+                    ".jpg"
+                ):
                     # Extraire l'ID : "dossier-24331205.jpg" → "24331205"
                     image_id = imageid_value.replace("dossier-", "").replace(".jpg", "")
                 else:
@@ -94,7 +104,10 @@ try:
                 normalized_id = normalize_image_id(image_id)
                 normalized_ids_by_imageid[normalized_id].append(imageid_cell.row)
                 if len(normalized_ids_by_imageid[normalized_id]) > 1:
-                    rows = ", ".join(str(row_number) for row_number in normalized_ids_by_imageid[normalized_id])
+                    rows = ", ".join(
+                        str(row_number)
+                        for row_number in normalized_ids_by_imageid[normalized_id]
+                    )
                     raise ValueError(
                         f"Collision imageid dossier-{normalized_id}.jpg aux lignes {rows}"
                     )
@@ -103,24 +116,32 @@ try:
                 full_path = f"{IMAGE_BASE_PATH}/dossier-{normalized_id}.jpg"
 
                 # Aussi mettre à jour la colonne imageid avec le nom normalisé
-                worksheet.cell(row=imageid_cell.row, column=imageid_column).value = f"dossier-{normalized_id}.jpg"
-                worksheet.cell(row=imageid_cell.row, column=pathimg_column).value = full_path
+                worksheet.cell(
+                    row=imageid_cell.row, column=imageid_column
+                ).value = f"dossier-{normalized_id}.jpg"
+                worksheet.cell(
+                    row=imageid_cell.row, column=pathimg_column
+                ).value = full_path
                 paths_generated += 1
-                
+
                 # Afficher les 5 premiers exemples
                 if paths_generated <= 5:
-                    print(f"  Ligne {imageid_cell.row}: ID={normalized_id} → {full_path}")
+                    print(
+                        f"  Ligne {imageid_cell.row}: ID={normalized_id} → {full_path}"
+                    )
             else:
                 # Pour les cellules vides, mettre #N/A
-                worksheet.cell(row=imageid_cell.row, column=pathimg_column).value = "#N/A"
-        
+                worksheet.cell(
+                    row=imageid_cell.row, column=pathimg_column
+                ).value = "#N/A"
+
         print(f"{paths_generated}/{rows_processed} chemins d'images générés")
 
         # 8. Enregistrer les modifications
         output_filename = "7-add-pathimg.xlsx"
         workbook.save(output_filename)
         print(f"Fichier sauvegardé sous : {output_filename}")
-        
+
         # 9. Afficher un résumé
         print("\nRésumé du traitement :")
         print("  Colonne source : 'imageid'")
@@ -128,9 +149,9 @@ try:
         print(f"  Format des chemins : {IMAGE_BASE_PATH}/dossier-{{ID}}.jpg")
         print(f"  Lignes traitées : {rows_processed}")
         print(f"  Chemins générés : {paths_generated}")
-        
+
         print("Ajout des chemins d'images terminé avec succès !")
-        
+
     else:
         print("Erreur : La colonne 'imageid' n'a pas été trouvée dans la feuille.")
         print("Colonnes disponibles :")
@@ -145,6 +166,6 @@ except Exception as e:
     exit(1)
 finally:
     # 10. Fermer le fichier Excel
-    if 'workbook' in locals():
+    if "workbook" in locals():
         workbook.close()
     print("Fichier fermé")

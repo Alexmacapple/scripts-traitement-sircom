@@ -26,7 +26,9 @@ class FakeConnection:
     def execute(self, sql: str, *args: object) -> FakeConnection:
         self.statements.append(sql)
         if sql == "PRAGMA journal_mode = WAL":
-            raise sqlite3.OperationalError("wal unavailable at /private/tmp/source.sqlite3")
+            raise sqlite3.OperationalError(
+                "wal unavailable at /private/tmp/source.sqlite3"
+            )
         return self
 
 
@@ -48,7 +50,9 @@ def index_names(connection: sqlite3.Connection) -> set[str]:
     return {row["name"] for row in rows}
 
 
-def foreign_key_column_groups(connection: sqlite3.Connection, table: str) -> set[tuple[str, ...]]:
+def foreign_key_column_groups(
+    connection: sqlite3.Connection, table: str
+) -> set[tuple[str, ...]]:
     grouped: dict[int, list[tuple[int, str]]] = {}
     for row in connection.execute(f"PRAGMA foreign_key_list({table})"):
         grouped.setdefault(row["id"], []).append((row["seq"], row["from"]))
@@ -86,7 +90,9 @@ class DatabaseMigrationTest(unittest.TestCase):
                 self.assertTrue(hasattr(database_module, name))
 
         self.assertIs(database_module.Repositories, database_repositories.Repositories)
-        self.assertIs(database_module.LotsRepository, database_repositories.LotsRepository)
+        self.assertIs(
+            database_module.LotsRepository, database_repositories.LotsRepository
+        )
 
     def test_migrate_empty_database_creates_normative_tables_and_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -252,7 +258,9 @@ class DatabaseMigrationTest(unittest.TestCase):
             finally:
                 connection.close()
 
-    def test_migration_v4_expires_duplicate_active_jobs_before_unique_index(self) -> None:
+    def test_migration_v4_expires_duplicate_active_jobs_before_unique_index(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             sqlite_path = Path(tmp) / "sircom.sqlite3"
             migrate_database(sqlite_path)
@@ -524,7 +532,9 @@ class DatabaseMigrationTest(unittest.TestCase):
                     repos.steps.get_required(step["id"])["current_run_id"],
                     "run_upload_1",
                 )
-                self.assertEqual(repos.jobs.get_required(job["id"])["status"], "running")
+                self.assertEqual(
+                    repos.jobs.get_required(job["id"])["status"], "running"
+                )
                 self.assertEqual(
                     repos.artifacts.get_required(artifact["id"])["status"],
                     "committed",
@@ -532,15 +542,25 @@ class DatabaseMigrationTest(unittest.TestCase):
                 self.assertIsNotNone(
                     repos.artifacts.get_required(artifact["id"])["committed_at"]
                 )
-                self.assertEqual(repos.events.get_required(event["id"])["level"], "warning")
+                self.assertEqual(
+                    repos.events.get_required(event["id"])["level"], "warning"
+                )
                 self.assertEqual(
                     repos.events.get_required(event["id"])["payload_json"],
                     '{"status":"updated","steps_total":2}',
                 )
-                self.assertEqual(repos.problems.get_required(problem["id"])["status"], "resolved")
-                self.assertIsNotNone(repos.problems.get_required(problem["id"])["resolved_at"])
-                self.assertEqual(repos.problems.get_required(problem["id"])["cause"], "Cause test")
-                self.assertEqual(repos.problems.get_required(problem["id"])["action"], "Action test")
+                self.assertEqual(
+                    repos.problems.get_required(problem["id"])["status"], "resolved"
+                )
+                self.assertIsNotNone(
+                    repos.problems.get_required(problem["id"])["resolved_at"]
+                )
+                self.assertEqual(
+                    repos.problems.get_required(problem["id"])["cause"], "Cause test"
+                )
+                self.assertEqual(
+                    repos.problems.get_required(problem["id"])["action"], "Action test"
+                )
                 self.assertEqual(
                     repos.problems.get_required(default_action_problem["id"])["action"],
                     "Corriger la cause puis relancer l'étape concernée.",
@@ -552,11 +572,15 @@ class DatabaseMigrationTest(unittest.TestCase):
                     raise RuntimeError("rollback")
 
             with database.transaction() as repos:
-                self.assertEqual(repos.lots.get_required(lot["id"])["status"], "en_cours")
+                self.assertEqual(
+                    repos.lots.get_required(lot["id"])["status"], "en_cours"
+                )
 
     def test_connect_applies_sqlite_pragmas(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            connection = connect_sqlite(Path(tmp) / "sircom.sqlite3", busy_timeout_ms=1234)
+            connection = connect_sqlite(
+                Path(tmp) / "sircom.sqlite3", busy_timeout_ms=1234
+            )
             try:
                 foreign_keys = connection.execute("PRAGMA foreign_keys").fetchone()[0]
                 busy_timeout = connection.execute("PRAGMA busy_timeout").fetchone()[0]
@@ -571,11 +595,15 @@ class DatabaseMigrationTest(unittest.TestCase):
         warnings: list[tuple[str, str]] = []
 
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("sircom2026.database.sqlite3.connect", return_value=fake_connection):
+            with patch(
+                "sircom2026.database.sqlite3.connect", return_value=fake_connection
+            ):
                 with self.assertLogs("sircom2026.database", level="WARNING") as logs:
                     connection = connect_sqlite(
                         Path(tmp) / "sircom.sqlite3",
-                        warning_handler=lambda code, detail: warnings.append((code, detail)),
+                        warning_handler=lambda code, detail: warnings.append(
+                            (code, detail)
+                        ),
                     )
 
         self.assertIs(connection, fake_connection)

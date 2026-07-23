@@ -14,7 +14,11 @@ from typing import Any
 
 from PIL import Image, UnidentifiedImageError
 
-from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError, cleanup_artifact_paths
+from sircom2026.artifacts import (
+    ArtifactStore,
+    ArtifactUnavailableError,
+    cleanup_artifact_paths,
+)
 from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
 from sircom2026.image_formats import prepare_image_for_jpeg
@@ -150,7 +154,9 @@ def enqueue_image_matching_job(
         ) from exc
 
 
-def run_image_matching_job(context: WorkerJobContext, *, settings: Settings) -> JobResult:
+def run_image_matching_job(
+    context: WorkerJobContext, *, settings: Settings
+) -> JobResult:
     store = ArtifactStore(
         settings.data_dir,
         pending_ttl_seconds=settings.artifact_pending_ttl_seconds,
@@ -174,8 +180,12 @@ def run_image_matching_job(context: WorkerJobContext, *, settings: Settings) -> 
             role=INSPECTION_ARTIFACT_ROLE,
             ready_statuses=("termine", "termine_avec_alertes"),
         )
-        source_artifact = _current_image_zip_source_artifact(repositories, context.lot_id)
-        manual_resolutions = read_manual_image_resolutions(repositories, lot_id=context.lot_id)
+        source_artifact = _current_image_zip_source_artifact(
+            repositories, context.lot_id
+        )
+        manual_resolutions = read_manual_image_resolutions(
+            repositories, lot_id=context.lot_id
+        )
         if normalized is None:
             _record_missing_normalization_problem(repositories, context)
             return JobResult(final_step_status="bloque")
@@ -262,7 +272,9 @@ def run_image_matching_job(context: WorkerJobContext, *, settings: Settings) -> 
                 mime_type=MATCHING_MIME_TYPE,
                 lease_version=context.leased_job.lease_version,
             )
-            committed_artifact_paths.append(store.path_for(matching_artifact["relative_path"]))
+            committed_artifact_paths.append(
+                store.path_for(matching_artifact["relative_path"])
+            )
             processed_artifact = store.put_temp_then_commit(
                 repositories,
                 lot_id=context.lot_id,
@@ -283,7 +295,9 @@ def run_image_matching_job(context: WorkerJobContext, *, settings: Settings) -> 
                 mime_type=PROCESSED_IMAGES_MIME_TYPE,
                 lease_version=context.leased_job.lease_version,
             )
-            committed_artifact_paths.append(store.path_for(processed_artifact["relative_path"]))
+            committed_artifact_paths.append(
+                store.path_for(processed_artifact["relative_path"])
+            )
             for problem in image_matching_problems(matching):
                 record_problem(
                     repositories,
@@ -324,8 +338,12 @@ def run_image_matching_job(context: WorkerJobContext, *, settings: Settings) -> 
                     "conversion_failed_count": matching["conversion_failed_count"],
                     "missing_count": matching["missing_count"],
                     "processed_images_count": matching["processed_images_count"],
-                    "status": "bloque" if matching["blocking"] else (
-                        "termine_avec_alertes" if matching["has_warnings"] else "termine"
+                    "status": "bloque"
+                    if matching["blocking"]
+                    else (
+                        "termine_avec_alertes"
+                        if matching["has_warnings"]
+                        else "termine"
                     ),
                     "step_key": MATCHING_IMAGES_STEP_KEY,
                     "tolerant_count": matching["tolerant_count"],
@@ -397,7 +415,11 @@ def build_image_matching_payload(
         id_dossier = str(source_row.get("id_dossier") or "").strip()
         if not id_dossier:
             continue
-        values = source_row.get("values") if isinstance(source_row.get("values"), dict) else {}
+        values = (
+            source_row.get("values")
+            if isinstance(source_row.get("values"), dict)
+            else {}
+        )
         original_names = _source_image_values(values, source_columns)
         final_name = final_names_by_id[id_dossier]
         manual_source = resolutions.get(id_dossier)
@@ -459,8 +481,7 @@ def _mark_duplicate_automatic_sources(bindings: list[dict[str, Any]]) -> None:
     matched_sources = Counter(
         str(binding["source_name"])
         for binding in bindings
-        if binding.get("status") == "matched"
-        and binding.get("source_name")
+        if binding.get("status") == "matched" and binding.get("source_name")
     )
     duplicate_sources = {
         source_name for source_name, count in matched_sources.items() if count > 1
@@ -469,31 +490,35 @@ def _mark_duplicate_automatic_sources(bindings: list[dict[str, Any]]) -> None:
         return
     for binding in bindings:
         source_name = binding.get("source_name")
-        if (
-            binding.get("status") == "matched"
-            and source_name in duplicate_sources
-        ):
+        if binding.get("status") == "matched" and source_name in duplicate_sources:
             binding["status"] = "ambiguous"
             binding["pathimg"] = ""
             binding["match_level"] = "source_duplicate"
             binding["duplicate_source_name"] = source_name
 
 
-def build_processed_images_zip(source_zip_path: Path, matching_payload: dict[str, Any]) -> bytes:
+def build_processed_images_zip(
+    source_zip_path: Path, matching_payload: dict[str, Any]
+) -> bytes:
     output = BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as target:
         target.writestr(f"{EXPORT_IMAGES_FOLDER}/", b"")
         try:
             with zipfile.ZipFile(source_zip_path) as source:
                 for binding in matching_payload.get("bindings", []):
-                    if not isinstance(binding, dict) or binding.get("status") != "matched":
+                    if (
+                        not isinstance(binding, dict)
+                        or binding.get("status") != "matched"
+                    ):
                         continue
                     source_name = str(binding.get("source_name") or "")
                     final_name = str(binding.get("final_name") or "")
                     if not source_name or not final_name:
                         continue
                     try:
-                        final_content = _convert_source_image_to_jpeg(source, source_name)
+                        final_content = _convert_source_image_to_jpeg(
+                            source, source_name
+                        )
                     except (
                         KeyError,
                         OSError,
@@ -634,7 +659,13 @@ def get_persisted_image_matching(
             artifact_id=artifact["id"],
         )
         matching = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ) as exc:
         raise ImageMatchingNotReady("Image matching artifact is unavailable.") from exc
     if not isinstance(matching, dict):
         raise ImageMatchingNotReady("Image matching artifact is malformed.")
@@ -698,7 +729,9 @@ def save_image_resolutions(
         "manual_resolutions": _public_manual_resolutions(existing),
         "manual_resolutions_count": len(existing),
         "manual_resolutions_rules_version": MANUAL_RESOLUTIONS_RULES_VERSION,
-        "manual_resolutions_updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "manual_resolutions_updated_at": datetime.now(UTC).isoformat(
+            timespec="seconds"
+        ),
     }
     own_canceled_jobs = repositories.jobs.cancel_active_for_step(
         lot_id,
@@ -736,7 +769,8 @@ def save_image_resolutions(
         payload={
             "invalidated_steps_count": len(invalidation.invalidated_steps),
             "manual_resolutions_count": len(existing),
-            "obsolete_artifacts_count": invalidation.obsolete_artifacts_count + own_obsolete,
+            "obsolete_artifacts_count": invalidation.obsolete_artifacts_count
+            + own_obsolete,
             "status": "pret",
             "step_key": MATCHING_IMAGES_STEP_KEY,
         },
@@ -1008,7 +1042,9 @@ def _source_image_columns(normalized_payload: dict[str, Any]) -> list[dict[str, 
     return columns
 
 
-def _source_image_values(values: dict[str, Any], columns: list[dict[str, Any]]) -> list[str]:
+def _source_image_values(
+    values: dict[str, Any], columns: list[dict[str, Any]]
+) -> list[str]:
     result: list[str] = []
     for column in columns:
         raw_value = values.get(str(column["csv_name"]), "")
@@ -1051,14 +1087,18 @@ def _partial_suggestions(
         image_key = _tolerant_stem_key(str(image.get("name") or ""))
         if len(image_key) < PARTIAL_SUGGESTION_MIN_LENGTH:
             continue
-        if any(probe_key in image_key or image_key in probe_key for probe_key in probe_keys):
+        if any(
+            probe_key in image_key or image_key in probe_key for probe_key in probe_keys
+        ):
             suggestions.append(image)
             if len(suggestions) >= PARTIAL_SUGGESTION_LIMIT:
                 break
     return suggestions
 
 
-def _public_images(images: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> list[dict[str, Any]]:
+def _public_images(
+    images: list[dict[str, Any]] | tuple[dict[str, Any], ...],
+) -> list[dict[str, Any]]:
     return [
         {
             "name": str(image.get("name") or ""),
@@ -1177,7 +1217,9 @@ def _manual_resolutions_items(
     repositories: Repositories,
     lot_id: str,
 ) -> list[dict[str, str]]:
-    return _public_manual_resolutions(read_manual_image_resolutions(repositories, lot_id=lot_id))
+    return _public_manual_resolutions(
+        read_manual_image_resolutions(repositories, lot_id=lot_id)
+    )
 
 
 def _validated_resolution_map(
@@ -1210,9 +1252,7 @@ def _validated_resolution_map(
             )
         result[id_dossier] = source_name
     duplicate_sources = [
-        source
-        for source, count in Counter(result.values()).items()
-        if count > 1
+        source for source, count in Counter(result.values()).items() if count > 1
     ]
     if duplicate_sources:
         raise ImageResolutionError(
@@ -1296,7 +1336,13 @@ def _current_json_artifact(
             artifact_id=artifact["id"],
         )
         payload = json.loads(readable.path.read_text(encoding="utf-8"))
-    except (ArtifactUnavailableError, OSError, json.JSONDecodeError, KeyError, ValueError):
+    except (
+        ArtifactUnavailableError,
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+    ):
         return None
     if not isinstance(payload, dict):
         return None
@@ -1325,13 +1371,16 @@ def _require_current_lease(
     repositories: Repositories,
     context: WorkerJobContext,
 ) -> None:
-    if repositories.jobs.get_committable_by_run(
-        lot_id=context.lot_id,
-        step_key=context.step_key,
-        run_id=context.run_id,
-        lease_version=context.leased_job.lease_version,
-        expected_input_fingerprint=context.leased_job.input_fingerprint,
-    ) is None:
+    if (
+        repositories.jobs.get_committable_by_run(
+            lot_id=context.lot_id,
+            step_key=context.step_key,
+            run_id=context.run_id,
+            lease_version=context.leased_job.lease_version,
+            expected_input_fingerprint=context.leased_job.input_fingerprint,
+        )
+        is None
+    ):
         raise WorkerLeaseLost("Worker lease is no longer current.")
 
 
