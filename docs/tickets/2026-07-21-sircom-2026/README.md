@@ -5,7 +5,8 @@ Index principal : [2026-07-21-tickets-implementation-sircom-2026.md](../2026-07-
 Revue détaillée : [revue connu-inconnu et avocat du diable](revue-connus-inconnus-avocat-du-diable.md).
 Revue post-cadrage : [retours ADHD intégrés](revue-adhd-post-cadrage.md).
 
-Frontier initiale : ticket 01 uniquement.
+Frontier produit initiale : ticket 01 uniquement.
+Frontier qualité 18+ : tickets 26, 27, 28, 29A, 29B, 29C et 29D.
 
 Note post-contrats complémentaires : le cadrage aval est publié dans
 [les contrats complémentaires d'implémentation](../../specs/2026-07-21-contrats-implementation-sircom-2026.md).
@@ -17,6 +18,9 @@ Statuts opérationnels mis à jour au 2026-07-23 :
 
 - tickets 18, 19, 24, 24A et 25 : `done` ;
 - tranches 24B, 24C et 24D : livrées dans le parent 24 ;
+- tickets 26, 28 à 33 : `ready-for-agent`, issus de l'évaluation qualité 16,5/20
+  et découpés avec contrats préalables pour limiter la friction LLM ;
+- ticket 27 : `done` ;
 - tous les autres tickets listés : `ready-for-agent`.
 
 | N | Statut | Ticket | Dépend de |
@@ -47,3 +51,14 @@ Statuts opérationnels mis à jour au 2026-07-23 :
 | 24 | `done` | [Refactorisation progressive des fichiers volumineux](24-refactorisation-progressive-des-fichiers-volumineux.md) | aucun, peut commencer immédiatement. |
 | 24A | `done` | [Inventaire imports et contrat public database.py](24a-inventaire-imports-et-contrat-public-database.md) | 24. |
 | 25 | `done` | [Rendre Ruff global exploitable](25-rendre-ruff-global-exploitable.md) | aucun. |
+| 26 | `ready-for-agent` | [Figer le format Ruff global](26-figer-le-format-ruff-global.md) | 25. |
+| 27 | `done` | [Corriger le packaging des partials Jinja](27-corriger-packaging-partials-jinja.md) | aucun, peut commencer immédiatement. |
+| 28 | `ready-for-agent` | [Ajouter un seuil de couverture en CI](28-ajouter-seuil-couverture-ci.md) | aucun, peut commencer immédiatement. |
+| 29A | `ready-for-agent` | [Contrat public `image_matching.py`](29a-contrat-public-image-matching.md) | aucun, peut commencer immédiatement. |
+| 29B | `ready-for-agent` | [Contrat public `mapping.py`](29b-contrat-public-mapping.md) | aucun, peut commencer immédiatement. |
+| 29C | `ready-for-agent` | [Contrat public `api/lots.py`](29c-contrat-public-api-lots.md) | aucun, peut commencer immédiatement. |
+| 29D | `ready-for-agent` | [Contrat public `reports.py`](29d-contrat-public-reports.md) | aucun, peut commencer immédiatement. |
+| 30 | `ready-for-agent` | [Découper `image_matching.py` sans changer le comportement](30-decouper-image-matching-sans-changer-comportement.md) | 29A. |
+| 31 | `ready-for-agent` | [Découper `mapping.py` sans changer le workflow mapping](31-decouper-mapping-sans-changer-workflow.md) | 29B. |
+| 32 | `ready-for-agent` | [Découper `api/lots.py` sans changer les routes publiques](32-decouper-api-lots-sans-changer-routes.md) | 29C. |
+| 33 | `ready-for-agent` | [Découper `reports.py` sans changer les rapports générés](33-decouper-reports-sans-changer-rapports.md) | 29D. |

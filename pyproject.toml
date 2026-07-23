@@ -28,4 +28,4 @@ test = [
 include = ["sircom2026*"]
 
 [tool.setuptools.package-data]
-sircom2026 = ["templates/*.html", "static/**/*"]
+sircom2026 = ["templates/*.html", "templates/partials/*.html", "static/**/*"]

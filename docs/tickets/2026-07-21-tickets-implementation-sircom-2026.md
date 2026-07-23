@@ -39,7 +39,8 @@ Sources :
 - `docs/cuisine-moi/2026-07-20-interface-web-sircom-2026.md`
 - `AGENTS.md`
 
-Frontier initiale : ticket 01 uniquement.
+Frontier produit initiale : ticket 01 uniquement.
+Frontier qualité 18+ : tickets 26, 27, 28, 29A, 29B, 29C et 29D.
 
 ## Règles globales
 
@@ -83,12 +84,25 @@ Chaque ticket vit dans son propre fichier pour tenir dans une session agent.
 | 23 | [Purge, rétention, indicateurs disque et trace anonymisée](2026-07-21-sircom-2026/23-purge-retention-indicateurs-disque-et-trace-anonymisee.md) | 22. |
 | 24 | [Refactorisation progressive des fichiers volumineux](2026-07-21-sircom-2026/24-refactorisation-progressive-des-fichiers-volumineux.md) | aucun, peut commencer immédiatement. |
 | 24A | [Inventaire imports et contrat public database.py](2026-07-21-sircom-2026/24a-inventaire-imports-et-contrat-public-database.md) | 24. |
+| 25 | [Rendre Ruff global exploitable](2026-07-21-sircom-2026/25-rendre-ruff-global-exploitable.md) | aucun. |
+| 26 | [Figer le format Ruff global](2026-07-21-sircom-2026/26-figer-le-format-ruff-global.md) | 25. |
+| 27 | [Corriger le packaging des partials Jinja](2026-07-21-sircom-2026/27-corriger-packaging-partials-jinja.md) | aucun, peut commencer immédiatement. |
+| 28 | [Ajouter un seuil de couverture en CI](2026-07-21-sircom-2026/28-ajouter-seuil-couverture-ci.md) | aucun, peut commencer immédiatement. |
+| 29A | [Contrat public `image_matching.py`](2026-07-21-sircom-2026/29a-contrat-public-image-matching.md) | aucun, peut commencer immédiatement. |
+| 29B | [Contrat public `mapping.py`](2026-07-21-sircom-2026/29b-contrat-public-mapping.md) | aucun, peut commencer immédiatement. |
+| 29C | [Contrat public `api/lots.py`](2026-07-21-sircom-2026/29c-contrat-public-api-lots.md) | aucun, peut commencer immédiatement. |
+| 29D | [Contrat public `reports.py`](2026-07-21-sircom-2026/29d-contrat-public-reports.md) | aucun, peut commencer immédiatement. |
+| 30 | [Découper `image_matching.py` sans changer le comportement](2026-07-21-sircom-2026/30-decouper-image-matching-sans-changer-comportement.md) | 29A. |
+| 31 | [Découper `mapping.py` sans changer le workflow mapping](2026-07-21-sircom-2026/31-decouper-mapping-sans-changer-workflow.md) | 29B. |
+| 32 | [Découper `api/lots.py` sans changer les routes publiques](2026-07-21-sircom-2026/32-decouper-api-lots-sans-changer-routes.md) | 29C. |
+| 33 | [Découper `reports.py` sans changer les rapports générés](2026-07-21-sircom-2026/33-decouper-reports-sans-changer-rapports.md) | 29D. |
 
 ## Passe avocat du diable
 
 ### Cible relue
 
-La cible de cette revue est le découpage en 23 tickets, pas les specs sources.
+La cible de cette revue est le découpage initial en 23 tickets, pas les specs
+sources.
 L'artefact adjacent le plus risqué est le futur ticket 01 : s'il part en grand
 échafaudage applicatif ou en UI trop ambitieuse, tous les tickets suivants
 hériteront d'une base instable.
