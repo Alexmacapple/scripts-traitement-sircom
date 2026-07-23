@@ -14,9 +14,11 @@ from PIL import Image
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
 from sircom2026.database import Database
+from sircom2026.image_formats import ImageDimensionLimits
 from sircom2026.image_matching import (
     EXPORT_IMAGES_FOLDER,
     ImageResolutionError,
+    IMAGE_DIMENSIONS_EXCEEDED_CODE,
     build_image_matching_payload,
     build_processed_images_zip,
     image_id_for_dossier,
@@ -525,6 +527,43 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertEqual(binding["status"], "conversion_failed")
         self.assertEqual(binding["pathimg"], "")
         self.assertEqual(binding["conversion_error"], "RuntimeError")
+        self.assertIsNone(binding["final_sha256"])
+
+    def test_processed_zip_revalidates_dimensions_before_conversion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / "images.zip"
+            zip_path.write_bytes(zip_bytes([("large.PNG", image_bytes((3, 3)))]))
+            matching = build_image_matching_payload(
+                normalized_payload([("ID-LARGE", "large.png")]),
+                inspection_payload(["large.PNG"]),
+                source_image_zip_artifact=source_artifact(),
+                source_normalization_artifact_id="artifact_normalized",
+                source_inspection_artifact_id="artifact_inspection",
+                indesign_image_root="/Users/victoria/Documents/export-jpg-resize",
+            )
+
+            processed = build_processed_images_zip(
+                zip_path,
+                matching,
+                image_limits=ImageDimensionLimits(
+                    max_pixels=8,
+                    max_width_px=3,
+                    max_height_px=3,
+                ),
+            )
+
+            with zipfile.ZipFile(BytesIO(processed)) as archive:
+                names = archive.namelist()
+
+        binding = matching["bindings"][0]
+        self.assertEqual(names, [f"{EXPORT_IMAGES_FOLDER}/"])
+        self.assertEqual(binding["status"], "conversion_failed")
+        self.assertEqual(binding["pathimg"], "")
+        self.assertEqual(binding["conversion_error"], IMAGE_DIMENSIONS_EXCEEDED_CODE)
+        self.assertEqual(
+            binding["dimension_limits_exceeded"][0]["limit_exceeded"], "max_pixels"
+        )
+        self.assertEqual(binding["dimension_limits_exceeded"][0]["observed"], 9)
         self.assertIsNone(binding["final_sha256"])
 
 

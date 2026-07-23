@@ -19,7 +19,15 @@ from sircom2026.artifacts import (
 )
 from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
-from sircom2026.image_formats import prepare_image_for_jpeg
+from sircom2026.image_formats import (
+    DEFAULT_IMAGE_DIMENSION_LIMITS,
+    IMAGE_DIMENSIONS_EXCEEDED_CODE,
+    ImageDimensionLimitError,
+    ImageDimensionLimits,
+    check_image_dimensions,
+    image_dimension_limits_from_settings,
+    prepare_image_for_jpeg,
+)
 from sircom2026.image_naming import image_id_for_dossier
 from sircom2026.image_matching_rules import (
     MATCHABLE_IMAGE_SOURCE_ROLE,
@@ -226,6 +234,7 @@ def run_image_matching_job(
     processed_zip_content = build_processed_images_zip(
         readable_zip.path,
         matching,
+        image_limits=image_dimension_limits_from_settings(settings),
     )
     _refresh_matching_counts(matching)
     matching_content = json.dumps(
@@ -481,7 +490,10 @@ def build_image_matching_payload(
 
 
 def build_processed_images_zip(
-    source_zip_path: Path, matching_payload: dict[str, Any]
+    source_zip_path: Path,
+    matching_payload: dict[str, Any],
+    *,
+    image_limits: ImageDimensionLimits = DEFAULT_IMAGE_DIMENSION_LIMITS,
 ) -> bytes:
     output = BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as target:
@@ -500,8 +512,18 @@ def build_processed_images_zip(
                         continue
                     try:
                         final_content = _convert_source_image_to_jpeg(
-                            source, source_name
+                            source,
+                            source_name,
+                            image_limits=image_limits,
                         )
+                    except ImageDimensionLimitError as exc:
+                        binding["status"] = "conversion_failed"
+                        binding["pathimg"] = ""
+                        binding["conversion_error"] = IMAGE_DIMENSIONS_EXCEEDED_CODE
+                        binding["dimension_limits_exceeded"] = [
+                            exc.violation.public_details()
+                        ]
+                        continue
                     except (
                         KeyError,
                         OSError,
@@ -800,9 +822,15 @@ def read_manual_image_resolutions(
     return {}
 
 
-def _convert_source_image_to_jpeg(source: zipfile.ZipFile, source_name: str) -> bytes:
+def _convert_source_image_to_jpeg(
+    source: zipfile.ZipFile,
+    source_name: str,
+    *,
+    image_limits: ImageDimensionLimits = DEFAULT_IMAGE_DIMENSION_LIMITS,
+) -> bytes:
     with source.open(source_name) as handle:
         with Image.open(handle) as image:
+            check_image_dimensions(image, image_limits, image_name=source_name)
             prepared = prepare_image_for_jpeg(image)
             if prepared.width > FINAL_IMAGE_MAX_WIDTH_PX:
                 ratio = FINAL_IMAGE_MAX_WIDTH_PX / prepared.width

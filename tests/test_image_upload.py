@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
@@ -21,18 +22,29 @@ def make_settings(
     max_unzipped_mb: int = 50,
     max_image_count: int = 10,
     max_image_mb: int = 5,
+    **overrides: str,
 ):
-    return load_settings(
-        {
-            "SIRCOM_DATA_DIR": str(tmpdir / "data"),
-            "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
-            "SIRCOM_DISK_FREE_MIN_MB": "0",
-            "SIRCOM_MAX_ZIP_MB": str(max_zip_mb),
-            "SIRCOM_MAX_UNZIPPED_MB": str(max_unzipped_mb),
-            "SIRCOM_MAX_IMAGE_COUNT": str(max_image_count),
-            "SIRCOM_MAX_IMAGE_MB": str(max_image_mb),
-        }
-    )
+    env = {
+        "SIRCOM_DATA_DIR": str(tmpdir / "data"),
+        "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
+        "SIRCOM_DISK_FREE_MIN_MB": "0",
+        "SIRCOM_MAX_ZIP_MB": str(max_zip_mb),
+        "SIRCOM_MAX_UNZIPPED_MB": str(max_unzipped_mb),
+        "SIRCOM_MAX_IMAGE_COUNT": str(max_image_count),
+        "SIRCOM_MAX_IMAGE_MB": str(max_image_mb),
+    }
+    env.update(overrides)
+    return load_settings(env)
+
+
+def source_image_bytes(
+    size: tuple[int, int] = (12, 8),
+    *,
+    image_format: str = "PNG",
+) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", size, (20, 80, 120)).save(output, format=image_format)
+    return output.getvalue()
 
 
 def zip_bytes(entries: list[tuple[str, bytes]]) -> bytes:
@@ -76,8 +88,8 @@ class ImageZipUploadApiTest(unittest.TestCase):
             ]["id"]
             content = zip_bytes(
                 [
-                    ("photo-1.JPG", b"image-1"),
-                    ("photo-2.png", b"image-2"),
+                    ("photo-1.JPG", source_image_bytes(image_format="JPEG")),
+                    ("photo-2.png", source_image_bytes()),
                     ("__MACOSX/._photo-1.JPG", b"mac"),
                     (".DS_Store", b"finder"),
                 ]
@@ -397,6 +409,111 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
                     for problem in payload["problem_groups"]["alerte"]["items"]
                 }
                 self.assertEqual(warning_codes, {"SIRCOM_IMAGE_ZIP_NO_TREATABLE_IMAGE"})
+
+    def test_worker_blocks_images_over_dimension_limits(self) -> None:
+        cases = {
+            "too_wide": (
+                (4, 2),
+                {"SIRCOM_MAX_IMAGE_WIDTH_PX": "3"},
+                "max_width_px",
+                4,
+                3,
+            ),
+            "too_high": (
+                (2, 4),
+                {"SIRCOM_MAX_IMAGE_HEIGHT_PX": "3"},
+                "max_height_px",
+                4,
+                3,
+            ),
+            "too_many_pixels": (
+                (3, 3),
+                {"SIRCOM_MAX_IMAGE_PIXELS": "8"},
+                "max_pixels",
+                9,
+                8,
+            ),
+        }
+        for case_name, (size, overrides, limit_exceeded, observed, maximum) in (
+            cases.items()
+        ):
+            with self.subTest(case=case_name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    settings = make_settings(Path(tmp), **overrides)
+                    client = TestClient(create_app(settings))
+                    lot_id = client.post(
+                        "/api/lots",
+                        json={"title": f"Lot {case_name}"},
+                    ).json()["lot"]["id"]
+
+                    upload = client.post(
+                        f"/api/lots/{lot_id}/images",
+                        files=image_zip_file(
+                            "images.zip",
+                            zip_bytes([("photo.png", source_image_bytes(size))]),
+                        ),
+                        headers={"X-Idempotency-Key": f"upload-{case_name}"},
+                    )
+                    worker_result = run_worker_once(settings=settings)
+                    status_response = client.get(f"/api/lots/{lot_id}/images/status")
+                    lot_response = client.get(f"/api/lots/{lot_id}")
+
+                payload = status_response.json()
+                self.assertEqual(upload.status_code, 202, upload.text)
+                self.assertEqual(worker_result.outcome, "succeeded")
+                self.assertEqual(status_response.status_code, 200)
+                self.assertFalse(payload["inspection"]["inspectable"])
+                self.assertEqual(
+                    step_status(lot_response.json()["lot"], "inspection_images"),
+                    "bloque",
+                )
+                blocker = payload["inspection"]["blockers"][0]
+                self.assertEqual(blocker["code"], "SIRCOM_IMAGE_DIMENSIONS_EXCEEDED")
+                self.assertEqual(blocker["details"][0]["limit_exceeded"], limit_exceeded)
+                self.assertEqual(blocker["details"][0]["image"], "photo.png")
+                self.assertEqual(blocker["details"][0]["observed"], observed)
+                self.assertEqual(blocker["details"][0]["max"], maximum)
+                self.assertEqual(blocker["details"][0]["width"], size[0])
+                self.assertEqual(blocker["details"][0]["height"], size[1])
+                blocking_codes = {
+                    problem["code"]
+                    for problem in payload["problem_groups"]["bloquant"]["items"]
+                }
+                self.assertIn("SIRCOM_IMAGE_DIMENSIONS_EXCEEDED", blocking_codes)
+
+    def test_worker_accepts_image_at_dimension_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(
+                Path(tmp),
+                SIRCOM_MAX_IMAGE_WIDTH_PX="3",
+                SIRCOM_MAX_IMAGE_HEIGHT_PX="2",
+                SIRCOM_MAX_IMAGE_PIXELS="6",
+            )
+            client = TestClient(create_app(settings))
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot image limite OK"}
+            ).json()["lot"]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/images",
+                files=image_zip_file(
+                    "images.zip",
+                    zip_bytes([("photo.png", source_image_bytes((3, 2)))]),
+                ),
+                headers={"X-Idempotency-Key": "upload-image-limit-ok"},
+            )
+            worker_result = run_worker_once(settings=settings)
+            status_response = client.get(f"/api/lots/{lot_id}/images/status")
+            lot_response = client.get(f"/api/lots/{lot_id}")
+
+        self.assertEqual(upload.status_code, 202, upload.text)
+        self.assertEqual(worker_result.outcome, "succeeded")
+        self.assertEqual(status_response.status_code, 200)
+        self.assertTrue(status_response.json()["inspection"]["inspectable"])
+        self.assertEqual(status_response.json()["inspection"]["blockers"], [])
+        self.assertEqual(
+            step_status(lot_response.json()["lot"], "inspection_images"), "termine"
+        )
 
     def test_worker_blocks_security_and_structure_refusal_cases(self) -> None:
         cases = {

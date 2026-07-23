@@ -21,7 +21,11 @@ from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
 from sircom2026.image_formats import (
     ACCEPTED_SOURCE_IMAGE_EXTENSIONS,
+    IMAGE_DIMENSIONS_EXCEEDED_CODE,
     REFUSED_SOURCE_IMAGE_EXTENSION_CODES,
+    ImageDimensionLimitError,
+    check_image_dimensions,
+    image_dimension_limits_from_settings,
 )
 from sircom2026.invalidation import (
     fingerprint_payload,
@@ -422,8 +426,10 @@ def run_image_inspection_job(
 def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
     max_unzipped_bytes = settings.max_unzipped_mb * 1024 * 1024
     max_image_bytes = settings.max_image_mb * 1024 * 1024
+    image_limits = image_dimension_limits_from_settings(settings)
     blockers: Counter[str] = Counter()
     warnings: Counter[str] = Counter()
+    details_by_code: dict[str, list[dict[str, Any]]] = {}
     images: list[dict[str, Any]] = []
     ignored_entries_count = 0
     entries_count = 0
@@ -478,6 +484,17 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
         normalized_root_names[normalized_name] += 1
         if info.file_size > max_image_bytes:
             blockers["SIRCOM_IMAGE_ZIP_IMAGE_TOO_LARGE"] += 1
+        dimension_violation = _inspect_image_dimensions(
+            path,
+            info.filename,
+            image_name=parts[-1],
+            image_limits=image_limits,
+        )
+        if dimension_violation is not None:
+            blockers[IMAGE_DIMENSIONS_EXCEEDED_CODE] += 1
+            details_by_code.setdefault(IMAGE_DIMENSIONS_EXCEEDED_CODE, []).append(
+                dimension_violation
+            )
         images.append(
             {
                 "name": parts[-1],
@@ -500,7 +517,7 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
     if not images and not blockers:
         warnings["SIRCOM_IMAGE_ZIP_NO_TREATABLE_IMAGE"] += 1
 
-    serialized_blockers = _serialize_problem_codes(blockers)
+    serialized_blockers = _serialize_problem_codes(blockers, details_by_code)
     serialized_warnings = _serialize_problem_codes(warnings)
     return {
         "schema_version": 1,
@@ -519,6 +536,9 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
         "limits": {
             "max_image_count": settings.max_image_count,
             "max_image_mb": settings.max_image_mb,
+            "max_image_pixels": settings.max_image_pixels,
+            "max_image_width_px": settings.max_image_width_px,
+            "max_image_height_px": settings.max_image_height_px,
             "max_unzipped_mb": settings.max_unzipped_mb,
         },
     }
@@ -591,12 +611,32 @@ def image_inspection_problems(inspection: dict[str, Any]) -> list[dict[str, Any]
         code = str(item.get("code", ""))
         count = int(item.get("count", 1))
         definition = _PROBLEM_DEFINITIONS.get(code, _default_problem_definition(code))
+        technical = {"checks_count": count}
+        details = item.get("details")
+        if code == IMAGE_DIMENSIONS_EXCEEDED_CODE and isinstance(details, list):
+            first_detail = next(
+                (detail for detail in details if isinstance(detail, dict)),
+                {},
+            )
+            technical.update(
+                {
+                    key: first_detail[key]
+                    for key in (
+                        "limit_exceeded",
+                        "observed",
+                        "max",
+                        "width",
+                        "height",
+                    )
+                    if key in first_detail
+                }
+            )
         problems.append(
             {
                 **definition,
                 "severity": "bloquant",
                 "location": {"archive": "zip images"},
-                "technical": {"checks_count": count},
+                "technical": technical,
             }
         )
     for item in inspection.get("warnings", []):
@@ -828,12 +868,52 @@ def _inspection_temp_dir(settings: Settings, lot_id: str, run_id: str) -> Path:
     )
 
 
-def _serialize_problem_codes(counts: Counter[str]) -> list[dict[str, Any]]:
-    return [
-        {"code": code, "count": count}
-        for code, count in sorted(counts.items())
-        if count > 0
-    ]
+def _serialize_problem_codes(
+    counts: Counter[str],
+    details_by_code: dict[str, list[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for code, count in sorted(counts.items()):
+        if count <= 0:
+            continue
+        item: dict[str, Any] = {"code": code, "count": count}
+        details = (details_by_code or {}).get(code)
+        if details:
+            item["details"] = details
+        items.append(item)
+    return items
+
+
+def _inspect_image_dimensions(
+    zip_path: Path,
+    zip_member_name: str,
+    *,
+    image_name: str,
+    image_limits: Any,
+) -> dict[str, Any] | None:
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            with archive.open(zip_member_name) as handle:
+                with Image.open(handle) as image:
+                    check_image_dimensions(
+                        image,
+                        image_limits,
+                        image_name=image_name,
+                    )
+    except ImageDimensionLimitError as exc:
+        return exc.violation.public_details()
+    except (
+        KeyError,
+        OSError,
+        RuntimeError,
+        UnidentifiedImageError,
+        ValueError,
+        zipfile.BadZipFile,
+    ):
+        return None
+    return None
 
 
 def _zip_name(raw_name: str) -> str:
@@ -919,6 +999,12 @@ _PROBLEM_DEFINITIONS: dict[str, dict[str, str]] = {
         "title": "Image trop volumineuse",
         "cause": "Au moins une image dépasse la taille maximale configurée.",
         "action": "Réduire la taille des images concernées puis déposer un nouveau zip.",
+    },
+    "SIRCOM_IMAGE_DIMENSIONS_EXCEEDED": {
+        "code": "SIRCOM_IMAGE_DIMENSIONS_EXCEEDED",
+        "title": "Image hors limites",
+        "cause": "Au moins une image dépasse les limites de pixels, largeur ou hauteur.",
+        "action": "Réduire les dimensions des images concernées puis déposer un nouveau zip.",
     },
     "SIRCOM_IMAGE_HEIC_REFUSED": {
         "code": "SIRCOM_IMAGE_HEIC_REFUSED",

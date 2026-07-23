@@ -149,6 +149,7 @@ VISIBLE_TECHNICAL_DETAIL_KEYS = {
     "expected_sha256",
     "free_mb",
     "has_image_warnings",
+    "height",
     "hidden_columns",
     "date_issues_count",
     "required_mb",
@@ -168,6 +169,7 @@ VISIBLE_TECHNICAL_DETAIL_KEYS = {
     "tolerant_count",
     "unreferenced_count",
     "warning_code",
+    "width",
 }
 TECHNICAL_DETAIL_LABELS = {
     "active_jobs": "Tâches actives",
@@ -185,6 +187,7 @@ TECHNICAL_DETAIL_LABELS = {
     "expected_sha256": "Empreinte attendue",
     "free_mb": "Espace libre en Mo",
     "has_image_warnings": "Alertes images",
+    "height": "Hauteur",
     "hidden_columns": "Colonnes masquées",
     "date_issues_count": "Problèmes de dates",
     "required_mb": "Espace requis en Mo",
@@ -204,6 +207,7 @@ TECHNICAL_DETAIL_LABELS = {
     "tolerant_count": "Correspondances tolérantes",
     "unreferenced_count": "Images non référencées",
     "warning_code": "Code d'alerte",
+    "width": "Largeur",
 }
 
 
@@ -615,6 +619,9 @@ def format_technical_items(payload: dict[str, Any]) -> list[tuple[str, str]]:
 def format_technical_value(key: str, value: Any) -> str:
     if key == "limit_exceeded" and isinstance(value, str):
         return {
+            "max_pixels": "Nombre de pixels",
+            "max_width_px": "Largeur",
+            "max_height_px": "Hauteur",
             "max_rows": "Nombre de lignes",
             "max_columns": "Nombre de colonnes",
             "max_cells": "Nombre de cellules parcourues",
