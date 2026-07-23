@@ -12,6 +12,9 @@ validation et de capitalisation. Même si `.hermes/`, `.claude/` et
 `.agents/skills/` ne sont pas versionnés, l'agent doit savoir que ce contexte
 peut exister dans le poste de travail.
 
+Marqueur de compatibilité Loriq local :
+`Generated child Hermes adapter for .hermes/profile.yml`.
+
 Quand la tâche mentionne Loriq, Hermes, un run opérateur, une lane, une
 confirmation humaine ou une preuve issue du harnais, lire les fichiers locaux
 pertinents s'ils existent, notamment `.hermes/profile.yml`,
