@@ -153,8 +153,11 @@ VISIBLE_TECHNICAL_DETAIL_KEYS = {
     "date_issues_count",
     "required_mb",
     "invalid_dates_count",
+    "limit_exceeded",
+    "max",
     "missing_dates_count",
     "missing_count",
+    "observed",
     "processed_images_count",
     "removed_empty_columns_count",
     "rows_count",
@@ -186,8 +189,11 @@ TECHNICAL_DETAIL_LABELS = {
     "date_issues_count": "Problèmes de dates",
     "required_mb": "Espace requis en Mo",
     "invalid_dates_count": "Dates invalides",
+    "limit_exceeded": "Limite dépassée",
+    "max": "Maximum autorisé",
     "missing_dates_count": "Dates manquantes",
     "missing_count": "Éléments manquants",
+    "observed": "Valeur observée",
     "processed_images_count": "Images traitées",
     "removed_empty_columns_count": "Colonnes vides supprimées",
     "rows_count": "Nombre de lignes",
@@ -607,6 +613,12 @@ def format_technical_items(payload: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 def format_technical_value(key: str, value: Any) -> str:
+    if key == "limit_exceeded" and isinstance(value, str):
+        return {
+            "max_rows": "Nombre de lignes",
+            "max_columns": "Nombre de colonnes",
+            "max_cells": "Nombre de cellules parcourues",
+        }.get(value, "Limite non traduite")
     if key == "step_key" and isinstance(value, str):
         return step_label(value)
     if key == "status" and isinstance(value, str):

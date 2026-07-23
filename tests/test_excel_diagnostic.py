@@ -4,7 +4,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sircom2026.excel_diagnostic import clean_indesign_header, diagnose_workbook
+from sircom2026.excel_diagnostic import (
+    ExcelDimensionLimits,
+    clean_indesign_header,
+    diagnose_sheet,
+    diagnose_workbook,
+)
 from sircom2026.synthetic_excels import CASES, create_synthetic_excels
 
 
@@ -117,14 +122,45 @@ class ExcelDiagnosticTest(unittest.TestCase):
         self.assertIn("Formules détectées.", blockers)
         self.assertIn("Colonne id_dossier non détectée.", blockers)
 
+    def test_cell_scan_limit_does_not_trust_declared_dimensions_only(self) -> None:
+        class FakeCell:
+            def __init__(self, value: str) -> None:
+                self.value = value
+
+        class FakeWorksheet:
+            title = "Produits"
+            sheet_state = "visible"
+            max_row = 1
+            max_column = 1
+
+            def iter_rows(self):
+                yield [FakeCell("id_dossier")]
+                yield [FakeCell("DOSSIER-1")]
+
+        diagnostic = diagnose_sheet(
+            FakeWorksheet(),
+            limits=ExcelDimensionLimits(max_rows=10, max_columns=10, max_cells=1),
+        )
+
+        self.assertFalse(diagnostic.importable)
+        self.assertEqual(
+            diagnostic.dimension_limits_exceeded[0]["limit_exceeded"], "max_cells"
+        )
+        self.assertEqual(diagnostic.dimension_limits_exceeded[0]["observed"], 2)
+
     def test_local_2024_2025_inputs_when_available(self) -> None:
         if not REAL_SIRCOM1.exists() or not REAL_SIRCOM2.exists():
             self.skipTest(
                 "Local Sircom1.xlsx and Sircom2.xlsx fixtures are not present."
             )
 
-        sircom1 = diagnose_workbook(REAL_SIRCOM1)
-        sircom2 = diagnose_workbook(REAL_SIRCOM2)
+        legacy_limits = ExcelDimensionLimits(
+            max_rows=2_000_000,
+            max_columns=20_000,
+            max_cells=2_000_000_000,
+        )
+        sircom1 = diagnose_workbook(REAL_SIRCOM1, limits=legacy_limits)
+        sircom2 = diagnose_workbook(REAL_SIRCOM2, limits=legacy_limits)
 
         self.assertFalse(sircom1.importable)
         self.assertIn("colonne(s) masquée(s)", " ".join(sircom1.blockers))

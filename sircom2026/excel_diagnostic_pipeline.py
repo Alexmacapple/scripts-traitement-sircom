@@ -8,9 +8,11 @@ from sircom2026.artifacts import ArtifactStore, ArtifactUnavailableError
 from sircom2026.config import Settings
 from sircom2026.database import Repositories
 from sircom2026.excel_diagnostic import (
+    EXCEL_DIMENSIONS_EXCEEDED_CODE,
     SheetDiagnostic,
     WorkbookDiagnostic,
     diagnose_workbook,
+    excel_dimension_limits_from_settings,
 )
 from sircom2026.invalidation import fingerprint_payload
 from sircom2026.state import record_problem
@@ -60,7 +62,10 @@ def run_excel_diagnostic_job(
             return JobResult(final_step_status="bloque")
 
     context.set_progress(2, 3)
-    diagnostic = diagnose_workbook(readable.path)
+    diagnostic = diagnose_workbook(
+        readable.path,
+        limits=excel_dimension_limits_from_settings(settings),
+    )
     public_diagnostic = serialize_workbook_diagnostic(diagnostic)
     diagnostic_content = json.dumps(
         public_diagnostic,
@@ -220,6 +225,7 @@ def serialize_sheet_diagnostic(sheet: SheetDiagnostic) -> dict[str, Any]:
         "merged_ranges": list(sheet.merged_ranges),
         "formula_cells_sample": list(sheet.formula_cells_sample),
         "headers_preview": list(sheet.headers_preview),
+        "dimension_limits_exceeded": list(sheet.dimension_limits_exceeded),
     }
 
 
@@ -275,6 +281,26 @@ def persist_diagnostic_problems(
 def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
     problems: list[dict[str, Any]] = []
     location = {"onglet": sheet.name}
+    for details in sheet.dimension_limits_exceeded:
+        problems.append(
+            {
+                "severity": "bloquant",
+                "code": EXCEL_DIMENSIONS_EXCEEDED_CODE,
+                "title": "Classeur Excel hors limites",
+                "cause": (
+                    "Un onglet dépasse les limites de lignes, colonnes ou cellules "
+                    "parcourues."
+                ),
+                "action": (
+                    "Réduire l'onglet ou supprimer les lignes et colonnes inutiles, "
+                    "puis redéposer l'Excel."
+                ),
+                "location": location,
+                "technical": dict(details),
+            }
+        )
+    if problems:
+        return problems
     if sheet.ignored and sheet.ignore_reason == "empty sheet":
         problems.append(
             {

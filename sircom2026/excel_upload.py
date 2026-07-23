@@ -11,6 +11,13 @@ from openpyxl import load_workbook
 from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import Settings
 from sircom2026.database import LOT_WRITE_BLOCKED_STATUSES, Repositories
+from sircom2026.excel_diagnostic import (
+    EXCEL_DIMENSIONS_EXCEEDED_CODE,
+    ExcelDimensionLimitError,
+    ExcelDimensionLimits,
+    check_worksheet_dimensions,
+    excel_dimension_limits_from_settings,
+)
 from sircom2026.invalidation import record_input_change, step_input_fingerprint
 from sircom2026.state import complete_step, transition_step
 from sircom2026.worker import enqueue_job
@@ -59,6 +66,7 @@ def validate_excel_upload(
     filename: str | None,
     content: bytes,
     max_excel_mb: int,
+    dimension_limits: ExcelDimensionLimits,
 ) -> ExcelUploadValidation:
     extension = Path(filename or "").suffix.lower()
     if extension not in ALLOWED_EXCEL_EXTENSIONS:
@@ -98,6 +106,15 @@ def validate_excel_upload(
         ) from exc
     try:
         sheet_count = len(workbook.sheetnames)
+        for worksheet in workbook.worksheets:
+            check_worksheet_dimensions(worksheet, dimension_limits)
+    except ExcelDimensionLimitError as exc:
+        raise ExcelUploadError(
+            422,
+            EXCEL_DIMENSIONS_EXCEEDED_CODE,
+            "Classeur Excel hors limites dimensionnelles.",
+            details=exc.violation.public_details(),
+        ) from exc
     finally:
         workbook.close()
 
@@ -125,6 +142,7 @@ def upload_excel_for_lot(
         filename=filename,
         content=content,
         max_excel_mb=settings.max_excel_mb,
+        dimension_limits=excel_dimension_limits_from_settings(settings),
     )
     lot = repositories.lots.get_required(lot_id)
     if lot["status"] in LOT_WRITE_BLOCKED_STATUSES:

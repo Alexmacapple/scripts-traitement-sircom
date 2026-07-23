@@ -12,23 +12,34 @@ from sircom2026.app import create_app
 from sircom2026.config import load_settings
 
 
-def make_settings(tmpdir: Path, *, max_excel_mb: int = 50):
-    return load_settings(
-        {
-            "SIRCOM_DATA_DIR": str(tmpdir / "data"),
-            "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
-            "SIRCOM_DISK_FREE_MIN_MB": "0",
-            "SIRCOM_MAX_EXCEL_MB": str(max_excel_mb),
-        }
-    )
+def make_settings(tmpdir: Path, *, max_excel_mb: int = 50, **overrides: str):
+    env = {
+        "SIRCOM_DATA_DIR": str(tmpdir / "data"),
+        "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
+        "SIRCOM_DISK_FREE_MIN_MB": "0",
+        "SIRCOM_MAX_EXCEL_MB": str(max_excel_mb),
+    }
+    env.update(overrides)
+    return load_settings(env)
 
 
 def valid_xlsx_bytes() -> bytes:
+    return xlsx_bytes(rows=2, columns=2)
+
+
+def xlsx_bytes(*, rows: int, columns: int) -> bytes:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Produits"
-    sheet.append(["id_dossier", "nom_produit"])
-    sheet.append(["DOSSIER-1", "Produit test"])
+    headers = ["id_dossier", *(f"colonne_{index}" for index in range(2, columns + 1))]
+    sheet.append(headers)
+    for row_number in range(2, rows + 1):
+        sheet.append(
+            [
+                f"DOSSIER-{row_number - 1}",
+                *(f"valeur_{row_number}_{column}" for column in range(2, columns + 1)),
+            ]
+        )
     output = BytesIO()
     workbook.save(output)
     workbook.close()
@@ -194,6 +205,101 @@ class ExcelUploadApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["error"]["code"], "SIRCOM_EXCEL_UNREADABLE")
+
+    def test_excel_with_too_many_rows_is_rejected_with_structured_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(
+                create_app(make_settings(Path(tmp), SIRCOM_MAX_EXCEL_ROWS="2"))
+            )
+            lot_id = client.post("/api/lots", json={"title": "Lot lignes"}).json()[
+                "lot"
+            ]["id"]
+
+            response = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file("source.xlsx", xlsx_bytes(rows=3, columns=2)),
+            )
+
+        payload = response.json()
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(
+            payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
+        )
+        self.assertEqual(payload["error"]["details"]["limit_exceeded"], "max_rows")
+        self.assertEqual(payload["error"]["details"]["sheet"], "Produits")
+        self.assertEqual(payload["error"]["details"]["observed"], 3)
+        self.assertEqual(payload["error"]["details"]["max"], 2)
+
+    def test_excel_with_too_many_columns_is_rejected_with_structured_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(
+                create_app(make_settings(Path(tmp), SIRCOM_MAX_EXCEL_COLUMNS="2"))
+            )
+            lot_id = client.post("/api/lots", json={"title": "Lot colonnes"}).json()[
+                "lot"
+            ]["id"]
+
+            response = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file("source.xlsx", xlsx_bytes(rows=2, columns=3)),
+            )
+
+        payload = response.json()
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(
+            payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
+        )
+        self.assertEqual(payload["error"]["details"]["limit_exceeded"], "max_columns")
+        self.assertEqual(payload["error"]["details"]["sheet"], "Produits")
+        self.assertEqual(payload["error"]["details"]["observed"], 3)
+        self.assertEqual(payload["error"]["details"]["max"], 2)
+
+    def test_excel_with_too_many_cells_is_rejected_with_structured_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(
+                create_app(make_settings(Path(tmp), SIRCOM_MAX_EXCEL_CELLS="5"))
+            )
+            lot_id = client.post("/api/lots", json={"title": "Lot cellules"}).json()[
+                "lot"
+            ]["id"]
+
+            response = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file("source.xlsx", xlsx_bytes(rows=2, columns=3)),
+            )
+
+        payload = response.json()
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(
+            payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
+        )
+        self.assertEqual(payload["error"]["details"]["limit_exceeded"], "max_cells")
+        self.assertEqual(payload["error"]["details"]["sheet"], "Produits")
+        self.assertEqual(payload["error"]["details"]["observed"], 6)
+        self.assertEqual(payload["error"]["details"]["max"], 5)
+
+    def test_excel_at_dimension_limits_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(
+                create_app(
+                    make_settings(
+                        Path(tmp),
+                        SIRCOM_MAX_EXCEL_ROWS="3",
+                        SIRCOM_MAX_EXCEL_COLUMNS="2",
+                        SIRCOM_MAX_EXCEL_CELLS="6",
+                    )
+                )
+            )
+            lot_id = client.post("/api/lots", json={"title": "Lot bornes OK"}).json()[
+                "lot"
+            ]["id"]
+
+            response = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file("source.xlsx", xlsx_bytes(rows=3, columns=2)),
+            )
+
+        self.assertEqual(response.status_code, 202, response.text)
 
     def test_lot_target_is_checked_before_excel_validation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

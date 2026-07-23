@@ -13,10 +13,16 @@ import re
 import unicodedata
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
+
+from sircom2026.config import (
+    DEFAULT_MAX_EXCEL_CELLS,
+    DEFAULT_MAX_EXCEL_COLUMNS,
+    DEFAULT_MAX_EXCEL_ROWS,
+)
 
 
 ID_HEADER_RE = re.compile(r"^(id|id[_\s-]*dossier|dossier[_\s-]*id)$", re.I)
@@ -30,6 +36,46 @@ IMAGE_RE = re.compile(r"photo|image|logo|piece|pièce|fichier", re.I)
 SENSITIVE_RE = re.compile(
     r"id|siret|siren|téléphone|telephone|code\s*postal|département|departement|code\s+insee|rna|tva",
     re.I,
+)
+EXCEL_DIMENSIONS_EXCEEDED_CODE = "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
+
+
+@dataclass(frozen=True)
+class ExcelDimensionLimits:
+    max_rows: int
+    max_columns: int
+    max_cells: int
+
+
+@dataclass(frozen=True)
+class ExcelDimensionLimitViolation:
+    limit_exceeded: str
+    sheet: str
+    observed: int
+    maximum: int
+
+    def public_details(self) -> dict[str, Any]:
+        return {
+            "limit_exceeded": self.limit_exceeded,
+            "sheet": self.sheet,
+            "observed": self.observed,
+            "max": self.maximum,
+        }
+
+
+class ExcelDimensionLimitError(ValueError):
+    def __init__(self, violation: ExcelDimensionLimitViolation) -> None:
+        super().__init__(
+            f"{violation.sheet}: {violation.limit_exceeded} "
+            f"{violation.observed} > {violation.maximum}"
+        )
+        self.violation = violation
+
+
+DEFAULT_EXCEL_DIMENSION_LIMITS = ExcelDimensionLimits(
+    max_rows=DEFAULT_MAX_EXCEL_ROWS,
+    max_columns=DEFAULT_MAX_EXCEL_COLUMNS,
+    max_cells=DEFAULT_MAX_EXCEL_CELLS,
 )
 
 
@@ -71,6 +117,7 @@ class SheetDiagnostic:
     merged_ranges: list[str] = field(default_factory=list)
     formula_cells_sample: list[str] = field(default_factory=list)
     headers_preview: list[str] = field(default_factory=list)
+    dimension_limits_exceeded: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -110,13 +157,77 @@ def iter_non_empty_values(ws, column: int, start_row: int) -> Iterable[str]:
             yield value
 
 
-def count_non_empty_cells(ws) -> int:
+def count_non_empty_cells(
+    ws,
+    limits: ExcelDimensionLimits = DEFAULT_EXCEL_DIMENSION_LIMITS,
+) -> int:
     count = 0
+    visited = 0
     for row in ws.iter_rows():
         for cell in row:
+            visited += 1
+            if visited > limits.max_cells:
+                raise ExcelDimensionLimitError(
+                    ExcelDimensionLimitViolation(
+                        limit_exceeded="max_cells",
+                        sheet=ws.title,
+                        observed=visited,
+                        maximum=limits.max_cells,
+                    )
+                )
             if normalize_header(cell.value):
                 count += 1
     return count
+
+
+def excel_dimension_limits_from_settings(settings: object) -> ExcelDimensionLimits:
+    return ExcelDimensionLimits(
+        max_rows=int(getattr(settings, "max_excel_rows")),
+        max_columns=int(getattr(settings, "max_excel_columns")),
+        max_cells=int(getattr(settings, "max_excel_cells")),
+    )
+
+
+def check_worksheet_dimensions(
+    ws,
+    limits: ExcelDimensionLimits = DEFAULT_EXCEL_DIMENSION_LIMITS,
+) -> None:
+    rows = _dimension_value(ws.max_row)
+    columns = _dimension_value(ws.max_column)
+    if rows > limits.max_rows:
+        raise ExcelDimensionLimitError(
+            ExcelDimensionLimitViolation(
+                limit_exceeded="max_rows",
+                sheet=ws.title,
+                observed=rows,
+                maximum=limits.max_rows,
+            )
+        )
+    if columns > limits.max_columns:
+        raise ExcelDimensionLimitError(
+            ExcelDimensionLimitViolation(
+                limit_exceeded="max_columns",
+                sheet=ws.title,
+                observed=columns,
+                maximum=limits.max_columns,
+            )
+        )
+    cells = rows * columns
+    if cells > limits.max_cells:
+        raise ExcelDimensionLimitError(
+            ExcelDimensionLimitViolation(
+                limit_exceeded="max_cells",
+                sheet=ws.title,
+                observed=cells,
+                maximum=limits.max_cells,
+            )
+        )
+
+
+def _dimension_value(value: int | None) -> int:
+    if value is None:
+        return 0
+    return max(0, int(value))
 
 
 def detect_header_row(ws, max_scan: int = 8) -> int | None:
@@ -189,7 +300,10 @@ def make_simple_candidate(column: int, header: str) -> ColumnCandidate:
     return ColumnCandidate(column=get_column_letter(column), header=header)
 
 
-def diagnose_sheet(ws) -> SheetDiagnostic:
+def diagnose_sheet(
+    ws,
+    limits: ExcelDimensionLimits = DEFAULT_EXCEL_DIMENSION_LIMITS,
+) -> SheetDiagnostic:
     diagnostic = SheetDiagnostic(
         name=ws.title,
         state=ws.sheet_state,
@@ -197,7 +311,14 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
         columns=ws.max_column,
     )
 
-    if count_non_empty_cells(ws) == 0:
+    try:
+        check_worksheet_dimensions(ws, limits)
+        non_empty_cells = count_non_empty_cells(ws, limits)
+    except ExcelDimensionLimitError as exc:
+        _block_sheet_for_dimension_limit(diagnostic, exc.violation)
+        return diagnostic
+
+    if non_empty_cells == 0:
         diagnostic.ignored = True
         diagnostic.ignore_reason = "empty sheet"
         diagnostic.importable = True
@@ -317,10 +438,13 @@ def diagnose_sheet(ws) -> SheetDiagnostic:
     return diagnostic
 
 
-def diagnose_workbook(path: Path) -> WorkbookDiagnostic:
+def diagnose_workbook(
+    path: Path,
+    limits: ExcelDimensionLimits = DEFAULT_EXCEL_DIMENSION_LIMITS,
+) -> WorkbookDiagnostic:
     workbook = load_workbook(path, read_only=False, data_only=False)
     try:
-        sheets = [diagnose_sheet(sheet) for sheet in workbook.worksheets]
+        sheets = [diagnose_sheet(sheet, limits) for sheet in workbook.worksheets]
     finally:
         workbook.close()
 
@@ -368,6 +492,15 @@ def workbook_cleaned_header_collisions(
         for cleaned, sources in sorted(cleaned_headers.items())
         if len(sources) > 1
     }
+
+
+def _block_sheet_for_dimension_limit(
+    diagnostic: SheetDiagnostic,
+    violation: ExcelDimensionLimitViolation,
+) -> None:
+    diagnostic.dimension_limits_exceeded.append(violation.public_details())
+    diagnostic.blockers.append("Dimensions Excel hors limites.")
+    diagnostic.importable = False
 
 
 def format_text_report(diagnostics: list[WorkbookDiagnostic]) -> str:

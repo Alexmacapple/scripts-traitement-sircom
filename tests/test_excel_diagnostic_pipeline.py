@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from openpyxl import Workbook
 
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
@@ -12,14 +14,14 @@ from sircom2026.synthetic_excels import create_synthetic_excels
 from sircom2026.worker_runner import run_worker_once
 
 
-def make_settings(tmpdir: Path):
-    return load_settings(
-        {
-            "SIRCOM_DATA_DIR": str(tmpdir / "data"),
-            "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
-            "SIRCOM_DISK_FREE_MIN_MB": "0",
-        }
-    )
+def make_settings(tmpdir: Path, **overrides: str):
+    env = {
+        "SIRCOM_DATA_DIR": str(tmpdir / "data"),
+        "SIRCOM_SQLITE_PATH": str(tmpdir / "data" / "sircom.sqlite3"),
+        "SIRCOM_DISK_FREE_MIN_MB": "0",
+    }
+    env.update(overrides)
+    return load_settings(env)
 
 
 def excel_file(path: Path) -> dict[str, tuple[str, bytes, str]]:
@@ -30,6 +32,37 @@ def excel_file(path: Path) -> dict[str, tuple[str, bytes, str]]:
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
     }
+
+
+def excel_bytes_file(
+    filename: str,
+    content: bytes,
+) -> dict[str, tuple[str, bytes, str]]:
+    return {
+        "file": (
+            filename,
+            content,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    }
+
+
+def workbook_bytes(*, rows: int, columns: int) -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Produits"
+    sheet.append(["id_dossier", *(f"colonne_{index}" for index in range(2, columns + 1))])
+    for row_number in range(2, rows + 1):
+        sheet.append(
+            [
+                f"DOSSIER-{row_number - 1}",
+                *(f"valeur_{row_number}_{column}" for column in range(2, columns + 1)),
+            ]
+        )
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    return output.getvalue()
 
 
 class ExcelDiagnosticPipelineTest(unittest.TestCase):
@@ -132,6 +165,47 @@ class ExcelDiagnosticPipelineTest(unittest.TestCase):
                 ]
             },
         )
+
+    def test_worker_blocks_dimension_violation_found_during_diagnostic(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            upload_settings = make_settings(tmpdir, SIRCOM_MAX_EXCEL_CELLS="100")
+            worker_settings = make_settings(tmpdir, SIRCOM_MAX_EXCEL_CELLS="5")
+            client = TestClient(create_app(upload_settings))
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot diagnostic dimensions"}
+            ).json()["lot"]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_bytes_file(
+                    "source.xlsx", workbook_bytes(rows=2, columns=3)
+                ),
+                headers={"X-Idempotency-Key": "upload-diagnostic-dimensions"},
+            )
+            worker_result = run_worker_once(settings=worker_settings)
+            diagnostic_response = client.get(f"/api/lots/{lot_id}/excel/diagnostic")
+            lot_response = client.get(f"/api/lots/{lot_id}")
+
+        self.assertEqual(upload.status_code, 202, upload.text)
+        self.assertEqual(worker_result.outcome, "succeeded")
+        self.assertEqual(diagnostic_response.status_code, 200)
+
+        lot = lot_response.json()["lot"]
+        self.assertEqual(step_status(lot, "diagnostic_excel"), "bloque")
+        blocking_problems = diagnostic_response.json()["problem_groups"]["bloquant"][
+            "items"
+        ]
+        dimension_problem = next(
+            problem
+            for problem in blocking_problems
+            if problem["code"] == "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
+        )
+        self.assertEqual(dimension_problem["title"], "Classeur Excel hors limites")
+        self.assertEqual(dimension_problem["location"]["onglet"], "Produits")
+        self.assertEqual(dimension_problem["technical"]["limit_exceeded"], "max_cells")
+        self.assertEqual(dimension_problem["technical"]["observed"], 6)
+        self.assertEqual(dimension_problem["technical"]["max"], 5)
 
     def test_worker_persists_structured_problems_for_strict_refusal_cases(self) -> None:
         expected_codes = {
