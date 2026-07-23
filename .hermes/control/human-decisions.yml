@@ -1,9 +1,0 @@
-schema: hermes/human-decisions/v1
-items:
-  - id: classify-preserve-change
-    resolved_by: "alex-chat-2026-07-23"
-    question: "confirm or amend the father-proposed preserve/change entries (status proposed, each with its source) in behavior-contract.yml"
-    status: "resolved"
-  - id: source-surface-overflow
-    question: "these owned source files exceed the frozen write-surface cap; a human must admit a bounded route/profile mutation before a child can modify them; affected paths: tests/test_ui_table_contract.py, tests/test_web_socle.py, tests/test_worker.py, tests/test_workflow_failure_paths.py, tests/test_workflow_orchestration.py"
-    status: open

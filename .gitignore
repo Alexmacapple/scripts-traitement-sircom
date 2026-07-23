@@ -75,6 +75,10 @@ htmlcov/
 
 .sircom2026-data/
 .codegraph/
+.agents/skills/
+.claude/
+.github/workflows/
+.hermes/
 .claude/outputs/
 *.egg-info/
 .DS_Store
