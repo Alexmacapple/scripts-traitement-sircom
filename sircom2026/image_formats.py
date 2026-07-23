@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
+import struct
 from typing import Any
 
 from sircom2026.config import (
@@ -80,6 +82,24 @@ DEFAULT_IMAGE_DIMENSION_LIMITS = ImageDimensionLimits(
     max_width_px=DEFAULT_MAX_IMAGE_WIDTH_PX,
     max_height_px=DEFAULT_MAX_IMAGE_HEIGHT_PX,
 )
+_PILLOW_BOMB_RE = re.compile(
+    r"Image size \((?P<observed>\d+) pixels\) exceeds limit of (?P<maximum>\d+) pixels"
+)
+_JPEG_SOF_MARKERS = {
+    0xC0,
+    0xC1,
+    0xC2,
+    0xC3,
+    0xC5,
+    0xC6,
+    0xC7,
+    0xC9,
+    0xCA,
+    0xCB,
+    0xCD,
+    0xCE,
+    0xCF,
+}
 
 
 def pillow_support_report() -> dict[str, Any]:
@@ -195,6 +215,99 @@ def check_image_dimensions(
                 image=image_name,
             )
         )
+
+
+def decompression_bomb_violation(
+    exc: BaseException,
+    limits: ImageDimensionLimits,
+    *,
+    image_name: str | None = None,
+    dimensions: tuple[int, int] | None = None,
+) -> ImageDimensionLimitViolation:
+    width, height = dimensions or (0, 0)
+    observed = width * height if width and height else _pillow_bomb_observed_pixels(exc)
+    return ImageDimensionLimitViolation(
+        limit_exceeded="max_pixels",
+        observed=observed,
+        maximum=limits.max_pixels,
+        width=width,
+        height=height,
+        image=image_name,
+    )
+
+
+def sniff_image_dimensions(prefix: bytes) -> tuple[int, int] | None:
+    return (
+        _sniff_png_dimensions(prefix)
+        or _sniff_jpeg_dimensions(prefix)
+        or _sniff_webp_dimensions(prefix)
+    )
+
+
+def _pillow_bomb_observed_pixels(exc: BaseException) -> int:
+    match = _PILLOW_BOMB_RE.search(str(exc))
+    if match is None:
+        return 0
+    return int(match.group("observed"))
+
+
+def _sniff_png_dimensions(prefix: bytes) -> tuple[int, int] | None:
+    if not prefix.startswith(b"\x89PNG\r\n\x1a\n") or len(prefix) < 24:
+        return None
+    if prefix[12:16] != b"IHDR":
+        return None
+    return struct.unpack(">II", prefix[16:24])
+
+
+def _sniff_jpeg_dimensions(prefix: bytes) -> tuple[int, int] | None:
+    if not prefix.startswith(b"\xff\xd8"):
+        return None
+    offset = 2
+    while offset + 4 <= len(prefix):
+        if prefix[offset] != 0xFF:
+            offset += 1
+            continue
+        while offset < len(prefix) and prefix[offset] == 0xFF:
+            offset += 1
+        if offset >= len(prefix):
+            return None
+        marker = prefix[offset]
+        offset += 1
+        if marker in {0xD8, 0xD9} or 0xD0 <= marker <= 0xD7:
+            continue
+        if offset + 2 > len(prefix):
+            return None
+        segment_length = int.from_bytes(prefix[offset : offset + 2], "big")
+        if segment_length < 2:
+            return None
+        segment_start = offset + 2
+        segment_end = offset + segment_length
+        if marker in _JPEG_SOF_MARKERS:
+            if segment_start + 5 > len(prefix):
+                return None
+            height = int.from_bytes(
+                prefix[segment_start + 1 : segment_start + 3], "big"
+            )
+            width = int.from_bytes(prefix[segment_start + 3 : segment_start + 5], "big")
+            return width, height
+        offset = segment_end
+    return None
+
+
+def _sniff_webp_dimensions(prefix: bytes) -> tuple[int, int] | None:
+    if len(prefix) < 30 or prefix[:4] != b"RIFF" or prefix[8:12] != b"WEBP":
+        return None
+    chunk = prefix[12:16]
+    if chunk == b"VP8X" and len(prefix) >= 30:
+        width = int.from_bytes(prefix[24:27], "little") + 1
+        height = int.from_bytes(prefix[27:30], "little") + 1
+        return width, height
+    if chunk == b"VP8L" and len(prefix) >= 25 and prefix[20] == 0x2F:
+        bits = int.from_bytes(prefix[21:25], "little")
+        width = (bits & 0x3FFF) + 1
+        height = ((bits >> 14) & 0x3FFF) + 1
+        return width, height
+    return None
 
 
 def _check_pillow_feature(features: Any, name: str) -> bool:

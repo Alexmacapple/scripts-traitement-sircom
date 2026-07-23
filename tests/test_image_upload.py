@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import struct
 import tempfile
 import unittest
 import zipfile
+import zlib
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -12,6 +15,7 @@ from PIL import Image
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
 from sircom2026.database import Database
+from sircom2026.images import inspect_image_zip
 from sircom2026.worker_runner import run_worker_once
 
 
@@ -45,6 +49,22 @@ def source_image_bytes(
     output = BytesIO()
     Image.new("RGB", size, (20, 80, 120)).save(output, format=image_format)
     return output.getvalue()
+
+
+def png_declaring_size(width: int, height: int) -> bytes:
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IEND", b"")
+    )
 
 
 def zip_bytes(entries: list[tuple[str, bytes]]) -> bytes:
@@ -486,6 +506,72 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
                     for problem in payload["problem_groups"]["bloquant"]["items"]
                 }
                 self.assertIn("SIRCOM_IMAGE_DIMENSIONS_EXCEEDED", blocking_codes)
+
+    def test_worker_blocks_pillow_image_bomb_as_dimension_problem(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = make_settings(Path(tmp))
+            client = TestClient(create_app(settings))
+            lot_id = client.post(
+                "/api/lots",
+                json={"title": "Lot image bomb"},
+            ).json()["lot"]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/images",
+                files=image_zip_file(
+                    "images.zip",
+                    zip_bytes([("bomb.png", png_declaring_size(40_000, 40_000))]),
+                ),
+                headers={"X-Idempotency-Key": "upload-image-bomb"},
+            )
+            worker_result = run_worker_once(settings=settings)
+            status_response = client.get(f"/api/lots/{lot_id}/images/status")
+            lot_response = client.get(f"/api/lots/{lot_id}")
+
+        payload = status_response.json()
+        self.assertEqual(upload.status_code, 202, upload.text)
+        self.assertEqual(worker_result.outcome, "succeeded")
+        self.assertEqual(status_response.status_code, 200)
+        self.assertFalse(payload["inspection"]["inspectable"])
+        self.assertEqual(
+            step_status(lot_response.json()["lot"], "inspection_images"),
+            "bloque",
+        )
+        blocker = payload["inspection"]["blockers"][0]
+        self.assertEqual(blocker["code"], "SIRCOM_IMAGE_DIMENSIONS_EXCEEDED")
+        self.assertEqual(blocker["details"][0]["limit_exceeded"], "max_pixels")
+        self.assertEqual(blocker["details"][0]["image"], "bomb.png")
+        self.assertEqual(blocker["details"][0]["width"], 40_000)
+        self.assertEqual(blocker["details"][0]["height"], 40_000)
+        blocking_codes = {
+            problem["code"]
+            for problem in payload["problem_groups"]["bloquant"]["items"]
+        }
+        self.assertIn("SIRCOM_IMAGE_DIMENSIONS_EXCEEDED", blocking_codes)
+
+    def test_zip_count_limit_blocks_before_pillow_opens_images(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / "images.zip"
+            zip_path.write_bytes(
+                zip_bytes(
+                    [
+                        ("a.png", source_image_bytes((2, 2))),
+                        ("b.png", source_image_bytes((2, 2))),
+                    ]
+                )
+            )
+            settings = make_settings(Path(tmp), max_image_count=1)
+
+            with patch(
+                "PIL.Image.open",
+                side_effect=AssertionError("Pillow should not open over-count zip"),
+            ):
+                inspection = inspect_image_zip(zip_path, settings=settings)
+
+        blocker_codes = {item["code"] for item in inspection["blockers"]}
+        self.assertIn("SIRCOM_IMAGE_ZIP_TOO_MANY_FILES", blocker_codes)
+        self.assertIn("SIRCOM_IMAGE_ZIP_TOO_MANY_IMAGES", blocker_codes)
+        self.assertEqual(inspection["image_count"], 2)
 
     def test_worker_accepts_image_at_dimension_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

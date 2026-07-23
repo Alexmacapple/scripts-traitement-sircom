@@ -25,7 +25,9 @@ from sircom2026.image_formats import (
     REFUSED_SOURCE_IMAGE_EXTENSION_CODES,
     ImageDimensionLimitError,
     check_image_dimensions,
+    decompression_bomb_violation,
     image_dimension_limits_from_settings,
+    sniff_image_dimensions,
 )
 from sircom2026.invalidation import (
     fingerprint_payload,
@@ -431,6 +433,7 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
     warnings: Counter[str] = Counter()
     details_by_code: dict[str, list[dict[str, Any]]] = {}
     images: list[dict[str, Any]] = []
+    image_members_to_inspect: list[tuple[str, str]] = []
     ignored_entries_count = 0
     entries_count = 0
     non_ignored_files_count = 0
@@ -484,17 +487,8 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
         normalized_root_names[normalized_name] += 1
         if info.file_size > max_image_bytes:
             blockers["SIRCOM_IMAGE_ZIP_IMAGE_TOO_LARGE"] += 1
-        dimension_violation = _inspect_image_dimensions(
-            path,
-            info.filename,
-            image_name=parts[-1],
-            image_limits=image_limits,
-        )
-        if dimension_violation is not None:
-            blockers[IMAGE_DIMENSIONS_EXCEEDED_CODE] += 1
-            details_by_code.setdefault(IMAGE_DIMENSIONS_EXCEEDED_CODE, []).append(
-                dimension_violation
-            )
+        else:
+            image_members_to_inspect.append((info.filename, parts[-1]))
         images.append(
             {
                 "name": parts[-1],
@@ -514,6 +508,19 @@ def inspect_image_zip(path: Path, *, settings: Settings) -> dict[str, Any]:
         blockers["SIRCOM_IMAGE_ZIP_TOO_MANY_IMAGES"] += 1
     if total_uncompressed_bytes > max_unzipped_bytes:
         blockers["SIRCOM_IMAGE_ZIP_UNCOMPRESSED_TOO_LARGE"] += 1
+    if not blockers:
+        for zip_member_name, image_name in image_members_to_inspect:
+            dimension_violation = _inspect_image_dimensions(
+                path,
+                zip_member_name,
+                image_name=image_name,
+                image_limits=image_limits,
+            )
+            if dimension_violation is not None:
+                blockers[IMAGE_DIMENSIONS_EXCEEDED_CODE] += 1
+                details_by_code.setdefault(IMAGE_DIMENSIONS_EXCEEDED_CODE, []).append(
+                    dimension_violation
+                )
     if not images and not blockers:
         warnings["SIRCOM_IMAGE_ZIP_NO_TREATABLE_IMAGE"] += 1
 
@@ -904,6 +911,14 @@ def _inspect_image_dimensions(
                     )
     except ImageDimensionLimitError as exc:
         return exc.violation.public_details()
+    except Image.DecompressionBombError as exc:
+        dimensions = _sniff_zip_member_dimensions(zip_path, zip_member_name)
+        return decompression_bomb_violation(
+            exc,
+            image_limits,
+            image_name=image_name,
+            dimensions=dimensions,
+        ).public_details()
     except (
         KeyError,
         OSError,
@@ -914,6 +929,20 @@ def _inspect_image_dimensions(
     ):
         return None
     return None
+
+
+def _sniff_zip_member_dimensions(
+    zip_path: Path,
+    zip_member_name: str,
+    *,
+    prefix_size: int = 65536,
+) -> tuple[int, int] | None:
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            with archive.open(zip_member_name) as handle:
+                return sniff_image_dimensions(handle.read(prefix_size))
+    except (KeyError, OSError, RuntimeError, ValueError, zipfile.BadZipFile):
+        return None
 
 
 def _zip_name(raw_name: str) -> str:

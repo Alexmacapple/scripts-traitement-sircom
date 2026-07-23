@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import struct
 import tempfile
 import unittest
 import zipfile
@@ -7,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+import zlib
 
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
@@ -53,6 +55,22 @@ def image_bytes(
     output = BytesIO()
     Image.new(mode, size, color).save(output, format=image_format)
     return output.getvalue()
+
+
+def png_declaring_size(width: int, height: int) -> bytes:
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IEND", b"")
+    )
 
 
 def zip_bytes(entries: list[tuple[str, bytes]]) -> bytes:
@@ -565,6 +583,39 @@ class ImageMatchingRulesTest(unittest.TestCase):
             binding["dimension_limits_exceeded"][0]["limit_exceeded"], "max_pixels"
         )
         self.assertEqual(binding["dimension_limits_exceeded"][0]["observed"], 9)
+        self.assertIsNone(binding["final_sha256"])
+
+    def test_processed_zip_marks_pillow_image_bomb_as_dimension_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / "images.zip"
+            zip_path.write_bytes(
+                zip_bytes([("bomb.PNG", png_declaring_size(40_000, 40_000))])
+            )
+            matching = build_image_matching_payload(
+                normalized_payload([("ID-BOMB", "bomb.png")]),
+                inspection_payload(["bomb.PNG"]),
+                source_image_zip_artifact=source_artifact(),
+                source_normalization_artifact_id="artifact_normalized",
+                source_inspection_artifact_id="artifact_inspection",
+                indesign_image_root="/Users/victoria/Documents/export-jpg-resize",
+            )
+
+            processed = build_processed_images_zip(zip_path, matching)
+
+            with zipfile.ZipFile(BytesIO(processed)) as archive:
+                names = archive.namelist()
+
+        binding = matching["bindings"][0]
+        self.assertEqual(names, [f"{EXPORT_IMAGES_FOLDER}/"])
+        self.assertEqual(binding["status"], "conversion_failed")
+        self.assertEqual(binding["pathimg"], "")
+        self.assertEqual(binding["conversion_error"], IMAGE_DIMENSIONS_EXCEEDED_CODE)
+        self.assertEqual(
+            binding["dimension_limits_exceeded"][0]["limit_exceeded"],
+            "max_pixels",
+        )
+        self.assertEqual(binding["dimension_limits_exceeded"][0]["width"], 40_000)
+        self.assertEqual(binding["dimension_limits_exceeded"][0]["height"], 40_000)
         self.assertIsNone(binding["final_sha256"])
 
     def test_processed_zip_rejects_oversized_image_before_full_conversion(
