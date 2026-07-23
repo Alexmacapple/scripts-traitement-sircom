@@ -120,6 +120,32 @@ class LotsApiTest(unittest.TestCase):
         self.assertIn("Déposer l'Excel", {step["label"] for step in lot["steps"]})
         self.assertEqual(policy.decisions[0][1], AccessAction.LOT_CREATE)
 
+    def test_lot_shell_success_response_fields_are_stable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            create_response = client.post(
+                "/api/lots",
+                json={"title": "Lot contrat succès"},
+            )
+            lot_id = create_response.json()["lot"]["id"]
+            list_response = client.get("/api/lots")
+            detail_response = client.get(f"/api/lots/{lot_id}")
+            delete_response = client.delete(f"/api/lots/{lot_id}")
+
+        self.assertEqual(create_response.status_code, 201)
+        self.assertEqual(set(create_response.json()), {"lot"})
+        self.assertEqual(set(list_response.json()), {"items", "pagination"})
+        self.assertEqual(set(detail_response.json()), {"lot"})
+        self.assertEqual(
+            set(delete_response.json()),
+            {"lot", "cancel_requested_jobs", "purge"},
+        )
+        self.assertEqual(
+            set(delete_response.json()["purge"]),
+            {"status", "active_jobs_remaining", "trace"},
+        )
+
     def test_create_lot_accepts_empty_body_and_idempotency_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(create_app(make_settings(Path(tmp))))
@@ -146,6 +172,24 @@ class LotsApiTest(unittest.TestCase):
             second_response.json()["lot"]["id"],
         )
         self.assertEqual(list_response.json()["pagination"]["total"], 2)
+
+    def test_lot_idempotency_key_length_error_is_structured_and_stable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+
+            response = client.post(
+                "/api/lots",
+                json={"title": "Lot clé invalide"},
+                headers={"X-Idempotency-Key": "x" * 129},
+            )
+            list_response = client.get("/api/lots")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["error"]["code"], "SIRCOM_IDEMPOTENCY_KEY_INVALID"
+        )
+        self.assertIn("message", response.json()["error"])
+        self.assertEqual(list_response.json()["pagination"]["total"], 0)
 
     def test_list_lots_excludes_deleted_by_default_and_paginates_without_steps(
         self,

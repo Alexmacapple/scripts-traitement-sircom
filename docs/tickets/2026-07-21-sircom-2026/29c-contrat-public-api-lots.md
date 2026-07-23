@@ -164,18 +164,25 @@ Codes métier couverts par les tests ciblés existants :
 - Aucun refactor de `sircom2026/api/lots.py` n'a été réalisé.
 - `tests/test_lots_api.py` ajoute une table de contrat du router lots avec
   méthodes, chemins et statuts nominaux.
+- `tests/test_lots_api.py` vérifie les champs de réponse publics des routes
+  générales lots : création, liste, détail et suppression.
 - `tests/test_lots_api.py` ajoute un test des codes d'erreur structurés des
   routes critiques sur lot vide : diagnostic Excel, inspection images, matching,
   mapping, tri, CSV, rapports, package et retry.
+- `tests/test_lots_api.py` vérifie le code transverse
+  `SIRCOM_IDEMPOTENCY_KEY_INVALID`.
 - Les tests existants `test_excel_upload`, `test_image_upload`,
   `test_package` et `test_workflow_failure_paths` restent les preuves ciblées
   des préconditions spécialisées et du workflow.
+- La revue Spec post-livraison a demandé de renforcer les champs de réponse
+  publics et `SIRCOM_IDEMPOTENCY_KEY_INVALID` ; ces deux points sont maintenant
+  couverts.
 
 Preuves exécutées le 2026-07-23 :
 
 - `uv run --frozen --extra test pytest tests/test_lots_api.py tests/test_api_access_errors.py tests/test_image_upload.py tests/test_excel_upload.py tests/test_package.py tests/test_workflow_failure_paths.py -q` :
-  62 tests passés.
-- `uv run --frozen --extra test pytest -q` : 229 tests passés, 4 sautés.
+  64 tests passés.
+- `uv run --frozen --extra test pytest -q` : 231 tests passés, 4 sautés.
 - `uv run --frozen --extra test ruff check .` : OK.
 - `uv run --frozen --extra test ruff format --check .` : OK.
 - `git diff --check` : OK.
