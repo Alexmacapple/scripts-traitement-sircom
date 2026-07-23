@@ -46,6 +46,8 @@ def create_sort_workbook(path: Path) -> None:
     sheet.append(["ID-1", "Auvergne-Rhône-Alpes", "07", "Produit 1"])
     sheet.append(["ID-4", "Bretagne", "22", "Produit 4"])
     sheet.append(["ID-5", "", "99", "Produit 5"])
+    sheet.append(["ID-6", "Polynésie française", "987", "Produit 6"])
+    sheet.append(["ID-7", "Polynésie française", "99 - Autre", "Produit 7"])
     workbook.save(path)
     workbook.close()
 
@@ -303,7 +305,7 @@ class SortDecisionApiTest(unittest.TestCase):
         self.assertEqual(payload["decision"], "tri_region_departement")
         self.assertEqual(
             [row["id_dossier"] for row in payload["rows"]],
-            ["ID-1", "ID-4", "ID-2", "ID-3", "ID-5"],
+            ["ID-1", "ID-4", "ID-2", "ID-3", "ID-7", "ID-6", "ID-5"],
         )
 
     def test_user_confirms_source_order_when_sort_columns_are_missing(self) -> None:

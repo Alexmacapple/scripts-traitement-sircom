@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 import uuid
 from dataclasses import dataclass
@@ -349,7 +350,7 @@ def build_sort_decision_payload(
             rows,
             key=lambda row: (
                 _sort_value(row, region_name),
-                _sort_value(row, department_name),
+                _department_sort_value(row, department_name),
                 _source_rank(row),
             ),
         )
@@ -609,6 +610,16 @@ def _sort_value(row: dict[str, Any], csv_name: str) -> tuple[int, str]:
     if not text:
         return (1, "")
     return (0, _fold_for_sort(text))
+
+
+def _department_sort_value(row: dict[str, Any], csv_name: str) -> tuple[int, int, str]:
+    values = row.get("values") if isinstance(row.get("values"), dict) else {}
+    raw = values.get(csv_name, "")
+    text = "" if raw is None else str(raw).strip()
+    match = re.match(r"^(\d{1,3})", text)
+    if match:
+        return (0, int(match.group(1)), _fold_for_sort(text))
+    return (1, 0, _fold_for_sort(text))
 
 
 def _fold_for_sort(value: str) -> str:
