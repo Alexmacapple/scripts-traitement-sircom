@@ -20,6 +20,10 @@ Objectif 2026 : construire une application web qui permet au Sircom d'uploader u
 - `livrables-miweb-2025/livrables-miweb-1-2025/9-final-sircom-indesign-utf16.csv` : référence d'output CSV InDesign 2025.
 - `livrables-miweb-2025/livrables-miweb-1-2025/mapping_excel_csv.md` et `structure_csv_analysis.md` : références de mapping et structure du CSV final.
 
+## Outillage agent
+
+Quand le dépôt contient `.codegraph/`, utiliser CodeGraph avant `rg` ou lecture massive pour explorer un flux large, un symbole ou un impact. Confirmer ensuite les points décisifs dans les fichiers source.
+
 ## Entrées attendues
 
 ### Chaîne 2025

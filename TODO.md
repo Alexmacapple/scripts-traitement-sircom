@@ -239,3 +239,6 @@
 - [ ] Documenter les variables d'environnement V1.
 - [ ] Maintenir `README.md`, `CHANGELOG.md` et `TODO.md` après chaque incrément
   significatif.
+- [x] Phase 1 — Revue en aveugle du dépôt madeinfrance (#1)
+- [ ] Phase 2 — Croisement contradictoire avec votre rapport interne (#2)
+- [ ] Arbitrage des chantiers et recommandation unique (#3)

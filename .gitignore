@@ -65,6 +65,7 @@ coverage.xml
 htmlcov/
 
 .sircom2026-data/
+.codegraph/
 .claude/outputs/
 *.egg-info/
 .DS_Store
