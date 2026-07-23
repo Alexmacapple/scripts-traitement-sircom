@@ -4,8 +4,8 @@ Date : 2026-07-24
 
 Projet : `madeinfrance`
 
-Commit de base audité avant ce rapport :
-`07920a8efdc0f2af6a1624c27ed4d3ed2da722a3`
+Commit applicatif audité et poussé :
+`f29abfddc5a1b6cc6d18f482533db0aa2ef9e53b`
 
 ## Verdict
 
@@ -47,13 +47,13 @@ Total : 19,4/20.
 Commande de vérification :
 
 ```bash
-gh run watch 30052966394 --repo Alexmacapple/scripts-traitement-sircom --exit-status
+gh run watch 30054445464 --repo Alexmacapple/scripts-traitement-sircom --exit-status
 ```
 
 Résultat :
 
 ```text
-Run CI (30052966394) has already completed with 'success'
+Run CI (30054445464) completed with 'success'
 ```
 
 ### Qualité code
@@ -366,6 +366,15 @@ deep audit n'est pas une preuve de fermeture totale. Les inconnues viennent des
 limites de lecture déterministe, de lanes planifiées sans receipts enfants et
 d'un plafond de surface source. Ce sont des limites de harnais à traiter avant
 d'utiliser Loriq comme unique feu vert de production.
+
+Détail du deep audit final :
+
+```text
+12 unknowns : deterministic detector read cap reached at 65536 bytes
+7 unknowns : lane is planned but no host child receipt was supplied
+3 unknowns : child evidence surface exceeded the audit lane cap
+1 unknown : source files exceed the frozen write-surface cap
+```
 
 ## Points corrigés pendant le chantier
 
