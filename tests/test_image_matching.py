@@ -634,7 +634,7 @@ class ImageMatchingRulesTest(unittest.TestCase):
             )
 
             with patch(
-                "sircom2026.image_matching.prepare_image_for_jpeg",
+                "sircom2026.processed_images.prepare_image_for_jpeg",
                 side_effect=AssertionError("conversion should not run"),
             ) as conversion:
                 processed = build_processed_images_zip(

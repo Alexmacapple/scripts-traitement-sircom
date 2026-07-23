@@ -19,6 +19,7 @@ Statuts opérationnels mis à jour au 2026-07-23 :
 - tickets 18, 19, 24, 24A et 25 : `done` ;
 - tranches 24B, 24C et 24D : livrées dans le parent 24 ;
 - tickets 26, 27, 28, 29A, 29B, 29C, 29D, 30, 31, 32 et 33 : `done` ;
+- ticket 34 : `done` ;
 - tous les autres tickets listés : `ready-for-agent`.
 
 | N | Statut | Ticket | Dépend de |
@@ -60,3 +61,4 @@ Statuts opérationnels mis à jour au 2026-07-23 :
 | 31 | `done` | [Découper `mapping.py` sans changer le workflow mapping](31-decouper-mapping-sans-changer-workflow.md) | 29B. |
 | 32 | `done` | [Découper `api/lots.py` sans changer les routes publiques](32-decouper-api-lots-sans-changer-routes.md) | 29C. |
 | 33 | `done` | [Découper `reports.py` sans changer les rapports générés](33-decouper-reports-sans-changer-rapports.md) | 29D. |
+| 34 | `done` | [Extraire la génération du zip images traitées](34-extraire-generation-zip-images-traitees.md) | 29A, 30. |
