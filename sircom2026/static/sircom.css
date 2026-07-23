@@ -223,12 +223,15 @@ a.sircom-workflow-screen-link--active:focus {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
 }
 
 .sircom-step-guidance dt,
 .sircom-step-guidance dd {
+  margin-inline-start: 0;
   margin-left: 0;
   max-width: 100%;
+  padding-left: 0;
 }
 
 .sircom-problem-list {
