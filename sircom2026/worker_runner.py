@@ -81,9 +81,11 @@ def default_handlers(settings: Settings) -> dict[str, JobHandler]:
                 context,
                 settings=settings,
             ),
-            "verification_csv_indesign": lambda context: run_csv_contract_verification_job(
-                context,
-                settings=settings,
+            "verification_csv_indesign": lambda context: (
+                run_csv_contract_verification_job(
+                    context,
+                    settings=settings,
+                )
             ),
             "inspection_images": lambda context: run_image_inspection_job(
                 context,

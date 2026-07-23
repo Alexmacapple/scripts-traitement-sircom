@@ -434,9 +434,13 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
                 8,
             ),
         }
-        for case_name, (size, overrides, limit_exceeded, observed, maximum) in (
-            cases.items()
-        ):
+        for case_name, (
+            size,
+            overrides,
+            limit_exceeded,
+            observed,
+            maximum,
+        ) in cases.items():
             with self.subTest(case=case_name):
                 with tempfile.TemporaryDirectory() as tmp:
                     settings = make_settings(Path(tmp), **overrides)
@@ -469,7 +473,9 @@ class ImageZipInspectionPipelineTest(unittest.TestCase):
                 )
                 blocker = payload["inspection"]["blockers"][0]
                 self.assertEqual(blocker["code"], "SIRCOM_IMAGE_DIMENSIONS_EXCEEDED")
-                self.assertEqual(blocker["details"][0]["limit_exceeded"], limit_exceeded)
+                self.assertEqual(
+                    blocker["details"][0]["limit_exceeded"], limit_exceeded
+                )
                 self.assertEqual(blocker["details"][0]["image"], "photo.png")
                 self.assertEqual(blocker["details"][0]["observed"], observed)
                 self.assertEqual(blocker["details"][0]["max"], maximum)

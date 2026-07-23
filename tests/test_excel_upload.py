@@ -222,15 +222,15 @@ class ExcelUploadApiTest(unittest.TestCase):
 
         payload = response.json()
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(
-            payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
-        )
+        self.assertEqual(payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED")
         self.assertEqual(payload["error"]["details"]["limit_exceeded"], "max_rows")
         self.assertEqual(payload["error"]["details"]["sheet"], "Produits")
         self.assertEqual(payload["error"]["details"]["observed"], 3)
         self.assertEqual(payload["error"]["details"]["max"], 2)
 
-    def test_excel_with_too_many_columns_is_rejected_with_structured_error(self) -> None:
+    def test_excel_with_too_many_columns_is_rejected_with_structured_error(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = TestClient(
                 create_app(make_settings(Path(tmp), SIRCOM_MAX_EXCEL_COLUMNS="2"))
@@ -246,9 +246,7 @@ class ExcelUploadApiTest(unittest.TestCase):
 
         payload = response.json()
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(
-            payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
-        )
+        self.assertEqual(payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED")
         self.assertEqual(payload["error"]["details"]["limit_exceeded"], "max_columns")
         self.assertEqual(payload["error"]["details"]["sheet"], "Produits")
         self.assertEqual(payload["error"]["details"]["observed"], 3)
@@ -270,9 +268,7 @@ class ExcelUploadApiTest(unittest.TestCase):
 
         payload = response.json()
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(
-            payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
-        )
+        self.assertEqual(payload["error"]["code"], "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED")
         self.assertEqual(payload["error"]["details"]["limit_exceeded"], "max_cells")
         self.assertEqual(payload["error"]["details"]["sheet"], "Produits")
         self.assertEqual(payload["error"]["details"]["observed"], 6)

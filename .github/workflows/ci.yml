@@ -32,6 +32,9 @@ jobs:
       - name: Run Ruff format check
         run: uv run --frozen --extra test ruff format --check .
 
+      - name: Run Ruff lint check
+        run: uv run --frozen --extra test ruff check .
+
       - name: Run test suite with coverage
         run: uv run --frozen --extra test pytest --cov=sircom2026 --cov-report=term-missing -q
 

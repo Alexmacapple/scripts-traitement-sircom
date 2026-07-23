@@ -6,6 +6,7 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
@@ -564,6 +565,45 @@ class ImageMatchingRulesTest(unittest.TestCase):
             binding["dimension_limits_exceeded"][0]["limit_exceeded"], "max_pixels"
         )
         self.assertEqual(binding["dimension_limits_exceeded"][0]["observed"], 9)
+        self.assertIsNone(binding["final_sha256"])
+
+    def test_processed_zip_rejects_oversized_image_before_full_conversion(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / "images.zip"
+            zip_path.write_bytes(zip_bytes([("large.PNG", image_bytes((3, 3)))]))
+            matching = build_image_matching_payload(
+                normalized_payload([("ID-LARGE", "large.png")]),
+                inspection_payload(["large.PNG"]),
+                source_image_zip_artifact=source_artifact(),
+                source_normalization_artifact_id="artifact_normalized",
+                source_inspection_artifact_id="artifact_inspection",
+                indesign_image_root="/Users/victoria/Documents/export-jpg-resize",
+            )
+
+            with patch(
+                "sircom2026.image_matching.prepare_image_for_jpeg",
+                side_effect=AssertionError("conversion should not run"),
+            ) as conversion:
+                processed = build_processed_images_zip(
+                    zip_path,
+                    matching,
+                    image_limits=ImageDimensionLimits(
+                        max_pixels=8,
+                        max_width_px=3,
+                        max_height_px=3,
+                    ),
+                )
+
+            with zipfile.ZipFile(BytesIO(processed)) as archive:
+                names = archive.namelist()
+
+        binding = matching["bindings"][0]
+        conversion.assert_not_called()
+        self.assertEqual(names, [f"{EXPORT_IMAGES_FOLDER}/"])
+        self.assertEqual(binding["status"], "conversion_failed")
+        self.assertEqual(binding["conversion_error"], IMAGE_DIMENSIONS_EXCEEDED_CODE)
         self.assertIsNone(binding["final_sha256"])
 
 

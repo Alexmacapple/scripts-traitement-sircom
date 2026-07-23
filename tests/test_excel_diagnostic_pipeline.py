@@ -51,7 +51,9 @@ def workbook_bytes(*, rows: int, columns: int) -> bytes:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Produits"
-    sheet.append(["id_dossier", *(f"colonne_{index}" for index in range(2, columns + 1))])
+    sheet.append(
+        ["id_dossier", *(f"colonne_{index}" for index in range(2, columns + 1))]
+    )
     for row_number in range(2, rows + 1):
         sheet.append(
             [

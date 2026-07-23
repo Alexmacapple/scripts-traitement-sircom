@@ -49,8 +49,7 @@ class ImageDimensionLimitViolation:
 class ImageDimensionLimitError(ValueError):
     def __init__(self, violation: ImageDimensionLimitViolation) -> None:
         super().__init__(
-            f"{violation.limit_exceeded}: {violation.observed} > "
-            f"{violation.maximum}"
+            f"{violation.limit_exceeded}: {violation.observed} > {violation.maximum}"
         )
         self.violation = violation
 
