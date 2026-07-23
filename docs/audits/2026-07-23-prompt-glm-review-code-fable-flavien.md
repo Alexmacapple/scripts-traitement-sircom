@@ -7,13 +7,13 @@ aider à choisir le prochain chantier technique.
 ```md
 Mission : fais une contre-revue de code complète et indépendante du projet `/Users/alex/Claude/projets-heberges/madeinfrance`, puis aide à décider quel chantier technique prioriser.
 
-Contexte : une première revue interne a déjà été produite dans `docs/2026-07-23-revue-code-fable-flavien.md`. Elle donne une note de 15/20 et identifie notamment des risques sur les bornes Excel/images, la pression mémoire/disque, l'annulation des traitements lourds, la taille du routeur lots, les tests visuels, l'accessibilité et la dérive README/TODO.
+Contexte : une première revue interne a déjà été produite dans `docs/audits/2026-07-23-revue-code-fable-flavien.md`. Elle donne une note de 15/20 et identifie notamment des risques sur les bornes Excel/images, la pression mémoire/disque, l'annulation des traitements lourds, la taille du routeur lots, les tests visuels, l'accessibilité et la dérive README/TODO.
 
 Pourquoi : je veux une revue indépendante pour croiser les sources, repérer nos angles morts, confirmer ou contredire les risques, et décider du chantier à lancer maintenant. Ne cherche pas à confirmer notre rapport : cherche la vérité terrain du dépôt.
 
 Méthode obligatoire :
-1. Phase aveugle : commence par auditer le dépôt sans lire `docs/2026-07-23-revue-code-fable-flavien.md`. Note ton verdict, ta note provisoire et tes principaux risques.
-2. Phase de croisement : lis ensuite `docs/2026-07-23-revue-code-fable-flavien.md`, compare-le à ta revue aveugle, puis indique précisément ce que tu confirmes, ce que tu contestes, ce qui manque et ce qui change dans ta note finale.
+1. Phase aveugle : commence par auditer le dépôt sans lire `docs/audits/2026-07-23-revue-code-fable-flavien.md`. Note ton verdict, ta note provisoire et tes principaux risques.
+2. Phase de croisement : lis ensuite `docs/audits/2026-07-23-revue-code-fable-flavien.md`, compare-le à ta revue aveugle, puis indique précisément ce que tu confirmes, ce que tu contestes, ce qui manque et ce qui change dans ta note finale.
 3. Phase décision : recommande le prochain chantier à faire, avec périmètre, critères d'acceptation, tests à lancer et éléments à ne pas traiter dans ce chantier.
 
 Sources à lire réellement avant de juger :

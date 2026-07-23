@@ -10,13 +10,12 @@ Ce dépôt couvre deux usages complémentaires.
   multi-onglets, mapper les champs utiles, traiter un zip d'images et exporter
   un package final compatible InDesign.
 
-La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Côté 2026, le
-socle FastAPI local est lancé : configuration, santé, politique d'accès, erreurs
-API structurées, schéma SQLite, lots, store d'artefacts, statuts métier,
-événements séparés, problèmes structurés, worker local SQLite, relance avec
-invalidation aval par fingerprints, upload Excel sécurisé avec artefact source
-et premiers écrans DSFR. Le diagnostic Excel persistant, les traitements images,
-CSV, rapports et package restent à brancher par tickets successifs.
+La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Côté 2026,
+l'application web locale couvre déjà la configuration, la santé, la politique
+d'accès, les erreurs API structurées, SQLite, les lots, le store d'artefacts,
+les statuts métier, les problèmes structurés, le worker local, l'import Excel,
+le diagnostic persistant, le mapping, la fusion, la normalisation, le CSV, les
+images, les rapports, le package final, la purge et les garde-fous de ressources.
 
 ## Sources locales utiles
 
@@ -33,7 +32,7 @@ CSV, rapports et package restent à brancher par tickets successifs.
 
 ## Prérequis
 
-- Python 3.x.
+- Python 3.11 ou plus récent.
 - macOS pour le flux historique, les chemins et les usages InDesign existants.
 - Environ 500 Mo d'espace disque disponible pour le flux 2025, davantage si les
   lots images sont volumineux.
@@ -144,15 +143,15 @@ python3 scripts-2025/<script-numéroté>.py
 
 ## Outils Sircom 2026 disponibles
 
-Les outils 2026 ne remplacent pas encore la chaîne 2025. Ils servent à préparer
-la future interface web et à tester l'import Excel multi-onglets.
+Les outils 2026 ne remplacent pas encore contractuellement la chaîne 2025, mais
+le flux web local est déjà exécutable de l'import Excel au package final.
 
 ### Lancer le socle web local
 
-Le socle FastAPI 2026 expose les routes de santé, la configuration visible,
-l'OpenAPI, le schéma SQLite local, le store d'artefacts et une interface DSFR
-minimale pour créer, sélectionner, supprimer logiquement des lots, consulter la
-timeline, les problèmes structurés et les événements récents.
+L'application FastAPI 2026 expose les routes de santé, la configuration visible,
+l'OpenAPI, SQLite, le store d'artefacts, le worker local et une interface DSFR
+pour piloter les lots, l'import Excel, le mapping, le CSV, les images, les
+rapports, le package final, la suppression logique et la purge.
 
 ```bash
 python3 -m venv .venv
@@ -183,9 +182,8 @@ Worker local :
 .venv/bin/python scripts-2026/run_worker_once.py --once
 ```
 
-La commande initialise la base SQLite et exécute une acquisition unique. Tant
-que les handlers métier des tickets suivants ne sont pas branchés, elle sort
-normalement en `idle`.
+La commande initialise la base SQLite et exécute une acquisition unique. Si
+aucun job n'est prêt, elle sort normalement en `idle`.
 
 ### Initialiser l'environnement local
 
@@ -285,4 +283,4 @@ sauvegardes, zips images ou images optimisées sauf demande explicite.
 
 Version : 4.0
 
-Dernière mise à jour : 21 juillet 2026
+Dernière mise à jour : 23 juillet 2026

@@ -1,6 +1,6 @@
 # TODO
 
-État au 21 juillet 2026.
+État au 23 juillet 2026.
 
 ## Terminé
 
@@ -22,6 +22,12 @@
 - [x] Produire le design d'architecture reliant contrat fonctionnel,
   orchestration, modules, routes, SQLite, worker et artefacts.
 - [x] Mettre à jour `README.md` sans emojis avec l'état 2025/2026 du dépôt.
+- [x] Livrer le chantier A de bornes ressources Sircom 2026 :
+  - [x] limites Excel/images configurables et visibles ;
+  - [x] refus des classeurs hors dimensions ;
+  - [x] refus des images hors pixels, largeur ou hauteur ;
+  - [x] garde disque avant jobs lourds ;
+  - [x] preuves adversariales et `ruff check` en CI.
 
 ## Priorité 0 - Verrouiller avant codage lourd
 
@@ -176,7 +182,7 @@
 
 ## Images
 
-- [ ] Ajouter les fixtures image/zip pour tester matching, absences, ambiguïtés
+- [x] Ajouter les fixtures image/zip pour tester matching, absences, ambiguïtés
   et images non référencées.
 - [ ] Étendre les fichiers synthétiques avec colonnes région/département
   absentes ou mal nommées.
@@ -189,20 +195,20 @@
   - [x] normalisation des noms ;
   - [x] fichiers cachés ignorés ou signalés selon politique ;
   - [x] logs sans valeurs métier sensibles.
-- [ ] Implémenter le matching images :
-  - [ ] correspondance par nom original si disponible ;
-  - [ ] fallback par `id_dossier` normalisé ;
-  - [ ] tolérances casse, espaces, extension, tirets et underscores ;
-  - [ ] ambiguïtés en résolution manuelle ;
-  - [ ] images absentes non bloquantes ;
-  - [ ] images non référencées ignorées mais listées.
-- [ ] Produire les images finales en JPG :
-  - [ ] nom `dossier-{id-normalise}.jpg` ;
-  - [ ] largeur maximale 350 px ;
-  - [ ] qualité JPEG 100 ;
-  - [ ] DPI 300 ;
-  - [ ] fond blanc pour transparence ;
-  - [ ] orientation EXIF appliquée.
+- [x] Implémenter le matching images :
+  - [x] correspondance par nom original si disponible ;
+  - [x] fallback par `id_dossier` normalisé ;
+  - [x] tolérances casse, espaces, extension, tirets et underscores ;
+  - [x] ambiguïtés en résolution manuelle ;
+  - [x] images absentes non bloquantes ;
+  - [x] images non référencées ignorées mais listées.
+- [x] Produire les images finales en JPG :
+  - [x] nom `dossier-{id-normalise}.jpg` ;
+  - [x] largeur maximale 350 px ;
+  - [x] qualité JPEG 100 ;
+  - [x] DPI 300 ;
+  - [x] fond blanc pour transparence ;
+  - [x] orientation EXIF appliquée.
 - [x] Tester l'écart Mac/VPS pour Pillow, profils ICC, EXIF, transparence et
   support HEIC décidé.
 - [x] Exécuter le spike HEIC du ticket 19 et reporter la décision dans les
@@ -210,24 +216,24 @@
 
 ## Package, rapports et exploitation
 
-- [ ] Générer le rapport métier avec mapping complet, intégrité, suppressions,
+- [x] Générer le rapport métier avec mapping complet, intégrité, suppressions,
   absences, alertes images et décisions utilisateur.
-- [ ] Séparer strictement rapport métier et logs techniques.
-- [ ] Générer le package final avec au minimum :
-  - [ ] CSV final compatible InDesign ;
-  - [ ] `export-jpg-resize/` ;
-  - [ ] rapport métier ;
-  - [ ] mapping utilisé ;
-  - [ ] manifeste cohérent.
-- [ ] Vérifier que `@pathimg` vise
+- [x] Séparer strictement rapport métier et logs techniques.
+- [x] Générer le package final avec au minimum :
+  - [x] CSV final compatible InDesign ;
+  - [x] `export-jpg-resize/` ;
+  - [x] rapport métier ;
+  - [x] mapping utilisé ;
+  - [x] manifeste cohérent.
+- [x] Vérifier que `@pathimg` vise
   `/Users/victoria/Documents/export-jpg-resize` par défaut, sauf configuration
   explicite.
-- [ ] Autoriser le téléchargement uniquement par `artifact_id`, sans exposer les
+- [x] Autoriser le téléchargement uniquement par `artifact_id`, sans exposer les
   chemins disque internes.
-- [ ] Bloquer le package si des problèmes bloquants restent ouverts.
-- [ ] Implémenter suppression manuelle, purge, rétention configurable et trace
+- [x] Bloquer le package si des problèmes bloquants restent ouverts.
+- [x] Implémenter suppression manuelle, purge, rétention configurable et trace
   technique anonymisée.
-- [ ] Ajouter indicateurs disque : usage total, espace libre, lots les plus
+- [x] Ajouter indicateurs disque : usage total, espace libre, lots les plus
   lourds, date d'expiration et alerte seuil.
 
 ## Documentation et recette
@@ -237,8 +243,8 @@
 - [ ] Ajouter un guide court de correction des Excels refusés.
 - [x] Ajouter une recette de bout en bout avec fixtures synthétiques.
 - [ ] Documenter les variables d'environnement V1.
-- [ ] Maintenir `README.md`, `CHANGELOG.md` et `TODO.md` après chaque incrément
+- [x] Maintenir `README.md`, `CHANGELOG.md` et `TODO.md` après chaque incrément
   significatif.
 - [x] Phase 1 — Revue en aveugle du dépôt madeinfrance (#1)
-- [ ] Phase 2 — Croisement contradictoire avec votre rapport interne (#2)
-- [ ] Arbitrage des chantiers et recommandation unique (#3)
+- [x] Phase 2 — Croisement contradictoire avec votre rapport interne (#2)
+- [x] Arbitrage des chantiers et recommandation unique (#3)

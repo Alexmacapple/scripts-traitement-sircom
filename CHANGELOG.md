@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-23
+
+- Livraison du chantier A de bornes ressources Sircom 2026 : limites
+  configurables Excel/images exposées dans `/api/config/limits`, refus
+  structurés des classeurs hors dimensions, refus des images hors dimensions,
+  garde disque avant jobs lourds `matching_images` et `package_final`, et
+  preuves adversariales sans fichiers géants.
+- Ajout de `ruff check .` dans la CI, en plus de `ruff format --check`, de la
+  suite pytest avec couverture et du test navigateur Playwright opt-in.
+- Clôture documentaire des tickets du chantier A avec les commits et commandes
+  de preuve associées.
+
 ## 2026-07-22
 
 - Refonte UX du parcours Sircom 2026 en trois écrans métier : traitement Excel,

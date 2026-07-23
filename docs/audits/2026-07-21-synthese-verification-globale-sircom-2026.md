@@ -4,8 +4,8 @@ Date : 2026-07-21
 
 Sources :
 
-- `docs/2026-07-21-verification-globale-sircom-2026-glm.md`
-- `docs/2026-07-21-verification-globale-sircom-2026-sol.md`
+- `docs/audits/2026-07-21-verification-globale-sircom-2026-glm.md`
+- `docs/audits/2026-07-21-verification-globale-sircom-2026-sol.md`
 - retour GLM post-SOL transmis par Alex
 - relecture Codex ciblée des specs et tickets touchés
 

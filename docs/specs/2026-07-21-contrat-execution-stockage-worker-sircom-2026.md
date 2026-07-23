@@ -6,7 +6,7 @@ Date : 2026-07-21
 
 - `docs/specs/2026-07-21-orchestration-sircom-2026.md`
 - `docs/specs/2026-07-21-design-architecture-web-sircom-2026.md`
-- `docs/2026-07-21-synthese-verification-globale-sircom-2026.md`
+- `docs/audits/2026-07-21-synthese-verification-globale-sircom-2026.md`
 - tickets 03, 04, 05, 06, 07, 08
 
 ## Problème

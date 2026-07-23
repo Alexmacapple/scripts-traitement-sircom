@@ -25,7 +25,7 @@ Note post-revues GLM/SOL/Codex : ce verdict est conservé comme revue de découp
 mais il n'est plus le verdict d'exécution courant. Le verdict courant est :
 ticket 01 exécutable après patch P0 ; ticket 02 ouvrable après 01 ; ticket 03 et
 tickets métier/worker/images/purge à durcir avant ouverture selon
-`docs/2026-07-21-synthese-verification-globale-sircom-2026.md`.
+`docs/audits/2026-07-21-synthese-verification-globale-sircom-2026.md`.
 
 ## Steel-man global
 
