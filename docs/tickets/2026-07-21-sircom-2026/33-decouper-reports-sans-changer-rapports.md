@@ -1,6 +1,6 @@
 # 33 - Découper `reports.py` sans changer les rapports générés
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 29D.
 
@@ -22,13 +22,13 @@ stables.
 
 ## Critères d'acceptation
 
-- [ ] Le contrat du ticket 29D est présent et vert avant déplacement.
-- [ ] Les noms d'artefacts ne changent pas.
-- [ ] Les sections du rapport métier ne changent pas.
-- [ ] Le schéma principal du rapport technique ne change pas.
-- [ ] Les garanties d'absence de données sensibles restent testées.
-- [ ] Les tests rapports, package et CSV preview restent verts.
-- [ ] Le rapport final liste ce qui a été déplacé et ce qui est resté dans
+- [x] Le contrat du ticket 29D est présent et vert avant déplacement.
+- [x] Les noms d'artefacts ne changent pas.
+- [x] Les sections du rapport métier ne changent pas.
+- [x] Le schéma principal du rapport technique ne change pas.
+- [x] Les garanties d'absence de données sensibles restent testées.
+- [x] Les tests rapports, package et CSV preview restent verts.
+- [x] Le rapport final liste ce qui a été déplacé et ce qui est resté dans
       `reports.py`.
 
 ## Hors périmètre
@@ -49,3 +49,45 @@ stables.
 - tests du ticket 29D ;
 - `uv run --frozen --extra test pytest -q` ;
 - `git diff --check`.
+
+## Livraison
+
+Découpage réalisé :
+
+- `sircom2026/reports_rendering.py` contient maintenant le rendu du rapport
+  métier Markdown, le rendu du rapport technique JSON et les helpers de rendu
+  associés : tableaux de mapping, lignes d'onglets, alertes CSV, lignes
+  d'actions, entrées techniques de sources, étapes, codes d'erreur, traces
+  anonymisées et conversions de valeurs.
+- `sircom2026/reports.py` conserve les constantes et types publics du contrat
+  29D, les signatures publiques `build_business_report` et
+  `build_technical_report` sous forme de wrappers, la collecte du snapshot, les
+  préconditions, les écritures transactionnelles d'artefacts et la gestion de
+  bail worker.
+- Les constantes publiques `REPORTS_SCHEMA_VERSION`,
+  `REPORTS_RULES_VERSION` et `TECHNICAL_EVENT_PAYLOAD_KEYS` restent portées par
+  `reports.py` et sont injectées dans le renderer technique.
+- Le helper privé mort `_problem_counts` a été supprimé, sans changement de
+  comportement observable.
+
+Résultat structurel :
+
+- `sircom2026/reports.py` passe de 1071 à 659 lignes.
+- `sircom2026/reports_rendering.py` contient 458 lignes dédiées au rendu.
+
+Preuves exécutées le 2026-07-23 :
+
+- Avant déplacement,
+  `uv run --frozen --extra test pytest tests/test_reports.py tests/test_package.py tests/test_csv_preview.py -q` :
+  11 tests passés.
+- Après déplacement, `uv run --frozen --extra test pytest tests/test_reports.py -q` :
+  3 tests passés.
+- Après déplacement,
+  `uv run --frozen --extra test pytest tests/test_reports.py tests/test_package.py tests/test_csv_preview.py -q` :
+  11 tests passés.
+- `uv run --frozen --extra test pytest -q` : 232 tests passés, 4 sautés.
+- `uv run --frozen --extra test ruff check .` : OK.
+- `uv run --frozen --extra test ruff format --check .` : OK.
+- `git diff --check` : OK.
+- `bash scripts/check-accents.sh projets-heberges/madeinfrance/docs/tickets/2026-07-21-sircom-2026/33-decouper-reports-sans-changer-rapports.md projets-heberges/madeinfrance/docs/tickets/2026-07-21-sircom-2026/README.md` :
+  OK.
