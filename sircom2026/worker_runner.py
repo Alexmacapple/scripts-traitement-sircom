@@ -14,8 +14,18 @@ from sircom2026.images import run_image_inspection_job
 from sircom2026.package import run_package_job
 from sircom2026.purge import purge_deleted_lots_once
 from sircom2026.reports import run_reports_job
+from sircom2026.resource_guards import check_disk_free, record_disk_guard_problem
 from sircom2026.transform import run_content_normalization_job, run_flat_merge_job
-from sircom2026.worker import JobHandler, LocalWorker, WorkerRunResult
+from sircom2026.worker import (
+    JobHandler,
+    JobResult,
+    LocalWorker,
+    WorkerJobContext,
+    WorkerRunResult,
+)
+
+
+DISK_GUARDED_STEP_KEYS = frozenset({"matching_images", "package_final"})
 
 
 def run_worker_once(
@@ -57,40 +67,70 @@ def run_worker_once(
 
 
 def default_handlers(settings: Settings) -> dict[str, JobHandler]:
-    return {
-        "diagnostic_excel": lambda context: run_excel_diagnostic_job(
-            context,
-            settings=settings,
-        ),
-        "fusion_multi_onglets": lambda context: run_flat_merge_job(
-            context,
-            settings=settings,
-        ),
-        "normalisation_contenu": lambda context: run_content_normalization_job(
-            context,
-            settings=settings,
-        ),
-        "verification_csv_indesign": lambda context: run_csv_contract_verification_job(
-            context,
-            settings=settings,
-        ),
-        "inspection_images": lambda context: run_image_inspection_job(
-            context,
-            settings=settings,
-        ),
-        "matching_images": lambda context: run_image_matching_job(
-            context,
-            settings=settings,
-        ),
-        "rapports": lambda context: run_reports_job(
-            context,
-            settings=settings,
-        ),
-        "package_final": lambda context: run_package_job(
-            context,
-            settings=settings,
-        ),
-    }
+    return _with_disk_guards(
+        {
+            "diagnostic_excel": lambda context: run_excel_diagnostic_job(
+                context,
+                settings=settings,
+            ),
+            "fusion_multi_onglets": lambda context: run_flat_merge_job(
+                context,
+                settings=settings,
+            ),
+            "normalisation_contenu": lambda context: run_content_normalization_job(
+                context,
+                settings=settings,
+            ),
+            "verification_csv_indesign": lambda context: run_csv_contract_verification_job(
+                context,
+                settings=settings,
+            ),
+            "inspection_images": lambda context: run_image_inspection_job(
+                context,
+                settings=settings,
+            ),
+            "matching_images": lambda context: run_image_matching_job(
+                context,
+                settings=settings,
+            ),
+            "rapports": lambda context: run_reports_job(
+                context,
+                settings=settings,
+            ),
+            "package_final": lambda context: run_package_job(
+                context,
+                settings=settings,
+            ),
+        },
+        settings=settings,
+    )
+
+
+def _with_disk_guards(
+    handlers: Mapping[str, JobHandler], *, settings: Settings
+) -> dict[str, JobHandler]:
+    guarded_handlers = dict(handlers)
+    for step_key in DISK_GUARDED_STEP_KEYS:
+        handler = guarded_handlers.get(step_key)
+        if handler is not None:
+            guarded_handlers[step_key] = _guard_disk_before_job(handler, settings)
+    return guarded_handlers
+
+
+def _guard_disk_before_job(handler: JobHandler, settings: Settings) -> JobHandler:
+    def guarded(context: WorkerJobContext) -> JobResult:
+        disk_status = check_disk_free(settings)
+        if disk_status.ok:
+            return handler(context)
+        with context.database.transaction() as repositories:
+            record_disk_guard_problem(
+                repositories,
+                context=context,
+                disk_status=disk_status,
+            )
+        return JobResult(final_step_status="bloque")
+
+    return guarded
 
 
 def main(

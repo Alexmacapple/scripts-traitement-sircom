@@ -283,7 +283,10 @@ class WebSocleTest(unittest.TestCase):
             client = TestClient(create_app(settings))
             fake_usage = DiskUsage(total=10_000, used=5_000, free=5119 * 1024 * 1024)
 
-            with patch("sircom2026.app.shutil.disk_usage", return_value=fake_usage):
+            with patch(
+                "sircom2026.resource_guards.shutil.disk_usage",
+                return_value=fake_usage,
+            ):
                 response = client.get("/health/ready")
 
         self.assertEqual(response.status_code, 503)
@@ -295,7 +298,10 @@ class WebSocleTest(unittest.TestCase):
             client = TestClient(create_app(settings))
             fake_usage = DiskUsage(total=10_000, used=5_000, free=5120 * 1024 * 1024)
 
-            with patch("sircom2026.app.shutil.disk_usage", return_value=fake_usage):
+            with patch(
+                "sircom2026.resource_guards.shutil.disk_usage",
+                return_value=fake_usage,
+            ):
                 response = client.get("/health/ready")
 
         self.assertEqual(response.status_code, 200)

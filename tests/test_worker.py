@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ from sircom2026.app_lifecycle import build_lifespan, periodic_worker_loop
 from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.lots import create_lot_with_steps
+from sircom2026.resource_guards import check_disk_free
 from sircom2026.worker import (
     IdempotencyKeyConsumedError,
     JobResult,
@@ -25,6 +27,91 @@ from sircom2026.worker_runner import run_worker_once
 
 
 class LocalWorkerTest(unittest.TestCase):
+    def test_disk_free_helper_reports_low_disk_without_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = load_settings(
+                {
+                    "SIRCOM_DATA_DIR": str(Path(tmp) / "data"),
+                    "SIRCOM_SQLITE_PATH": str(Path(tmp) / "data" / "sircom.sqlite3"),
+                    "SIRCOM_DISK_FREE_MIN_MB": "5120",
+                }
+            )
+            fake_usage = SimpleNamespace(free=5119 * 1024 * 1024)
+
+            with patch(
+                "sircom2026.resource_guards.shutil.disk_usage",
+                return_value=fake_usage,
+            ):
+                status = check_disk_free(settings)
+
+        self.assertFalse(status.ok)
+        self.assertEqual(status.code, "SIRCOM_DISK_FREE_LOW")
+        self.assertEqual(status.details, {"required_mb": 5120, "free_mb": 5119})
+        self.assertNotIn(str(settings.data_dir), str(status.details))
+
+    def test_default_runner_blocks_heavy_jobs_when_disk_is_below_threshold(
+        self,
+    ) -> None:
+        for step_key in ("matching_images", "package_final"):
+            with self.subTest(step_key=step_key):
+                with tempfile.TemporaryDirectory() as tmp:
+                    settings = load_settings(
+                        {
+                            "SIRCOM_DATA_DIR": str(Path(tmp) / "data"),
+                            "SIRCOM_SQLITE_PATH": str(
+                                Path(tmp) / "data" / "sircom.sqlite3"
+                            ),
+                            "SIRCOM_DISK_FREE_MIN_MB": "5120",
+                        }
+                    )
+                    database = Database(settings.sqlite_path)
+                    database.migrate()
+                    with database.transaction() as repositories:
+                        lot = create_lot_with_steps(
+                            repositories,
+                            title=f"Lot disk guard {step_key}",
+                        )
+                        queued = enqueue_job(
+                            repositories,
+                            lot_id=lot["id"],
+                            step_key=step_key,
+                            idempotency_key=f"{step_key}:disk-low",
+                            run_id=f"run_{step_key}_disk_low",
+                            input_fingerprint=f"input_{step_key}_disk_low",
+                        )
+                    fake_usage = SimpleNamespace(free=5119 * 1024 * 1024)
+
+                    with patch(
+                        "sircom2026.resource_guards.shutil.disk_usage",
+                        return_value=fake_usage,
+                    ):
+                        result = run_worker_once(settings=settings)
+
+                    with database.session() as repositories:
+                        job = repositories.jobs.get_required(queued.job["id"])
+                        step = repositories.steps.get_by_lot_key(
+                            lot["id"],
+                            step_key,
+                        )
+                        problems = repositories.problems.list_for_lot(lot["id"])
+                        artifacts = [
+                            artifact
+                            for artifact in repositories.artifacts.list_all()
+                            if artifact["lot_id"] == lot["id"]
+                        ]
+
+                self.assertTrue(result.processed)
+                self.assertEqual(result.outcome, "succeeded")
+                self.assertEqual(job["status"], "succeeded")
+                self.assertEqual(step["status"], "bloque")
+                self.assertEqual(problems[0]["severity"], "bloquant")
+                self.assertEqual(problems[0]["code"], "SIRCOM_DISK_FREE_LOW")
+                self.assertEqual(
+                    json.loads(problems[0]["technical_json"]),
+                    {"free_mb": 5119, "required_mb": 5120},
+                )
+                self.assertEqual(artifacts, [])
+
     def test_worker_runner_initializes_database_and_is_idle_without_handlers(
         self,
     ) -> None:

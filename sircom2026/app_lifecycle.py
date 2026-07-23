@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import shutil
 import sqlite3
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
@@ -13,6 +12,7 @@ from sircom2026.artifacts import ArtifactStore
 from sircom2026.config import ConfigError, Settings
 from sircom2026.database import Database, SchemaVersionError, connect_sqlite
 from sircom2026.purge import purge_expired_lots, purge_expired_lots_for_settings
+from sircom2026.resource_guards import check_disk_free
 from sircom2026.worker_runner import run_worker_once
 
 LOGGER = logging.getLogger(__name__)
@@ -174,13 +174,13 @@ def _check_sqlite(settings: Settings) -> ReadinessCheck:
 
 
 def _check_disk(settings: Settings) -> ReadinessCheck:
-    try:
-        usage = shutil.disk_usage(settings.data_dir)
-    except OSError:
+    disk_status = check_disk_free(settings)
+    if disk_status.code == "SIRCOM_DISK_UNAVAILABLE":
         return ReadinessCheck("disk", False, "SIRCOM_DISK_UNAVAILABLE")
 
-    free_mb = usage.free // (1024 * 1024)
-    details = {"free_mb": free_mb, "required_mb": settings.disk_free_min_mb}
-    if free_mb < settings.disk_free_min_mb:
-        return ReadinessCheck("disk", False, "SIRCOM_DISK_FREE_LOW", details)
-    return ReadinessCheck("disk", True, "SIRCOM_DISK_OK", details)
+    return ReadinessCheck(
+        "disk",
+        disk_status.ok,
+        disk_status.code,
+        disk_status.details,
+    )
