@@ -6,6 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+DEFAULT_MAX_EXCEL_ROWS = 200_000
+DEFAULT_MAX_EXCEL_COLUMNS = 256
+DEFAULT_MAX_EXCEL_CELLS = 5_000_000
+DEFAULT_MAX_IMAGE_PIXELS = 80_000_000
+DEFAULT_MAX_IMAGE_WIDTH_PX = 20_000
+DEFAULT_MAX_IMAGE_HEIGHT_PX = 20_000
+
+
 class ConfigError(ValueError):
     """Raised when SIRCOM_* configuration cannot be parsed safely."""
 
@@ -16,9 +24,15 @@ class Settings:
     sqlite_path: Path
     retention_days: int
     max_excel_mb: int
+    max_excel_rows: int
+    max_excel_columns: int
+    max_excel_cells: int
     max_zip_mb: int
     max_image_count: int
     max_image_mb: int
+    max_image_pixels: int
+    max_image_width_px: int
+    max_image_height_px: int
     max_unzipped_mb: int
     indesign_image_root: str
     bind_host: str
@@ -37,9 +51,20 @@ class Settings:
 
     def public_limits(self) -> dict[str, object]:
         return {
-            "excel": {"max_mb": self.max_excel_mb},
+            "excel": {
+                "max_mb": self.max_excel_mb,
+                "max_rows": self.max_excel_rows,
+                "max_columns": self.max_excel_columns,
+                "max_cells": self.max_excel_cells,
+            },
             "zip": {"max_mb": self.max_zip_mb, "max_unzipped_mb": self.max_unzipped_mb},
-            "images": {"max_count": self.max_image_count, "max_mb": self.max_image_mb},
+            "images": {
+                "max_count": self.max_image_count,
+                "max_mb": self.max_image_mb,
+                "max_pixels": self.max_image_pixels,
+                "max_width_px": self.max_image_width_px,
+                "max_height_px": self.max_image_height_px,
+            },
             "retention": {"days": self.retention_days},
             "worker": {
                 "enabled": self.worker_enabled,
@@ -62,15 +87,53 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
 
     data_dir = _path(values, "SIRCOM_DATA_DIR", ".sircom2026-data")
     sqlite_path = _path(values, "SIRCOM_SQLITE_PATH", str(data_dir / "sircom.sqlite3"))
+    pillow_max_image_pixels = _pillow_max_image_pixels()
 
     return Settings(
         data_dir=data_dir,
         sqlite_path=sqlite_path,
         retention_days=_int(values, "SIRCOM_RETENTION_DAYS", 7, minimum=1),
         max_excel_mb=_int(values, "SIRCOM_MAX_EXCEL_MB", 50, minimum=1),
+        max_excel_rows=_int(
+            values,
+            "SIRCOM_MAX_EXCEL_ROWS",
+            DEFAULT_MAX_EXCEL_ROWS,
+            minimum=1,
+        ),
+        max_excel_columns=_int(
+            values,
+            "SIRCOM_MAX_EXCEL_COLUMNS",
+            DEFAULT_MAX_EXCEL_COLUMNS,
+            minimum=1,
+        ),
+        max_excel_cells=_int(
+            values,
+            "SIRCOM_MAX_EXCEL_CELLS",
+            DEFAULT_MAX_EXCEL_CELLS,
+            minimum=1,
+        ),
         max_zip_mb=_int(values, "SIRCOM_MAX_ZIP_MB", 1024, minimum=1),
         max_image_count=_int(values, "SIRCOM_MAX_IMAGE_COUNT", 1500, minimum=1),
         max_image_mb=_int(values, "SIRCOM_MAX_IMAGE_MB", 50, minimum=1),
+        max_image_pixels=_int(
+            values,
+            "SIRCOM_MAX_IMAGE_PIXELS",
+            DEFAULT_MAX_IMAGE_PIXELS,
+            minimum=1,
+            maximum=pillow_max_image_pixels,
+        ),
+        max_image_width_px=_int(
+            values,
+            "SIRCOM_MAX_IMAGE_WIDTH_PX",
+            DEFAULT_MAX_IMAGE_WIDTH_PX,
+            minimum=1,
+        ),
+        max_image_height_px=_int(
+            values,
+            "SIRCOM_MAX_IMAGE_HEIGHT_PX",
+            DEFAULT_MAX_IMAGE_HEIGHT_PX,
+            minimum=1,
+        ),
         max_unzipped_mb=_int(values, "SIRCOM_MAX_UNZIPPED_MB", 3072, minimum=1),
         indesign_image_root=_text(
             values,
@@ -125,6 +188,14 @@ def _path(env: Mapping[str, str], name: str, default: str) -> Path:
     if not str(value).strip():
         raise ConfigError(f"{name} must not be empty.")
     return Path(value).expanduser()
+
+
+def _pillow_max_image_pixels() -> int | None:
+    from PIL import Image
+
+    if Image.MAX_IMAGE_PIXELS is None:
+        return None
+    return int(Image.MAX_IMAGE_PIXELS)
 
 
 def _text(env: Mapping[str, str], name: str, default: str) -> str:

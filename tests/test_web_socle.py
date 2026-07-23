@@ -87,9 +87,15 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.data_dir, Path(".sircom2026-data"))
         self.assertEqual(settings.sqlite_path, Path(".sircom2026-data/sircom.sqlite3"))
         self.assertEqual(settings.max_excel_mb, 50)
+        self.assertEqual(settings.max_excel_rows, 200_000)
+        self.assertEqual(settings.max_excel_columns, 256)
+        self.assertEqual(settings.max_excel_cells, 5_000_000)
         self.assertEqual(settings.max_zip_mb, 1024)
         self.assertEqual(settings.max_image_count, 1500)
         self.assertEqual(settings.max_image_mb, 50)
+        self.assertEqual(settings.max_image_pixels, 80_000_000)
+        self.assertEqual(settings.max_image_width_px, 20_000)
+        self.assertEqual(settings.max_image_height_px, 20_000)
         self.assertEqual(settings.max_unzipped_mb, 3072)
         self.assertEqual(
             settings.indesign_image_root, "/Users/victoria/Documents/export-jpg-resize"
@@ -115,9 +121,15 @@ class SettingsTest(unittest.TestCase):
                 "SIRCOM_SQLITE_PATH": str(Path(tmp) / "custom.sqlite3"),
                 "SIRCOM_RETENTION_DAYS": "14",
                 "SIRCOM_MAX_EXCEL_MB": "12",
+                "SIRCOM_MAX_EXCEL_ROWS": "1234",
+                "SIRCOM_MAX_EXCEL_COLUMNS": "56",
+                "SIRCOM_MAX_EXCEL_CELLS": "7890",
                 "SIRCOM_MAX_ZIP_MB": "99",
                 "SIRCOM_MAX_IMAGE_COUNT": "42",
                 "SIRCOM_MAX_IMAGE_MB": "8",
+                "SIRCOM_MAX_IMAGE_PIXELS": "654321",
+                "SIRCOM_MAX_IMAGE_WIDTH_PX": "4321",
+                "SIRCOM_MAX_IMAGE_HEIGHT_PX": "3210",
                 "SIRCOM_MAX_UNZIPPED_MB": "256",
                 "SIRCOM_INDESIGN_IMAGE_ROOT": "/tmp/export-jpg-resize",
                 "SIRCOM_BIND_HOST": "0.0.0.0",
@@ -141,9 +153,15 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.sqlite_path.name, "custom.sqlite3")
         self.assertEqual(settings.retention_days, 14)
         self.assertEqual(settings.max_excel_mb, 12)
+        self.assertEqual(settings.max_excel_rows, 1234)
+        self.assertEqual(settings.max_excel_columns, 56)
+        self.assertEqual(settings.max_excel_cells, 7890)
         self.assertEqual(settings.max_zip_mb, 99)
         self.assertEqual(settings.max_image_count, 42)
         self.assertEqual(settings.max_image_mb, 8)
+        self.assertEqual(settings.max_image_pixels, 654321)
+        self.assertEqual(settings.max_image_width_px, 4321)
+        self.assertEqual(settings.max_image_height_px, 3210)
         self.assertEqual(settings.max_unzipped_mb, 256)
         self.assertEqual(settings.indesign_image_root, "/tmp/export-jpg-resize")
         self.assertEqual(settings.bind_host, "0.0.0.0")
@@ -163,6 +181,12 @@ class SettingsTest(unittest.TestCase):
     def test_invalid_configuration_values(self) -> None:
         invalid_envs = [
             {"SIRCOM_PORT": "0"},
+            {"SIRCOM_MAX_EXCEL_ROWS": "0"},
+            {"SIRCOM_MAX_EXCEL_COLUMNS": "0"},
+            {"SIRCOM_MAX_EXCEL_CELLS": "0"},
+            {"SIRCOM_MAX_IMAGE_PIXELS": "0"},
+            {"SIRCOM_MAX_IMAGE_WIDTH_PX": "0"},
+            {"SIRCOM_MAX_IMAGE_HEIGHT_PX": "0"},
             {"SIRCOM_MAX_ACTIVE_JOBS": "0"},
             {"SIRCOM_WORKER_POLL_SECONDS": "0"},
             {"SIRCOM_WORKER_LEASE_TTL_SECONDS": "0"},
@@ -180,6 +204,17 @@ class SettingsTest(unittest.TestCase):
             with self.subTest(env=env):
                 with self.assertRaises(ConfigError):
                     load_settings(env)
+
+    def test_image_pixel_limit_cannot_exceed_pillow_guard(self) -> None:
+        from PIL import Image
+
+        if Image.MAX_IMAGE_PIXELS is None:
+            self.skipTest("Pillow image pixel guard is disabled in this environment.")
+
+        with self.assertRaises(ConfigError):
+            load_settings(
+                {"SIRCOM_MAX_IMAGE_PIXELS": str(int(Image.MAX_IMAGE_PIXELS) + 1)}
+            )
 
 
 class WebSocleTest(unittest.TestCase):
@@ -277,6 +312,12 @@ class WebSocleTest(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["schema_version"], 1)
         self.assertIn("limits", payload)
+        self.assertEqual(payload["limits"]["excel"]["max_rows"], 200_000)
+        self.assertEqual(payload["limits"]["excel"]["max_columns"], 256)
+        self.assertEqual(payload["limits"]["excel"]["max_cells"], 5_000_000)
+        self.assertEqual(payload["limits"]["images"]["max_pixels"], 80_000_000)
+        self.assertEqual(payload["limits"]["images"]["max_width_px"], 20_000)
+        self.assertEqual(payload["limits"]["images"]["max_height_px"], 20_000)
         serialized = str(payload)
         self.assertNotIn(str(settings.data_dir), serialized)
         self.assertNotIn(str(settings.sqlite_path), serialized)
