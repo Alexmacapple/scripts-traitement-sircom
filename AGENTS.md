@@ -5,6 +5,23 @@ Ce fichier est la consigne projet versionnée. Les dossiers `.hermes/`,
 ignorés par Git et ne doivent plus être traités comme source de vérité du dépôt.
 La CI GitHub reste versionnée dans `.github/workflows/ci.yml`.
 
+## Harnais Loriq/Hermes local
+
+Ce projet utilise Loriq/Hermes comme harnais local d'audit, de routage, de
+validation et de capitalisation. Même si `.hermes/`, `.claude/` et
+`.agents/skills/` ne sont pas versionnés, l'agent doit savoir que ce contexte
+peut exister dans le poste de travail.
+
+Quand la tâche mentionne Loriq, Hermes, un run opérateur, une lane, une
+confirmation humaine ou une preuve issue du harnais, lire les fichiers locaux
+pertinents s'ils existent, notamment `.hermes/profile.yml`,
+`.hermes/control/`, `.hermes/memory/`, `.claude/agents/` et
+`.agents/skills/`.
+
+Ces fichiers sont un contexte opératoire local, pas des livrables GitHub. Ne pas
+les ajouter, les régénérer, les supprimer ou les modifier sans demande
+explicite.
+
 ## Sources à lire
 
 - `README.md` : guide d'usage Sircom 2025/2026.
