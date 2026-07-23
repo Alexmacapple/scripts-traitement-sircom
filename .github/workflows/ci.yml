@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.26"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --locked --extra test
+
+      - name: Run Ruff format check
+        run: uv run --frozen --extra test ruff format --check .
+
+      - name: Run Ruff lint check
+        run: uv run --frozen --extra test ruff check .
+
+      - name: Run test suite with coverage
+        run: uv run --frozen --extra test pytest --cov=sircom2026 --cov-report=term-missing -q
+
+      - name: Install browser
+        run: uv run --frozen --extra test python -m playwright install chromium
+
+      - name: Run browser workflow test
+        run: SIRCOM_RUN_PLAYWRIGHT=1 uv run --frozen --extra test python -m unittest tests.test_lots_playwright
