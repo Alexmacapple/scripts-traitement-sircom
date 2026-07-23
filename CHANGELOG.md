@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-07-24
+
+- Restauration du workflow GitHub Actions `.github/workflows/ci.yml` dans le
+  dépôt, après retrait de la règle d'ignore qui le masquait.
+- Sortie du suivi Git des zones locales non distribuées : `livrables-miweb/`,
+  `.hermes/`, `.claude/` et `.agents/skills/`, avec conservation locale des
+  fichiers utiles et maintien des règles `.gitignore`.
+- Suppression des fichiers de sauvegarde versionnés `CLAUDE.md.bak` et
+  `AGENTS.md.bak`.
+- Alignement des Markdown racine sur l'état réel du dépôt : `AGENTS.md` ne
+  traite plus Hermes comme source versionnée, `README.md` est recentré sur le
+  chantier 2026 en retirant les détails 2025 obsolètes, et `TODO.md` acte le
+  run contrôlé du 24 juillet 2026.
+- Confirmation de la voie scriptée `re-run-old-script-2026/` : configuration
+  centralisée dans `variables.md`, sorties datées ignorées par Git et dernier
+  run contrôlé dans `livrables_output_2026-07-24/`.
+
 ## 2026-07-23
 
 - Mise à jour des Markdown racine pour acter le parcours web Sircom 2026 comme

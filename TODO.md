@@ -1,6 +1,6 @@
 # TODO
 
-État au 23 juillet 2026.
+État au 24 juillet 2026.
 
 ## Décisions d'exploitation actives
 
@@ -11,8 +11,8 @@
   directe au jeu 2026.
 - [x] Sortir les cellules métier vides en `#N/A` pour InDesign, après
   suppression des colonnes entièrement vides.
-- [ ] Finaliser et exécuter `re-run-old-script-2026/` sur le jeu de test
-  officiel Excel + ZIP 2026.
+- [x] Exécuter `re-run-old-script-2026/` sur le jeu de test officiel Excel +
+  ZIP 2026, avec sorties datées ignorées par Git.
 
 ## Terminé
 
@@ -40,6 +40,16 @@
   - [x] refus des images hors pixels, largeur ou hauteur ;
   - [x] garde disque avant jobs lourds ;
   - [x] preuves adversariales et `ruff check` en CI.
+- [x] Finaliser la voie scriptée 2026 :
+  - [x] configuration centralisée dans `re-run-old-script-2026/variables.md` ;
+  - [x] sorties dans `re-run-old-script-2026/livrables_output_YYYY-MM-DD/` ;
+  - [x] run contrôlé le 24 juillet 2026 avec 561 lignes CSV, 0 cellule vide
+    exportée, 0 inversion de tri région/département et 10 images JPG.
+- [x] Nettoyer le suivi Git :
+  - [x] ignorer `livrables-miweb/` et les sorties datées de la voie scriptée ;
+  - [x] sortir du suivi `.hermes/`, `.claude/` et `.agents/skills/` ;
+  - [x] supprimer les backups versionnés `CLAUDE.md.bak` et `AGENTS.md.bak` ;
+  - [x] restaurer `.github/workflows/ci.yml` comme workflow CI versionné.
 
 ## Priorité 0 - Verrouiller avant codage lourd
 
