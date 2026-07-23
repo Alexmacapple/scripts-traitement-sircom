@@ -9,9 +9,22 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
 
+import sircom2026.mapping as mapping_module
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
-from sircom2026.mapping import MappingError
+from sircom2026.mapping import (
+    FUSION_STEP_KEY,
+    MAPPING_LOGICAL_ROLES,
+    MAPPING_MIME_TYPE,
+    MAPPING_RULES_VERSION,
+    MAPPING_SCHEMA_VERSION,
+    MAPPING_STEP_KEY,
+    MAPPING_STATUS_VALUES,
+    SYSTEM_COLUMN_IDS,
+    MappingError,
+    MappingOperationResult,
+    PersistedMappingSnapshot,
+)
 from sircom2026.synthetic_excels import create_synthetic_excels
 from sircom2026.worker_runner import run_worker_once
 
@@ -63,6 +76,71 @@ def prepare_importable_lot(
     raise AssertionError(worker_results)
 
 
+class MappingPublicContractTest(unittest.TestCase):
+    def test_public_mapping_module_contract_entries_are_stable(self) -> None:
+        public_callables = {
+            "get_mapping_payload",
+            "build_default_mapping_from_current_diagnostic",
+            "save_mapping_draft",
+            "validate_mapping",
+            "save_profile_from_validated_mapping",
+            "apply_profile_as_draft",
+            "read_current_mapping_artifact",
+            "mapping_from_submission",
+            "mapping_validation_errors",
+            "apply_profile_to_default_mapping",
+            "profile_compatibility",
+            "profile_from_mapping",
+            "MappingProfileStore",
+        }
+
+        for name in public_callables:
+            with self.subTest(name=name):
+                self.assertTrue(callable(getattr(mapping_module, name, None)))
+
+        self.assertTrue(issubclass(MappingError, ValueError))
+        self.assertEqual(
+            tuple(MappingOperationResult.__dataclass_fields__),
+            ("mapping", "artifact", "lot", "invalidated_steps"),
+        )
+        self.assertEqual(
+            tuple(PersistedMappingSnapshot.__dataclass_fields__),
+            ("artifact", "created"),
+        )
+        self.assertEqual(MAPPING_SCHEMA_VERSION, 1)
+        self.assertEqual(MAPPING_RULES_VERSION, "mapping-v1")
+        self.assertEqual(MAPPING_STEP_KEY, "mapping")
+        self.assertEqual(FUSION_STEP_KEY, "fusion_multi_onglets")
+        self.assertEqual(MAPPING_MIME_TYPE, "application/json")
+        self.assertEqual(MAPPING_STATUS_VALUES, {"exporte", "supprime"})
+        self.assertEqual(SYSTEM_COLUMN_IDS, ("system:imageid", "system:@pathimg"))
+        self.assertEqual(
+            MAPPING_LOGICAL_ROLES,
+            {
+                "id_dossier",
+                "date",
+                "region",
+                "departement",
+                "nom_image_source",
+                "siret",
+                "telephone",
+                "code_postal",
+                "code_administratif",
+                "texte",
+            },
+        )
+        error = MappingError(
+            422,
+            "SIRCOM_MAPPING_CONTRACT_TEST",
+            "Erreur de contrat mapping.",
+            details={"field": "mapping"},
+        )
+        self.assertEqual(error.status_code, 422)
+        self.assertEqual(error.code, "SIRCOM_MAPPING_CONTRACT_TEST")
+        self.assertEqual(error.message, "Erreur de contrat mapping.")
+        self.assertEqual(error.details, {"field": "mapping"})
+
+
 class MappingApiTest(unittest.TestCase):
     def test_default_mapping_selects_useful_columns_and_keeps_structural_provenance(
         self,
@@ -90,12 +168,43 @@ class MappingApiTest(unittest.TestCase):
         columns = mapping["columns"]
         self.assertEqual(mapping["source"], "default")
         self.assertEqual(mapping["rules_version"], "mapping-v1")
+        self.assertEqual(mapping["schema_version"], 1)
         self.assertEqual(len(mapping["structural_fingerprint"]), 64)
+        self.assertTrue(mapping["source_diagnostic_artifact_id"])
+        self.assertEqual(
+            {
+                (sheet["name"], sheet["header_row"], sheet["columns_count"])
+                for sheet in mapping["sheets"]
+            },
+            {
+                ("Dossiers", 1, 8),
+                ("Etablissements", 1, 5),
+                ("Images", 1, 3),
+            },
+        )
         self.assertNotIn("Objet de test", str(payload))
         self.assertNotIn(str(tmpdir), str(payload))
 
         source_columns = [column for column in columns if not column["system"]]
         self.assertEqual(len(source_columns), 16)
+        required_column_fields = {
+            "id",
+            "system",
+            "source_sheet",
+            "source_column_index",
+            "source_column_letter",
+            "source_header",
+            "logical_role",
+            "status",
+            "csv_name",
+            "default_csv_name",
+            "suppression_reason",
+            "output_position",
+            "locked",
+        }
+        self.assertTrue(
+            all(required_column_fields <= set(column) for column in columns)
+        )
         self.assertTrue(
             all(
                 column["source_sheet"]
@@ -114,9 +223,27 @@ class MappingApiTest(unittest.TestCase):
             exported_csv_names[id_position + 1 : id_position + 3],
             ["imageid", "@pathimg"],
         )
+        image_columns = [
+            column for column in columns if column["id"] in SYSTEM_COLUMN_IDS
+        ]
+        self.assertEqual(
+            [column["id"] for column in image_columns], list(SYSTEM_COLUMN_IDS)
+        )
+        self.assertTrue(all(column["system"] for column in image_columns))
+        self.assertTrue(all(column["locked"] for column in image_columns))
+        self.assertEqual(
+            [column["csv_name"] for column in image_columns],
+            ["imageid", "@pathimg"],
+        )
         self.assertIn("d_nomdupro", exported_csv_names)
         self.assertIn("b_region", exported_csv_names)
         self.assertIn("g_datedede", exported_csv_names)
+        for column in columns:
+            if column["status"] != "exporte":
+                continue
+            if column["csv_name"] in {"id_dossier", "imageid", "@pathimg"}:
+                continue
+            self.assertLessEqual(len(column["csv_name"]), 10, column)
 
         duplicate_id_columns = [
             column
@@ -127,6 +254,13 @@ class MappingApiTest(unittest.TestCase):
         self.assertTrue(
             all(column["suppression_reason"] for column in duplicate_id_columns)
         )
+        empty_column = find_column(mapping, "Dossiers", "H", "Colonne entierement vide")
+        self.assertEqual(empty_column["status"], "exporte")
+        self.assertEqual(empty_column["csv_name"], "h_colonnee")
+        self.assertLessEqual(len(empty_column["csv_name"]), 10)
+        source_image_column = find_column(mapping, "Dossiers", "F", "Photo principale")
+        self.assertEqual(source_image_column["logical_role"], "nom_image_source")
+        self.assertEqual(source_image_column["status"], "exporte")
 
     def test_mapping_draft_validation_and_profile_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -213,6 +347,17 @@ class MappingApiTest(unittest.TestCase):
         self.assertTrue(saved_profile["headers"])
         self.assertTrue(saved_profile["letters"])
         self.assertTrue(saved_profile["logical_roles"])
+        self.assertTrue(saved_profile["columns"])
+        self.assertTrue(
+            {
+                "id",
+                "status",
+                "csv_name",
+                "logical_role",
+                "suppression_reason",
+            }
+            <= set(saved_profile["columns"][0])
+        )
         self.assertTrue(saved_profile["last_used_at"])
         self.assertNotIn("Objet de test", str(saved_profile))
         self.assertNotIn(str(tmpdir), str(saved_profile))
