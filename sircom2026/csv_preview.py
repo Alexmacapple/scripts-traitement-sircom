@@ -551,8 +551,7 @@ def _headers_and_rows_from_sort(
             else {}
         )
         row_values = {
-            header: _preview_cell(values.get(header, ""))
-            for header in headers
+            header: _preview_cell(values.get(header, "")) for header in headers
         }
         id_dossier = str(source_row.get("id_dossier") or "").strip()
         if "imageid" in row_values and id_dossier:

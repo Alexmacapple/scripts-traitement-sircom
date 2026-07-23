@@ -400,9 +400,7 @@ def diagnose_sheet(
         if visible_rows_before_header_have_data(ws, header_row):
             diagnostic.blockers.append("En-tête détecté hors première ligne.")
         else:
-            diagnostic.warnings.append(
-                "Ligne(s) vide(s) avant l'en-tête ignorée(s)."
-            )
+            diagnostic.warnings.append("Ligne(s) vide(s) avant l'en-tête ignorée(s).")
     diagnostic.hidden_data_rows = hidden_non_empty_data_rows(ws, header_row)
     if diagnostic.hidden_data_rows:
         diagnostic.warnings.append("Ligne(s) masquée(s) ignorée(s) à l'import.")

@@ -166,9 +166,7 @@ def build_default_mapping_from_current_diagnostic(
                 else:
                     status = "supprime"
                     csv_name = "id_dossier"
-                    suppression_reason = (
-                        "Colonne identifiée comme clé primaire dossier utilisée seulement pour la fusion interne."
-                    )
+                    suppression_reason = "Colonne identifiée comme clé primaire dossier utilisée seulement pour la fusion interne."
 
             columns.append(
                 {

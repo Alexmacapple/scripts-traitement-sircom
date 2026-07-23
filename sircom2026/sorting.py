@@ -561,9 +561,7 @@ def _department_sort_columns(columns: list[dict[str, Any]]) -> list[dict[str, An
 
 
 def _looks_like_postal_code_column(column: dict[str, Any]) -> bool:
-    text = " ".join(
-        str(column.get(key) or "") for key in ("source_header", "csv_name")
-    )
+    text = " ".join(str(column.get(key) or "") for key in ("source_header", "csv_name"))
     folded = _fold_for_sort(text)
     compact = "".join(character for character in folded if character.isalnum())
     return (

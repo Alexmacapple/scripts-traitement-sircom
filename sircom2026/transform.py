@@ -515,9 +515,7 @@ def _hidden_rows_by_sheet(workbook_path: Any) -> dict[str, set[int]]:
             hidden_by_sheet: dict[str, set[int]] = {}
             for sheet_el in sheets_el.findall(_xlsx_tag("sheet")):
                 sheet_name = str(sheet_el.attrib.get("name") or "")
-                relationship_id = sheet_el.attrib.get(
-                    f"{{{_OFFICE_REL_NS}}}id"
-                )
+                relationship_id = sheet_el.attrib.get(f"{{{_OFFICE_REL_NS}}}id")
                 sheet_path = workbook_rels.get(str(relationship_id or ""))
                 if not sheet_name or not sheet_path:
                     continue
