@@ -184,6 +184,7 @@ IMAGE_MATCH_LEVEL_LABELS = {
     "id_fallback_tolerant": "ID dossier proche de secours",
     "id_fallback_tolerant_final_name": "ID dossier proche de secours par nom final",
     "partial_suggestion": "Suggestion partielle",
+    "source_duplicate": "Image source utilisée plusieurs fois",
 }
 STEP_VIEW_DESCRIPTIONS = {
     "upload_excel": "Déposer uniquement le fichier Excel source du lot.",

@@ -16,9 +16,16 @@ from sircom2026.config import load_settings
 from sircom2026.database import Database
 from sircom2026.image_matching import (
     EXPORT_IMAGES_FOLDER,
+    ImageResolutionError,
     build_image_matching_payload,
     build_processed_images_zip,
     image_id_for_dossier,
+    image_matching_problems,
+    save_image_resolutions,
+)
+from sircom2026.web_constants import (
+    IMAGE_BINDING_STATUS_LABELS,
+    IMAGE_MATCH_LEVEL_LABELS,
 )
 from sircom2026.worker_runner import run_worker_once
 
@@ -190,6 +197,18 @@ def create_image_matching_workbook(path: Path) -> None:
     workbook.close()
 
 
+def create_two_image_matching_workbook(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Dossiers"
+    sheet.append(["id_dossier", "Photo", "Nom produit"])
+    sheet.append(["ID-1", "produit-a.jpg", "Produit un"])
+    sheet.append(["ID-2", "produit-b.jpg", "Produit deux"])
+    workbook.save(path)
+    workbook.close()
+
+
 def mapping_submission(mapping: dict[str, Any]) -> dict[str, Any]:
     return {
         "structural_fingerprint": mapping["structural_fingerprint"],
@@ -218,6 +237,64 @@ def run_until_step(settings, step_key: str, *, limit: int = 8):
 
 
 class ImageMatchingRulesTest(unittest.TestCase):
+    def test_public_status_labels_match_levels_and_problem_codes_are_stable(
+        self,
+    ) -> None:
+        self.assertEqual(
+            IMAGE_BINDING_STATUS_LABELS,
+            {
+                "matched": "Associée",
+                "missing": "Manquante",
+                "ambiguous": "À résoudre",
+                "conversion_failed": "Conversion échouée",
+            },
+        )
+        self.assertEqual(
+            IMAGE_MATCH_LEVEL_LABELS,
+            {
+                "none": "Aucune correspondance",
+                "final_name_collision": "Collision de nom final",
+                "manual_invalid": "Choix manuel invalide",
+                "manual": "Choix manuel",
+                "original_exact": "Nom source exact",
+                "original_exact_stem": "Nom source exact sans extension",
+                "original_tolerant": "Nom source proche",
+                "id_fallback_exact": "ID dossier exact de secours",
+                "id_fallback_exact_final_name": (
+                    "ID dossier exact de secours par nom final"
+                ),
+                "id_fallback_tolerant": "ID dossier proche de secours",
+                "id_fallback_tolerant_final_name": (
+                    "ID dossier proche de secours par nom final"
+                ),
+                "partial_suggestion": "Suggestion partielle",
+                "source_duplicate": "Image source utilisée plusieurs fois",
+            },
+        )
+
+        problems = image_matching_problems(
+            {
+                "ambiguous_count": 1,
+                "missing_count": 1,
+                "unreferenced_count": 1,
+                "fallback_count": 1,
+                "tolerant_count": 1,
+                "conversion_failed_count": 1,
+            }
+        )
+
+        self.assertEqual(
+            [problem["code"] for problem in problems],
+            [
+                "SIRCOM_IMAGE_MATCHING_AMBIGUOUS",
+                "SIRCOM_IMAGE_MATCHING_MISSING",
+                "SIRCOM_IMAGE_MATCHING_UNREFERENCED",
+                "SIRCOM_IMAGE_MATCHING_ID_FALLBACK_USED",
+                "SIRCOM_IMAGE_MATCHING_TOLERANCE_USED",
+                "SIRCOM_IMAGE_CONVERSION_FAILED",
+            ],
+        )
+
     def test_matches_exact_tolerant_fallback_missing_and_unreferenced_images(
         self,
     ) -> None:
@@ -452,6 +529,121 @@ class ImageMatchingRulesTest(unittest.TestCase):
 
 
 class ImageMatchingApiTest(unittest.TestCase):
+    def test_matching_endpoint_returns_public_not_ready_error_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = client.post("/api/lots", json={"title": "Lot neuf"}).json()["lot"][
+                "id"
+            ]
+
+            response = client.get(f"/api/lots/{lot_id}/images/matching")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json()["error"]["code"],
+            "SIRCOM_IMAGE_MATCHING_NOT_READY",
+        )
+
+    def test_save_image_resolutions_raises_public_error_codes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "images-erreurs.xlsx"
+            create_two_image_matching_workbook(workbook_path)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = client.post(
+                "/api/lots", json={"title": "Lot erreurs images"}
+            ).json()["lot"]["id"]
+            upload_images = client.post(
+                f"/api/lots/{lot_id}/images",
+                files=image_zip_file(zip_bytes([("produit-a.jpg", image_bytes())])),
+                headers={"X-Idempotency-Key": "errors-images-upload"},
+            )
+            run_until_step(settings, "inspection_images")
+            upload_excel = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file(workbook_path),
+                headers={"X-Idempotency-Key": "errors-excel-upload"},
+            )
+            run_until_step(settings, "diagnostic_excel")
+            mapping = client.get(f"/api/lots/{lot_id}/mapping").json()["mapping"]
+            validate_mapping = client.post(
+                f"/api/lots/{lot_id}/mapping/validate",
+                json=mapping_submission(mapping),
+                headers={"X-Idempotency-Key": "errors-mapping"},
+            )
+            run_until_step(settings, "fusion_multi_onglets")
+            run_until_step(settings, "normalisation_contenu")
+            database = Database(settings.sqlite_path)
+
+            error_cases = [
+                (
+                    "empty",
+                    [],
+                    "SIRCOM_IMAGE_RESOLUTION_EMPTY",
+                    {},
+                ),
+                (
+                    "unknown_dossier",
+                    [{"id_dossier": "ID-404", "source_name": "produit-a.jpg"}],
+                    "SIRCOM_IMAGE_RESOLUTION_DOSSIER_UNKNOWN",
+                    {},
+                ),
+                (
+                    "unknown_source",
+                    [{"id_dossier": "ID-1", "source_name": "absente.jpg"}],
+                    "SIRCOM_IMAGE_RESOLUTION_SOURCE_UNKNOWN",
+                    {},
+                ),
+                (
+                    "duplicated_source",
+                    [
+                        {"id_dossier": "ID-1", "source_name": "produit-a.jpg"},
+                        {"id_dossier": "ID-2", "source_name": "produit-a.jpg"},
+                    ],
+                    "SIRCOM_IMAGE_RESOLUTION_SOURCE_DUPLICATED",
+                    {"source_name": "produit-a.jpg"},
+                ),
+            ]
+
+            results = []
+            for suffix, resolutions, code, details in error_cases:
+                with self.subTest(code=code):
+                    with database.transaction() as repositories:
+                        with self.assertRaises(ImageResolutionError) as captured:
+                            save_image_resolutions(
+                                repositories,
+                                settings=settings,
+                                lot_id=lot_id,
+                                resolutions=resolutions,
+                                idempotency_key=f"errors-resolution-{suffix}",
+                            )
+                    results.append(
+                        (
+                            captured.exception.status_code,
+                            captured.exception.code,
+                            code,
+                            captured.exception.details,
+                            details,
+                        )
+                    )
+
+        self.assertEqual(upload_images.status_code, 202, upload_images.text)
+        self.assertEqual(upload_excel.status_code, 202, upload_excel.text)
+        self.assertEqual(validate_mapping.status_code, 200, validate_mapping.text)
+        for (
+            status_code,
+            actual_code,
+            expected_code,
+            actual_details,
+            expected_details,
+        ) in results:
+            self.assertEqual(status_code, 422)
+            self.assertEqual(actual_code, expected_code)
+            self.assertEqual(actual_details, expected_details)
+
     def test_matching_is_enqueued_after_normalization_when_images_are_inspected_first(
         self,
     ) -> None:

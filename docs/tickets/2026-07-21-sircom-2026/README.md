@@ -18,9 +18,9 @@ Statuts opérationnels mis à jour au 2026-07-23 :
 
 - tickets 18, 19, 24, 24A et 25 : `done` ;
 - tranches 24B, 24C et 24D : livrées dans le parent 24 ;
-- tickets 29A à 33 : `ready-for-agent`, issus de l'évaluation qualité 16,5/20
+- tickets 29B à 33 : `ready-for-agent`, issus de l'évaluation qualité 16,5/20
   et découpés avec contrats préalables pour limiter la friction LLM ;
-- tickets 26, 27 et 28 : `done` ;
+- tickets 26, 27, 28 et 29A : `done` ;
 - tous les autres tickets listés : `ready-for-agent`.
 
 | N | Statut | Ticket | Dépend de |
@@ -54,7 +54,7 @@ Statuts opérationnels mis à jour au 2026-07-23 :
 | 26 | `done` | [Figer le format Ruff global](26-figer-le-format-ruff-global.md) | 25. |
 | 27 | `done` | [Corriger le packaging des partials Jinja](27-corriger-packaging-partials-jinja.md) | aucun, peut commencer immédiatement. |
 | 28 | `done` | [Ajouter un seuil de couverture en CI](28-ajouter-seuil-couverture-ci.md) | aucun, peut commencer immédiatement. |
-| 29A | `ready-for-agent` | [Contrat public `image_matching.py`](29a-contrat-public-image-matching.md) | aucun, peut commencer immédiatement. |
+| 29A | `done` | [Contrat public `image_matching.py`](29a-contrat-public-image-matching.md) | aucun, peut commencer immédiatement. |
 | 29B | `ready-for-agent` | [Contrat public `mapping.py`](29b-contrat-public-mapping.md) | aucun, peut commencer immédiatement. |
 | 29C | `ready-for-agent` | [Contrat public `api/lots.py`](29c-contrat-public-api-lots.md) | aucun, peut commencer immédiatement. |
 | 29D | `ready-for-agent` | [Contrat public `reports.py`](29d-contrat-public-reports.md) | aucun, peut commencer immédiatement. |
