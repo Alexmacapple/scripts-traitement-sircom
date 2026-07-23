@@ -7,7 +7,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from fastapi.routing import APIRoute
 
+from sircom2026.api.lots import router as lots_router
 from sircom2026.api.security import (
     AccessAction,
     AccessDecision,
@@ -53,6 +55,47 @@ class RecordingPolicy:
 
 
 class LotsApiTest(unittest.TestCase):
+    def test_public_lots_router_contract_lists_methods_paths_and_success_statuses(
+        self,
+    ) -> None:
+        expected_routes = {
+            ("DELETE", "/api/lots/{lot_id}"): 200,
+            ("GET", "/api/lots"): 200,
+            ("GET", "/api/lots/{lot_id}"): 200,
+            ("GET", "/api/lots/{lot_id}/csv/export"): 200,
+            ("GET", "/api/lots/{lot_id}/csv/preview"): 200,
+            ("GET", "/api/lots/{lot_id}/excel/diagnostic"): 200,
+            ("GET", "/api/lots/{lot_id}/images/matching"): 200,
+            ("GET", "/api/lots/{lot_id}/images/status"): 200,
+            ("GET", "/api/lots/{lot_id}/mapping"): 200,
+            ("GET", "/api/lots/{lot_id}/package"): 200,
+            ("GET", "/api/lots/{lot_id}/reports"): 200,
+            ("GET", "/api/lots/{lot_id}/tri"): 200,
+            ("POST", "/api/lots"): 201,
+            ("POST", "/api/lots/{lot_id}/csv/preview/validate"): 200,
+            ("POST", "/api/lots/{lot_id}/excel"): 202,
+            ("POST", "/api/lots/{lot_id}/images"): 202,
+            ("POST", "/api/lots/{lot_id}/images/resolutions"): 202,
+            ("POST", "/api/lots/{lot_id}/mapping/draft"): 200,
+            ("POST", "/api/lots/{lot_id}/mapping/profile"): 201,
+            ("POST", "/api/lots/{lot_id}/mapping/profile-draft"): 200,
+            ("POST", "/api/lots/{lot_id}/mapping/validate"): 200,
+            ("POST", "/api/lots/{lot_id}/package"): 202,
+            ("POST", "/api/lots/{lot_id}/retry"): 202,
+            ("POST", "/api/lots/{lot_id}/tri/validate"): 200,
+        }
+        actual_routes: dict[tuple[str, str], int] = {}
+
+        for route in lots_router.routes:
+            if not isinstance(route, APIRoute):
+                continue
+            status_code = route.status_code or 200
+            for method in route.methods:
+                if method in {"DELETE", "GET", "POST"}:
+                    actual_routes[(method, route.path)] = status_code
+
+        self.assertEqual(actual_routes, expected_routes)
+
     def test_create_lot_initializes_v1_steps_and_records_access(self) -> None:
         policy = RecordingPolicy()
         with tempfile.TemporaryDirectory() as tmp:
@@ -240,6 +283,105 @@ class LotsApiTest(unittest.TestCase):
         self.assertEqual(policy.decisions[-1][1], AccessAction.LOT_READ)
         self.assertNotIn(lot_id, str(detail_response.json()))
         self.assertNotIn(lot_id, str(delete_response.json()))
+
+    def test_empty_lot_critical_routes_return_stable_structured_errors(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = TestClient(create_app(make_settings(Path(tmp))))
+            lot_id = client.post("/api/lots", json={"title": "Lot contrat API"}).json()[
+                "lot"
+            ]["id"]
+
+            cases = (
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/excel/diagnostic",
+                    None,
+                    409,
+                    "SIRCOM_EXCEL_DIAGNOSTIC_NOT_READY",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/images/status",
+                    None,
+                    409,
+                    "SIRCOM_IMAGE_INSPECTION_NOT_READY",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/images/matching",
+                    None,
+                    409,
+                    "SIRCOM_IMAGE_MATCHING_NOT_READY",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/mapping",
+                    None,
+                    409,
+                    "SIRCOM_MAPPING_DIAGNOSTIC_NOT_READY",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/tri",
+                    None,
+                    409,
+                    "SIRCOM_SORT_NORMALIZATION_NOT_READY",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/csv/preview",
+                    None,
+                    409,
+                    "SIRCOM_CSV_SORT_NOT_VALIDATED",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/csv/export",
+                    None,
+                    409,
+                    "SIRCOM_CSV_EXPORT_PREREQUISITES_MISSING",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/reports",
+                    None,
+                    409,
+                    "SIRCOM_REPORTS_NOT_READY",
+                ),
+                (
+                    "GET",
+                    f"/api/lots/{lot_id}/package",
+                    None,
+                    409,
+                    "SIRCOM_PACKAGE_NOT_READY",
+                ),
+                (
+                    "POST",
+                    f"/api/lots/{lot_id}/package",
+                    {"accept_warnings": True},
+                    409,
+                    "SIRCOM_PACKAGE_PREREQUISITE_MISSING",
+                ),
+                (
+                    "POST",
+                    f"/api/lots/{lot_id}/retry",
+                    {"step_key": "etape_inconnue"},
+                    400,
+                    "SIRCOM_STEP_INVALID",
+                ),
+            )
+
+            for method, path, json_body, expected_status, expected_code in cases:
+                with self.subTest(method=method, path=path):
+                    response = client.request(method, path, json=json_body)
+
+                    self.assertEqual(response.status_code, expected_status)
+                    payload = response.json()
+                    self.assertEqual(payload["error"]["code"], expected_code)
+                    self.assertIn("message", payload["error"])
+                    self.assertNotIn(str(Path(tmp)), str(payload))
 
 
 class LotsUiTest(unittest.TestCase):
