@@ -49,6 +49,21 @@ def excel_file(path: Path) -> dict[str, tuple[str, bytes, str]]:
     }
 
 
+def create_late_header_workbook(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "BDD"
+    sheet.cell(row=40, column=1, value="ID")
+    sheet.cell(row=40, column=2, value="Région")
+    sheet.cell(row=40, column=3, value="Nom du produit")
+    sheet.cell(row=41, column=1, value="DOSSIER-001")
+    sheet.cell(row=41, column=2, value="Bretagne")
+    sheet.cell(row=41, column=3, value="Produit tardif")
+    workbook.save(path)
+    workbook.close()
+
+
 def prepare_importable_lot(
     client: TestClient,
     settings,
@@ -261,6 +276,36 @@ class MappingApiTest(unittest.TestCase):
         source_image_column = find_column(mapping, "Dossiers", "F", "Photo principale")
         self.assertEqual(source_image_column["logical_role"], "nom_image_source")
         self.assertEqual(source_image_column["status"], "exporte")
+
+    def test_default_mapping_keeps_auto_detected_late_header_row(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "late-header.xlsx"
+            create_late_header_workbook(workbook_path)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = prepare_importable_lot(
+                client,
+                settings,
+                workbook_path,
+                title="Lot entete ligne 40",
+                key="late-header",
+            )
+
+            response = client.get(f"/api/lots/{lot_id}/mapping")
+
+        self.assertEqual(response.status_code, 200)
+        mapping = response.json()["mapping"]
+        self.assertEqual(
+            [
+                (sheet["name"], sheet["header_row"], sheet["columns_count"])
+                for sheet in mapping["sheets"]
+            ],
+            [("BDD", 40, 3)],
+        )
+        id_column = find_column(mapping, "BDD", "A", "ID")
+        self.assertEqual(id_column["logical_role"], "id_dossier")
+        self.assertEqual(id_column["csv_name"], "id_dossier")
 
     def test_mapping_draft_validation_and_profile_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

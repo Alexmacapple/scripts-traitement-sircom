@@ -11,6 +11,7 @@ from sircom2026.config import Settings
 from sircom2026.csv_contract import (
     CSV_CONTRACT_ARTIFACT_ROLE,
     CSV_CONTRACT_STEP_KEY,
+    EMPTY_CELL_PLACEHOLDER,
     verify_indesign_csv_bytes,
     write_indesign_csv_bytes,
 )
@@ -21,6 +22,7 @@ from sircom2026.invalidation import (
     step_input_fingerprint,
 )
 from sircom2026.lots import get_lot_detail
+from sircom2026.pathimg import clean_pathimg_root, pathimg_path
 from sircom2026.pipeline import downstream_step_keys
 from sircom2026.state import (
     complete_step,
@@ -108,9 +110,16 @@ def validate_csv_preview(
     settings: Settings,
     lot_id: str,
     idempotency_key: str,
+    pathimg_root: str | None = None,
+    update_pathimg_root: bool = False,
 ) -> CsvPreviewValidationResult:
     _require_mutable_lot(repositories, lot_id)
     _require_export_testable(repositories, lot_id=lot_id)
+    if update_pathimg_root:
+        repositories.lots.update_pathimg_root(
+            lot_id,
+            clean_pathimg_root(pathimg_root) or None,
+        )
     preview = _build_current_preview(repositories, settings=settings, lot_id=lot_id)
 
     existing = _existing_preview_validation(
@@ -247,6 +256,7 @@ def validate_csv_preview(
             metadata={
                 "columns_count": len(headers),
                 "rows_count": len(rows),
+                "pathimg_root": preview["pathimg_root"],
                 "rules_version": CSV_PREVIEW_RULES_VERSION,
                 "schema_version": CSV_PREVIEW_SCHEMA_VERSION,
             },
@@ -274,6 +284,7 @@ def validate_csv_preview(
             lot_id=lot_id,
             step_key=CSV_PREVIEW_STEP_KEY,
             run_id=run_id,
+            input_payload={"pathimg_root": preview["pathimg_root"]},
             decision_payload={
                 "csv_artifact_id": csv_artifact["id"],
                 "csv_sha256": csv_artifact["sha256"],
@@ -370,6 +381,7 @@ def get_csv_export_payload(
 def require_csv_preview_validation_if_ready(
     repositories: Repositories,
     *,
+    settings: Settings,
     lot_id: str,
 ) -> None:
     sort_step = repositories.steps.get_by_lot_key(lot_id, SORT_STEP_KEY)
@@ -385,6 +397,11 @@ def require_csv_preview_validation_if_ready(
         repositories,
         lot_id=lot_id,
         step_key=CSV_PREVIEW_STEP_KEY,
+        input_payload=_csv_preview_input_payload(
+            repositories,
+            settings=settings,
+            lot_id=lot_id,
+        ),
     )
     if (
         preview_step["status"] == "action_requise"
@@ -406,13 +423,30 @@ def require_csv_preview_validation_if_ready(
     )
 
 
+def _csv_preview_input_payload(
+    repositories: Repositories,
+    *,
+    settings: Settings,
+    lot_id: str,
+) -> dict[str, str]:
+    lot = repositories.lots.get_required(lot_id)
+    return {"pathimg_root": _effective_pathimg_root(settings, lot)}
+
+
+def _effective_pathimg_root(settings: Settings, lot: dict[str, Any]) -> str:
+    return clean_pathimg_root(lot.get("pathimg_root")) or clean_pathimg_root(
+        settings.indesign_image_root
+    )
+
+
 def _build_current_preview(
     repositories: Repositories,
     *,
     settings: Settings,
     lot_id: str,
 ) -> dict[str, Any]:
-    repositories.lots.get_required(lot_id)
+    lot = repositories.lots.get_required(lot_id)
+    pathimg_root = _effective_pathimg_root(settings, lot)
     sort = _current_json_artifact(
         repositories,
         settings=settings,
@@ -460,10 +494,12 @@ def _build_current_preview(
         repositories,
         lot_id=lot_id,
         step_key=CSV_PREVIEW_STEP_KEY,
+        input_payload={"pathimg_root": pathimg_root},
     )
     headers, rows = _headers_and_rows_from_sort(
         sort.payload,
         image_bindings=_image_bindings_by_id(matching.payload if matching else None),
+        pathimg_root=pathimg_root,
     )
     warnings = _preview_warnings(sort.payload, matching.payload if matching else None)
     return {
@@ -475,6 +511,7 @@ def _build_current_preview(
         "source_image_matching_artifact_id": matching.artifact["id"]
         if matching
         else None,
+        "pathimg_root": pathimg_root,
         "validated": False,
         "validated_at": None,
         "headers": headers,
@@ -497,6 +534,7 @@ def _headers_and_rows_from_sort(
     sort_payload: dict[str, Any],
     *,
     image_bindings: dict[str, dict[str, str]] | None = None,
+    pathimg_root: str = "",
 ) -> tuple[list[str], list[dict[str, Any]]]:
     headers = [
         str(column["csv_name"])
@@ -513,7 +551,7 @@ def _headers_and_rows_from_sort(
             else {}
         )
         row_values = {
-            header: "" if values.get(header) is None else str(values.get(header, ""))
+            header: _preview_cell(values.get(header, ""))
             for header in headers
         }
         id_dossier = str(source_row.get("id_dossier") or "").strip()
@@ -523,7 +561,10 @@ def _headers_and_rows_from_sort(
                 "imageid"
             ) or image_id_for_dossier(id_dossier)
             if "@pathimg" in row_values:
-                row_values["@pathimg"] = binding_values.get("@pathimg", "")
+                row_values["@pathimg"] = pathimg_path(
+                    pathimg_root,
+                    row_values["imageid"],
+                )
         rows.append(
             {
                 "id_dossier": source_row.get("id_dossier"),
@@ -544,6 +585,15 @@ def _csv_content_from_preview(
         if isinstance(row, dict)
     ]
     return headers, rows, write_indesign_csv_bytes(headers, rows)
+
+
+def _preview_cell(value: Any) -> str:
+    if value is None:
+        return EMPTY_CELL_PLACEHOLDER
+    text = str(value)
+    if text == "":
+        return EMPTY_CELL_PLACEHOLDER
+    return text
 
 
 def _public_preview(preview: dict[str, Any]) -> dict[str, Any]:

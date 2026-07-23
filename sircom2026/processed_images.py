@@ -18,6 +18,7 @@ from sircom2026.image_formats import (
     prepare_image_for_jpeg,
     sniff_image_dimensions,
 )
+from sircom2026.pathimg import pathimg_path
 
 
 EXPORT_IMAGES_FOLDER = "export-jpg-resize"
@@ -76,7 +77,7 @@ def build_processed_images_zip(
                     target.writestr(final_relative_path, final_content)
                     binding["final_sha256"] = hashlib.sha256(final_content).hexdigest()
                     binding["final_size_bytes"] = len(final_content)
-                    binding["pathimg"] = _indesign_path(
+                    binding["pathimg"] = pathimg_path(
                         str(matching_payload.get("image_root") or ""),
                         final_name,
                     )
@@ -140,8 +141,3 @@ def _sniff_source_image_dimensions(
             return sniff_image_dimensions(handle.read(prefix_size))
     except (KeyError, OSError, RuntimeError, ValueError, zipfile.BadZipFile):
         return None
-
-
-def _indesign_path(root: str, final_name: str) -> str:
-    clean_root = root.rstrip("/")
-    return f"{clean_root}/{final_name}" if clean_root else final_name

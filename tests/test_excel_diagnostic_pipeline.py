@@ -216,7 +216,6 @@ class ExcelDiagnosticPipelineTest(unittest.TestCase):
             "ambiguous_id": "SIRCOM_EXCEL_ID_AMBIGUOUS",
             "merged_cells": "SIRCOM_EXCEL_MERGED_CELLS",
             "hidden_column": "SIRCOM_EXCEL_HIDDEN_COLUMNS",
-            "hidden_row": "SIRCOM_EXCEL_HIDDEN_ROWS",
             "hidden_sheet": "SIRCOM_EXCEL_HIDDEN_SHEET",
             "formula": "SIRCOM_EXCEL_FORMULAS",
             "multirow_header": "SIRCOM_EXCEL_HEADER_MULTIROW",
@@ -256,6 +255,43 @@ class ExcelDiagnosticPipelineTest(unittest.TestCase):
                         ]["items"]
                     }
                     self.assertIn(expected_code, blocking_codes)
+
+    def test_worker_reports_hidden_rows_as_warning_when_they_are_ignored(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            fixtures = create_synthetic_excels(tmpdir / "fixtures", ["hidden_row"])
+            settings = make_settings(tmpdir / "hidden-row-warning")
+            client = TestClient(create_app(settings))
+            lot_id = client.post(
+                "/api/lots",
+                json={"title": "Lot hidden row warning"},
+            ).json()["lot"]["id"]
+
+            upload = client.post(
+                f"/api/lots/{lot_id}/excel",
+                files=excel_file(fixtures["hidden_row"]),
+                headers={"X-Idempotency-Key": "upload-hidden-row-warning"},
+            )
+            worker_result = run_worker_once(settings=settings)
+            diagnostic_response = client.get(f"/api/lots/{lot_id}/excel/diagnostic")
+            lot_response = client.get(f"/api/lots/{lot_id}")
+
+        self.assertEqual(upload.status_code, 202)
+        self.assertEqual(worker_result.outcome, "succeeded")
+        self.assertEqual(diagnostic_response.status_code, 200)
+        self.assertEqual(
+            step_status(lot_response.json()["lot"], "diagnostic_excel"),
+            "termine_avec_alertes",
+        )
+        warning_codes = {
+            problem["code"]
+            for problem in diagnostic_response.json()["problem_groups"]["alerte"][
+                "items"
+            ]
+        }
+        self.assertIn("SIRCOM_EXCEL_HIDDEN_ROWS", warning_codes)
 
     def test_unknown_lot_diagnostic_returns_structured_404(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

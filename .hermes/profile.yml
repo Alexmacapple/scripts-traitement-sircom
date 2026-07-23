@@ -1,0 +1,165 @@
+schema: hermes/profile/v2  # v2: harness -> control_files key (the folder is .hermes/control/), mutation.policy_version added
+role: "generated harness of children: routed project agents, visible monitor and controlled mutator"
+role_glossary:
+  children: routed agents/roles selected by the task router; not one singular child agent
+  monitor: visible self-watch via git diff, human-decisions and explicit father questions; never a hidden loop or daemon
+authority:
+  id: "360b34453da80a7837bd664d20b3cf5c3f6f0c682d1af5b46eb0a7b285d538b0"  # stable random pack identity; never derived from the checkout path
+  epoch: 1  # monotone authority generation; signed payloads bind both fields
+father:
+  # who created this child — so the child knows its lineage and can recall the father explicitly
+  repo: "bacoco/Loriq"
+  profile: profiles/hermes-bootstrap-profile.md
+  grandparent: bacoco/olympe-ai-factory-starter  # Olympe: Argos supervises, Hermes is the local engine
+  generated_at: "2026-07-23T20:10:43Z"
+  generated_commit: "549dec4"
+inherits:
+  # child harness = inherited father harness + the generated harness below + child mutations over time
+  # the father TRANSMITS these rules into THIS repo so the child is self-contained and understands them:
+  father_harness:
+    - .hermes/inherited/pdd.md
+    - .hermes/inherited/pdg.md
+    - .hermes/inherited/shipguard.md
+    - .hermes/inherited/gbrain.md
+    - .hermes/inherited/grillme.md
+project:
+  name: "sircom-madeinfrance"
+  kind: "app"
+  objective: "preserve the historical Sircom 2025 processing chain and InDesign export contract while hardening the Sircom 2026 web application Excel fusion, image matching, CSV export, package generation and UI workflow."
+  objective_checksum: 93fce91a408be51b3d5cd6be1fc1200afe94c12be3b08746e2efcf1550587d7e  # sha256 of the exact objective string; validate.py recomputes it (spec §24); legacy name was objective_lock_signature
+  data_classification: "sensitive"  # public/internal/sensitive/secret/unclassified; work gates refuse unclassified (spec S27)
+context_sources:
+  code: "sircom2026/app.py, sircom2026/static/app.js"
+  docs: "README.md"
+  git_history: "present"
+  issues_prs_reviews: "present (.github found)"
+  pdd_pdg: "unavailable"
+  shipguard: "present"
+control_files:
+  context_brief: .hermes/control/context-brief.yml
+  domain_model: .hermes/control/domain-model.yml
+  behavior_contract: .hermes/control/behavior-contract.yml
+  gates: .hermes/control/gates.yml
+  disclosure_map: .hermes/control/disclosure-map.yml
+  prompt_previews: .hermes/control/prompt-previews.md
+  tool_policy: .hermes/control/tool-policy.yml
+  task_router: .hermes/control/task-router.yml
+  mutation_policy: .hermes/control/mutation-policy.yml
+  browser_scenarios: .hermes/control/browser-scenarios.yml
+  human_decisions: .hermes/control/human-decisions.yml
+  oracles: .hermes/control/oracles.yml
+  skills_lock: .hermes/control/skills-lock.yml
+  engine_plan: .hermes/control/engine-plan.yml
+  operating_envelope: .hermes/control/operating-envelope.yml
+  owners: .hermes/control/owners.yml
+  production_target: .hermes/control/production-target.yml
+host_adapters:
+  claude_settings: .claude/settings.json
+  claude_pre_tool_use_hook: .claude/hooks/hermes_pre_tool_use.py
+agents:
+  - id: "code-sircom2026-config-cd04d0d649"
+    path: .hermes/agents/code-sircom2026-config-cd04d0d649.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-sircom2026-config-cd04d0d649.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "code-sircom2026-state-b64f8fbe54"
+    path: .hermes/agents/code-sircom2026-state-b64f8fbe54.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-sircom2026-state-b64f8fbe54.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "code-sircom2026-web-context-ac4baca60c"
+    path: .hermes/agents/code-sircom2026-web-context-ac4baca60c.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-sircom2026-web-context-ac4baca60c.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "code-sircom2026-database-1aa5e56000"
+    path: .hermes/agents/code-sircom2026-database-1aa5e56000.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-sircom2026-database-1aa5e56000.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "code-sircom2026-image-matching-3fdbae9c97"
+    path: .hermes/agents/code-sircom2026-image-matching-3fdbae9c97.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-sircom2026-image-matching-3fdbae9c97.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "code-sircom2026-excel-diagnostic-30392172b5"
+    path: .hermes/agents/code-sircom2026-excel-diagnostic-30392172b5.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-sircom2026-excel-diagnostic-30392172b5.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "code-tests-template-contracts-27743ce500"
+    path: .hermes/agents/code-tests-template-contracts-27743ce500.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-tests-template-contracts-27743ce500.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "code-hardening"
+    path: .hermes/agents/code-hardening.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/code-hardening.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+  - id: "ui-verification"
+    path: .hermes/agents/ui-verification.agent.md
+    native_codex_skill: .agents/skills/project-architecture/SKILL.md
+    native_claude_agent: .claude/agents/ui-verification.md
+    native_claude_skill: .claude/skills/project-architecture/SKILL.md
+skills:
+  - id: "project-architecture"
+    hermes_path: .hermes/skills/project-architecture/SKILL.md
+    codex_path: .agents/skills/project-architecture/SKILL.md
+    claude_path: .claude/skills/project-architecture/SKILL.md
+  - id: "pdg-mission-guard"
+    hermes_path: .hermes/skills/pdg-mission-guard/SKILL.md
+    codex_path: .agents/skills/pdg-mission-guard/SKILL.md
+    claude_path: .claude/skills/pdg-mission-guard/SKILL.md
+  - id: "pdd-progressive-disclosure"
+    hermes_path: .hermes/skills/pdd-progressive-disclosure/SKILL.md
+    codex_path: .agents/skills/pdd-progressive-disclosure/SKILL.md
+    claude_path: .claude/skills/pdd-progressive-disclosure/SKILL.md
+  - id: "hermes-memory"
+    hermes_path: .hermes/skills/hermes-memory/SKILL.md
+    codex_path: .agents/skills/hermes-memory/SKILL.md
+    claude_path: .claude/skills/hermes-memory/SKILL.md
+  - id: "fable-mode"
+    hermes_path: .hermes/skills/fable-mode/SKILL.md
+    codex_path: .agents/skills/fable-mode/SKILL.md
+    claude_path: .claude/skills/fable-mode/SKILL.md
+  - id: "gbrain-sourced-synthesis"
+    hermes_path: .hermes/skills/gbrain-sourced-synthesis/SKILL.md
+    codex_path: .agents/skills/gbrain-sourced-synthesis/SKILL.md
+    claude_path: .claude/skills/gbrain-sourced-synthesis/SKILL.md
+  - id: "tdd-red-green"
+    hermes_path: .hermes/skills/tdd-red-green/SKILL.md
+    codex_path: .agents/skills/tdd-red-green/SKILL.md
+    claude_path: .claude/skills/tdd-red-green/SKILL.md
+  - id: "grillme-questioning"
+    hermes_path: .hermes/skills/grillme-questioning/SKILL.md
+    codex_path: .agents/skills/grillme-questioning/SKILL.md
+    claude_path: .claude/skills/grillme-questioning/SKILL.md
+  - id: "shipguard-browser-scenarios"
+    hermes_path: .hermes/skills/shipguard-browser-scenarios/SKILL.md
+    codex_path: .agents/skills/shipguard-browser-scenarios/SKILL.md
+    claude_path: .claude/skills/shipguard-browser-scenarios/SKILL.md
+parent_reentry:
+  father_profile: Hermes Bootstrap Profile
+  preferred_mode: socratic-questioning
+  allowed_when:
+    - child profile structurally broken
+    - major project pivot
+    - external cold review requested by human
+    - profile drift suspected (human-initiated, never a parent self-watch loop)
+  forbidden:
+    - hidden monitoring
+    - permanent governance loop
+    - readiness report
+    - validation-of-validation
+mutation:
+  policy: .hermes/control/mutation-policy.yml
+  policy_version: 1  # monotonic (spec §23): any governance-core change bumps it; a mutation computed against a stale version is refused (compare-and-swap)
+  default: child may self-mutate only under policy; human required for objective/tool broadening/preserve-change changes
+engines:
+  default:
+    - codex
+    - claude
+  sensitive: []  # human must name sovereign engines before bounded work on sensitive data
+  secret: []     # human must name sovereign engines before bounded work on secret data
+note: Hermes routes and visibly monitors; the engines bound to each routed child in control/engine-plan.yml execute bounded work.

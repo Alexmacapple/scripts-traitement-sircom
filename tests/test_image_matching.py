@@ -28,6 +28,7 @@ from sircom2026.image_matching import (
     image_matching_problems,
     save_image_resolutions,
 )
+from sircom2026.pathimg import pathimg_path
 from sircom2026.web_constants import (
     IMAGE_BINDING_STATUS_LABELS,
     IMAGE_MATCH_LEVEL_LABELS,
@@ -332,7 +333,7 @@ class ImageMatchingRulesTest(unittest.TestCase):
                 [
                     "photo-produit.jpg",
                     "photo_deux.png",
-                    "dossier-abc-3.webp",
+                    "abc-3.webp",
                     "orpheline.jpg",
                 ]
             ),
@@ -353,7 +354,7 @@ class ImageMatchingRulesTest(unittest.TestCase):
         self.assertTrue(rows["ABC-3"]["fallback_used"])
         self.assertTrue(rows["ABC-3"]["match_level"].startswith("id_fallback"))
         self.assertEqual(rows["ID-MISSING"]["status"], "missing")
-        self.assertEqual(rows["ID-MISSING"]["imageid"], "dossier-id-missing.jpg")
+        self.assertEqual(rows["ID-MISSING"]["imageid"], "id-missing.jpg")
         self.assertEqual(rows["ID-MISSING"]["pathimg"], "")
         self.assertEqual(matching["matched_count"], 3)
         self.assertEqual(matching["missing_count"], 1)
@@ -394,8 +395,8 @@ class ImageMatchingRulesTest(unittest.TestCase):
         rows = row_by_id(matching)
         self.assertTrue(matching["blocking"])
         self.assertEqual(matching["ambiguous_count"], 2)
-        self.assertEqual(rows["A.B"]["imageid"], "dossier-ab.jpg")
-        self.assertEqual(rows["AB"]["imageid"], "dossier-ab.jpg")
+        self.assertEqual(rows["A.B"]["imageid"], "ab.jpg")
+        self.assertEqual(rows["AB"]["imageid"], "ab.jpg")
         self.assertEqual(rows["A.B"]["status"], "ambiguous")
         self.assertEqual(rows["AB"]["status"], "ambiguous")
         self.assertEqual(rows["A.B"]["match_level"], "final_name_collision")
@@ -513,12 +514,12 @@ class ImageMatchingRulesTest(unittest.TestCase):
 
         binding = matching["bindings"][0]
         self.assertIn(f"{EXPORT_IMAGES_FOLDER}/", names)
-        self.assertEqual(binding["final_name"], "dossier-id4-a.jpg")
+        self.assertEqual(binding["final_name"], "id4-a.jpg")
         self.assertEqual(binding["status"], "matched")
         self.assertEqual(len(binding["final_sha256"]), 64)
         self.assertEqual(
             binding["pathimg"],
-            "/Users/victoria/Documents/export-jpg-resize/dossier-id4-a.jpg",
+            "/Users/victoria/Documents/export-jpg-resize/id4-a.jpg",
         )
 
     def test_processed_zip_marks_encrypted_entry_as_conversion_failed(self) -> None:
@@ -915,22 +916,22 @@ class ImageMatchingApiTest(unittest.TestCase):
         self.assertEqual(matching_payload["bindings"][0]["match_level"], "manual")
         self.assertEqual(processed_download.status_code, 200)
         with zipfile.ZipFile(BytesIO(processed_download.content)) as archive:
-            self.assertIn("export-jpg-resize/dossier-id-1.jpg", archive.namelist())
+            self.assertIn("export-jpg-resize/id-1.jpg", archive.namelist())
         self.assertEqual(validate_sort.status_code, 200, validate_sort.text)
         self.assertEqual(preview.status_code, 200, preview.text)
         preview_payload = preview.json()["preview"]
         self.assertEqual(
             preview_payload["rows"][0]["values"]["imageid"],
-            "dossier-id-1.jpg",
+            "id-1.jpg",
         )
         self.assertEqual(
             preview_payload["rows"][0]["values"]["@pathimg"],
-            "/Users/victoria/Documents/export-jpg-resize/dossier-id-1.jpg",
+            pathimg_path(settings.indesign_image_root, "id-1.jpg"),
         )
         self.assertEqual(validate_preview.status_code, 200, validate_preview.text)
-        self.assertIn("dossier-id-1.jpg", csv_download.content.decode("utf-16"))
+        self.assertIn("id-1.jpg", csv_download.content.decode("utf-16"))
         self.assertIn(
-            "/Users/victoria/Documents/export-jpg-resize/dossier-id-1.jpg",
+            pathimg_path(settings.indesign_image_root, "id-1.jpg"),
             csv_download.content.decode("utf-16"),
         )
         self.assertIn("produit-retouche.png", summary)

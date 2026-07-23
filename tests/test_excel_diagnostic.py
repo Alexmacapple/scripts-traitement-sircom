@@ -47,7 +47,10 @@ class ExcelDiagnosticTest(unittest.TestCase):
         self.assertEqual(sheets["Images"].id_candidates[0].column, "B")
         self.assertTrue(sheets["Avis"].ignored)
         self.assertTrue(
-            any("sans id_dossier" in warning for warning in diagnostic.warnings),
+            any(
+                "sans clé primaire dossier" in warning
+                for warning in diagnostic.warnings
+            ),
             diagnostic.warnings,
         )
         self.assertTrue(
@@ -73,7 +76,6 @@ class ExcelDiagnosticTest(unittest.TestCase):
                     "ambiguous_id",
                     "merged_cells",
                     "hidden_column",
-                    "hidden_row",
                     "hidden_sheet",
                     "formula",
                     "multirow_header",
@@ -82,12 +84,11 @@ class ExcelDiagnosticTest(unittest.TestCase):
                 ],
             )
             expected_fragments = {
-                "missing_id": "Colonne id_dossier non détectée.",
-                "duplicate_id": "Valeurs id_dossier dupliquées",
-                "ambiguous_id": "Plusieurs colonnes id_dossier candidates.",
+                "missing_id": "Clé primaire dossier non détectée.",
+                "duplicate_id": "Valeurs de clé primaire dossier dupliquées",
+                "ambiguous_id": "Plusieurs colonnes candidates pour la clé primaire dossier.",
                 "merged_cells": "cellule(s) fusionnée(s).",
                 "hidden_column": "colonne(s) masquée(s).",
-                "hidden_row": "ligne(s) masquée(s).",
                 "hidden_sheet": "Onglet masqué.",
                 "formula": "Formules détectées.",
                 "multirow_header": "En-tête détecté hors première ligne.",
@@ -111,6 +112,38 @@ class ExcelDiagnosticTest(unittest.TestCase):
         self.assertTrue(diagnostic.importable, diagnostic.blockers)
         self.assertIn("En-têtes sources dupliqués", " ".join(diagnostic.warnings))
 
+    def test_header_after_empty_rows_is_detected_and_hidden_rows_are_ignored(
+        self,
+    ) -> None:
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "BDD"
+        sheet.cell(row=40, column=1, value="ID")
+        sheet.cell(row=40, column=2, value="Région")
+        sheet.cell(row=41, column=1, value="VISIBLE-001")
+        sheet.cell(row=41, column=2, value="Bretagne")
+        sheet.cell(row=42, column=1, value="VISIBLE-001")
+        sheet.cell(row=42, column=2, value="Occitanie")
+        sheet.row_dimensions[42].hidden = True
+
+        diagnostic = diagnose_sheet(sheet)
+
+        self.assertTrue(diagnostic.importable, diagnostic.blockers)
+        self.assertEqual(diagnostic.header_row, 40)
+        self.assertEqual(diagnostic.id_candidates[0].column, "A")
+        self.assertEqual(diagnostic.id_candidates[0].non_empty_values, 1)
+        self.assertEqual(diagnostic.id_candidates[0].duplicate_values, 0)
+        self.assertEqual(diagnostic.hidden_data_rows, [42])
+        self.assertIn("Ligne(s) masquée(s) ignorée(s)", " ".join(diagnostic.warnings))
+
+    def test_hidden_row_is_warning_not_blocker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = create_synthetic_excels(Path(tmpdir), ["hidden_row"])
+            diagnostic = diagnose_workbook(paths["hidden_row"])
+
+        self.assertTrue(diagnostic.importable, diagnostic.blockers)
+        self.assertIn("Ligne(s) masquée(s) ignorée(s)", " ".join(diagnostic.warnings))
+
     def test_refused_workbook_reports_multiple_detectable_reasons_in_one_pass(
         self,
     ) -> None:
@@ -121,10 +154,9 @@ class ExcelDiagnosticTest(unittest.TestCase):
         blockers = " ".join(diagnostic.blockers)
         self.assertFalse(diagnostic.importable)
         self.assertIn("colonne(s) masquée(s).", blockers)
-        self.assertIn("ligne(s) masquée(s).", blockers)
         self.assertIn("cellule(s) fusionnée(s).", blockers)
         self.assertIn("Formules détectées.", blockers)
-        self.assertIn("Colonne id_dossier non détectée.", blockers)
+        self.assertIn("Clé primaire dossier non détectée.", blockers)
 
     def test_cell_scan_limit_does_not_trust_declared_dimensions_only(self) -> None:
         class FakeCell:

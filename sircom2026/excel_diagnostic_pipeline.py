@@ -222,6 +222,7 @@ def serialize_sheet_diagnostic(sheet: SheetDiagnostic) -> dict[str, Any]:
         "source_headers": [asdict(candidate) for candidate in sheet.source_headers],
         "hidden_columns": list(sheet.hidden_columns),
         "hidden_rows": list(sheet.hidden_rows),
+        "hidden_data_rows": list(sheet.hidden_data_rows),
         "merged_ranges": list(sheet.merged_ranges),
         "formula_cells_sample": list(sheet.formula_cells_sample),
         "headers_preview": list(sheet.headers_preview),
@@ -338,16 +339,16 @@ def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
                 "technical": {"hidden_columns": len(sheet.hidden_columns)},
             }
         )
-    if sheet.hidden_rows:
+    if sheet.hidden_data_rows:
         problems.append(
             {
-                "severity": "bloquant",
+                "severity": "alerte",
                 "code": "SIRCOM_EXCEL_HIDDEN_ROWS",
-                "title": "Lignes masquées détectées",
-                "cause": "Le classeur contient une ligne masquée dans un onglet utile.",
-                "action": "Afficher ou supprimer la ligne, puis relancer le diagnostic.",
-                "location": _row_location(sheet.name, sheet.hidden_rows),
-                "technical": {"rows_count": len(sheet.hidden_rows)},
+                "title": "Lignes masquées ignorées",
+                "cause": "Le classeur contient des lignes masquées avec des données.",
+                "action": "Aucune action requise si seules les lignes visibles doivent être importées.",
+                "location": _row_location(sheet.name, sheet.hidden_data_rows),
+                "technical": {"rows_count": len(sheet.hidden_data_rows)},
             }
         )
     if sheet.merged_ranges:
@@ -390,21 +391,38 @@ def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
             {
                 "severity": "bloquant",
                 "code": "SIRCOM_EXCEL_ID_MISSING",
-                "title": "Colonne id_dossier absente",
-                "cause": "Aucune colonne id_dossier ne peut être identifiée sans en-têtes fiables.",
-                "action": "Ajouter une première ligne d'en-têtes avec id_dossier, puis relancer le diagnostic.",
+                "title": "Clé primaire dossier absente",
+                "cause": "Aucune colonne pouvant servir de clé primaire dossier ne peut être identifiée sans en-têtes fiables.",
+                "action": "Ajouter une première ligne d'en-têtes avec une colonne identifiant les dossiers, puis relancer le diagnostic.",
                 "location": location,
                 "technical": {"columns_count": sheet.columns},
             }
         )
     elif sheet.header_row != 1:
+        severity = (
+            "bloquant"
+            if "En-tête détecté hors première ligne." in sheet.blockers
+            else "alerte"
+        )
         problems.append(
             {
-                "severity": "bloquant",
+                "severity": severity,
                 "code": "SIRCOM_EXCEL_HEADER_MULTIROW",
-                "title": "En-tête sur plusieurs lignes",
-                "cause": "La ligne d'en-têtes détectée n'est pas la première ligne.",
-                "action": "Placer les en-têtes sur la première ligne, puis relancer le diagnostic.",
+                "title": (
+                    "En-tête hors première ligne"
+                    if severity == "alerte"
+                    else "En-tête sur plusieurs lignes"
+                ),
+                "cause": (
+                    "La ligne d'en-têtes a été détectée après des lignes vides."
+                    if severity == "alerte"
+                    else "La ligne d'en-têtes détectée n'est pas la première ligne."
+                ),
+                "action": (
+                    "Aucune action requise : les lignes vides avant l'en-tête seront ignorées."
+                    if severity == "alerte"
+                    else "Placer les en-têtes sur la première ligne, puis relancer le diagnostic."
+                ),
                 "location": {"onglet": sheet.name, "ligne": sheet.header_row},
                 "technical": {"rows_count": sheet.header_row},
             }
@@ -442,9 +460,9 @@ def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
             {
                 "severity": "bloquant",
                 "code": "SIRCOM_EXCEL_ID_MISSING",
-                "title": "Colonne id_dossier absente",
-                "cause": "Un onglet non vide ne contient pas de colonne id_dossier détectable.",
-                "action": "Ajouter ou renommer la colonne id_dossier, puis relancer le diagnostic.",
+                "title": "Clé primaire dossier absente",
+                "cause": "Un onglet non vide ne contient pas de colonne détectable comme clé primaire dossier.",
+                "action": "Ajouter ou renommer une colonne identifiant les dossiers, puis relancer le diagnostic.",
                 "location": location,
                 "technical": {"columns_count": sheet.columns},
             }
@@ -454,9 +472,9 @@ def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
             {
                 "severity": "bloquant",
                 "code": "SIRCOM_EXCEL_ID_AMBIGUOUS",
-                "title": "Colonne id_dossier ambiguë",
-                "cause": "Plusieurs colonnes peuvent être interprétées comme id_dossier.",
-                "action": "Conserver une seule colonne id_dossier, puis relancer le diagnostic.",
+                "title": "Clé primaire dossier ambiguë",
+                "cause": "Plusieurs colonnes peuvent être interprétées comme clé primaire dossier.",
+                "action": "Conserver une seule colonne identifiant les dossiers, puis relancer le diagnostic.",
                 "location": location,
                 "technical": {"columns_count": len(sheet.id_candidates)},
             }
@@ -468,9 +486,9 @@ def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
                 {
                     "severity": "bloquant",
                     "code": "SIRCOM_EXCEL_ID_DUPLICATES",
-                    "title": "Doublons id_dossier",
-                    "cause": "Un onglet contient plusieurs lignes avec le même id_dossier.",
-                    "action": "Corriger les doublons id_dossier, puis relancer le diagnostic.",
+                    "title": "Doublons de clé primaire dossier",
+                    "cause": "Un onglet contient plusieurs lignes avec la même clé primaire dossier.",
+                    "action": "Corriger les doublons sur la colonne identifiant les dossiers, puis relancer le diagnostic.",
                     "location": {"onglet": sheet.name, "colonne": candidate.column},
                     "technical": {"duplicates_count": candidate.duplicate_values},
                 }
@@ -480,8 +498,8 @@ def sheet_problems(sheet: SheetDiagnostic) -> list[dict[str, Any]]:
                 {
                     "severity": "alerte",
                     "code": "SIRCOM_EXCEL_ID_BLANK_ROWS",
-                    "title": "Lignes sans id_dossier",
-                    "cause": "Certaines lignes n'ont pas d'id_dossier et seront ignorées à l'export.",
+                    "title": "Lignes sans clé primaire dossier",
+                    "cause": "Certaines lignes n'ont pas de clé primaire dossier et seront ignorées à l'export.",
                     "action": "Compléter ces identifiants ou accepter leur suppression à l'export.",
                     "location": {"onglet": sheet.name, "colonne": candidate.column},
                     "technical": {"rows_count": candidate.blank_values},

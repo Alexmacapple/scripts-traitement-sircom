@@ -1,0 +1,57 @@
+{
+  "schema": "pdd.source-map.v1",
+  "generated_at": "2026-07-24",
+  "documents": {
+    "docs/INDEX.md": [
+      "docs/README.md",
+      "docs/sources.md",
+      "variables.md",
+      "run_jeu_test_2026.py"
+    ],
+    "docs/README.md": [
+      "variables.md",
+      "run_jeu_test_2026.py",
+      "sircom2026_rules.py",
+      "livrables_output_2026-07-24/run-2026-summary.json"
+    ],
+    "docs/sources.md": [
+      "variables.md",
+      "run_jeu_test_2026.py",
+      "sircom2026_rules.py",
+      "sircom2026_image_matching.py",
+      "sircom2026_image_mapping.py",
+      "sircom2026_image_processing.py",
+      "tests/test_image_modules.py",
+      "13-verify_data_integrity.py",
+      "livrables_output_2026-07-24/run-2026-summary.json"
+    ],
+    "docs/specification-fonctionnelle.md": [
+      "variables.md",
+      "run_jeu_test_2026.py",
+      "sircom2026_rules.py",
+      "livrables_output_2026-07-24/run-2026-summary.json"
+    ],
+    "docs/specification-technique.md": [
+      "variables.md",
+      "run_jeu_test_2026.py",
+      "sircom2026_rules.py",
+      "sircom2026_image_matching.py",
+      "sircom2026_image_mapping.py",
+      "sircom2026_image_processing.py",
+      "00-extract_departement_to_sircom.py",
+      "11-process-images.py",
+      "13-verify_data_integrity.py"
+    ],
+    "docs/verification-scripts-2026.md": [
+      "variables.md",
+      "run_jeu_test_2026.py",
+      "sircom2026_rules.py",
+      "sircom2026_image_matching.py",
+      "sircom2026_image_mapping.py",
+      "sircom2026_image_processing.py",
+      "tests/test_image_modules.py",
+      "livrables_output_2026-07-24/run-2026-summary.json",
+      "livrables_output_2026-07-24/10-final-sircom-indesign-utf16.csv"
+    ]
+  }
+}

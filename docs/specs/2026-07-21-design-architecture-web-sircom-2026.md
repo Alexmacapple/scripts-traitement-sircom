@@ -380,10 +380,10 @@ Contrat CSV :
 - séparateur virgule ;
 - fins de ligne LF ;
 - guillemets automatiques si nécessaire ;
-- cellules vides conservées ;
+- cellules métier vides remplacées par `#N/A` ;
 - en-têtes uniques ;
 - `id_dossier`, `imageid`, `@pathimg` en tête logique ;
-- aucune valeur `#N/A` injectée ;
+- aucune cellule vide dans les lignes exportées ;
 - format compatible avec le CSV 2025 de référence.
 
 Tests :
@@ -682,7 +682,7 @@ Règles :
 - les écritures se font dans `tmp/`, puis commit atomique ;
 - les téléchargements passent par `artifact_id`, jamais par chemin fourni par
   l'utilisateur ;
-- la purge supprime uploads, artefacts, rapports, packages et valeurs métier ;
+- la purge retire uploads, artefacts, rapports, packages et valeurs métier ;
 - une trace technique anonymisée peut rester selon la politique validée ;
 - les compteurs disque sont recalculables depuis SQLite et le disque.
 
@@ -940,7 +940,7 @@ Contraintes VPS futures :
 - Écrire des artefacts hors `SIRCOM_DATA_DIR`.
 - Exposer des chemins disque absolus en réponse API.
 - Mettre des valeurs métier sensibles dans les logs.
-- Injecter `#N/A` dans le CSV final.
+- Laisser une cellule métier vide dans le CSV final.
 - Produire un package si des problèmes bloquants restent ouverts.
 - Marquer une étape `termine` quand elle contient encore des alertes.
 - Créer des routes stub qui retournent succès sans artefact vérifiable.
@@ -977,7 +977,7 @@ Pour le CSV :
 - LF prouvé ;
 - ordre des colonnes prouvé ;
 - comparaison structurelle avec référence 2025 ;
-- cellules vides conservées.
+- cellules métier vides remplacées par `#N/A`.
 
 Pour les images :
 
@@ -1118,9 +1118,9 @@ verrouillées avant les tickets qui touchent stockage, sécurité, export et UI.
 
 ### Connus connus
 
-- `[!]` Le CSV final doit rester strictement compatible InDesign 2025 : UTF-16
-  avec BOM, virgule, LF, cellules vides conservées, `id_dossier`, `imageid`,
-  `@pathimg`.
+- `[!]` Le CSV final doit rester strictement compatible InDesign : UTF-16 avec
+  BOM, virgule, LF, cellules métier vides remplacées par `#N/A`, `id_dossier`,
+  `imageid`, `@pathimg`.
 - `[^]` FastAPI est la cible web et les routes doivent rester minces.
 - `[^]` SQLite local est la source de vérité V1 pour lots, étapes, jobs,
   artefacts, événements et problèmes.

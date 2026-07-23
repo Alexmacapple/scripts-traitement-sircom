@@ -5,6 +5,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from sircom2026.pathimg import DEFAULT_INDESIGN_IMAGE_ROOT
+
 
 DEFAULT_MAX_EXCEL_ROWS = 200_000
 DEFAULT_MAX_EXCEL_COLUMNS = 256
@@ -138,7 +140,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         indesign_image_root=_text(
             values,
             "SIRCOM_INDESIGN_IMAGE_ROOT",
-            "/Users/victoria/Documents/export-jpg-resize",
+            DEFAULT_INDESIGN_IMAGE_ROOT,
         ),
         bind_host=_text(values, "SIRCOM_BIND_HOST", "127.0.0.1"),
         port=_int(values, "SIRCOM_PORT", 8000, minimum=1, maximum=65535),

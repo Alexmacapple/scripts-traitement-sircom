@@ -159,6 +159,8 @@ def migrate_database(path: Path, *, busy_timeout_ms: int = 5000) -> None:
             _apply_schema_v4(connection)
         if current_version < 5:
             _apply_schema_v5(connection)
+        if current_version < 6:
+            _apply_schema_v6(connection)
         _validate_schema(connection)
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         connection.commit()
@@ -273,6 +275,16 @@ def _apply_schema_v5(connection: sqlite3.Connection) -> None:
     connection.execute(
         "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
         (5, "purge_traces", _now()),
+    )
+
+
+def _apply_schema_v6(connection: sqlite3.Connection) -> None:
+    lot_columns = _table_columns(connection, "lots")
+    if "pathimg_root" not in lot_columns:
+        connection.execute("ALTER TABLE lots ADD COLUMN pathimg_root TEXT")
+    connection.execute(
+        "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+        (6, "lot_pathimg_root", _now()),
     )
 
 
@@ -405,6 +417,7 @@ _SCHEMA_V1 = [
         updated_at TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ({_check_in(LOT_STATUSES)})),
         title TEXT,
+        pathimg_root TEXT,
         active_run_id TEXT,
         cancel_requested_at TEXT,
         delete_requested_at TEXT,

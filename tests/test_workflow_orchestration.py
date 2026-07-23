@@ -15,6 +15,7 @@ from sircom2026.csv_contract import verify_indesign_csv_bytes
 from sircom2026.image_matching import EXPORT_IMAGES_FOLDER
 from sircom2026.image_naming import image_id_for_dossier
 from sircom2026.lots import V1_STEPS
+from sircom2026.pathimg import pathimg_path, pathimg_prefix
 from sircom2026.pipeline import (
     V1_EXTERNAL_STEP_KEYS,
     V1_INVALIDATION_DAG,
@@ -238,20 +239,10 @@ class WorkflowOrchestrationTest(unittest.TestCase):
             matching = run_until_step(settings, "matching_images")
             matching_response = client.get(f"/api/lots/{lot_id}/images/matching")
 
-            validate_region_sort = client.post(
+            validate_sort = client.post(
                 f"/api/lots/{lot_id}/tri/validate",
                 json={"decision": "tri_region_departement"},
                 headers={"X-Idempotency-Key": "e2e-sort"},
-            )
-            self.assertEqual(validate_region_sort.status_code, 409)
-            self.assertEqual(
-                validate_region_sort.json()["error"]["code"],
-                "SIRCOM_SORT_COLUMNS_NOT_CLEAR",
-            )
-            validate_sort = client.post(
-                f"/api/lots/{lot_id}/tri/validate",
-                json={"decision": "ordre_source"},
-                headers={"X-Idempotency-Key": "e2e-sort-source"},
             )
             self.assertEqual(validate_sort.status_code, 200, validate_sort.text)
             preview = client.get(f"/api/lots/{lot_id}/csv/preview")
@@ -320,7 +311,7 @@ class WorkflowOrchestrationTest(unittest.TestCase):
             self.assertEqual(row["values"]["imageid"], expected_image)
             self.assertEqual(
                 row["values"]["@pathimg"],
-                f"{settings.indesign_image_root}/{expected_image}",
+                pathimg_path(settings.indesign_image_root, expected_image),
             )
 
         self.assertEqual(final_csv.status_code, 200, final_csv.text)
@@ -330,7 +321,7 @@ class WorkflowOrchestrationTest(unittest.TestCase):
         self.assertIn("id_dossier,imageid,@pathimg", csv_text)
         self.assertIn("Objet de test avec<br>retour ligne", csv_text)
         self.assertIn("12/01/2026", csv_text)
-        self.assertIn(f"{settings.indesign_image_root}/", csv_text)
+        self.assertIn(pathimg_prefix(settings.indesign_image_root), csv_text)
 
         self.assertEqual(reports_response.status_code, 200, reports_response.text)
         self.assertEqual(business_report.status_code, 200, business_report.text)

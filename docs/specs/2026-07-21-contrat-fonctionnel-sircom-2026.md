@@ -131,10 +131,10 @@ utilisateur, zip images libre, rapport métier et package final.
   référence.
 - Format exact : UTF-16 avec BOM, séparateur virgule, saut de ligne LF,
   guillemets automatiques seulement si nécessaire.
-- Les valeurs vides ou absentes sortent en cellule vide, pas en `#N/A` ni en
-  `N/C`.
-- Cette règle remplace les décisions intermédiaires Q24, Q48, Q50 et Q51 qui
-  envisageaient `#N/A`.
+- Les cellules métier vides ou absentes des lignes exportées sortent en `#N/A`,
+  pas en cellule vide.
+- Cette règle corrige la décision Q73 après validation métier du risque
+  InDesign : les vraies cellules vides peuvent faire planter le gabarit.
 - Les absences restent visibles dans l'interface et dans le rapport.
 - Renommage des colonnes : ajouter d'abord la référence de colonne Excel au nom
   original, puis appliquer la règle 2025 : minuscules, sans accents, sans
@@ -202,8 +202,8 @@ utilisateur, zip images libre, rapport métier et package final.
   manuelle obligatoire.
 - Si plusieurs images peuvent correspondre au même dossier, l'application ne
   choisit pas automatiquement ; l'utilisateur sélectionne l'image correcte.
-- Le nom final d'image reprend exactement la règle 2025 :
-  `dossier-{id-normalise}.jpg`.
+- Le nom final d'image reprend l'identifiant dossier normalisé :
+  `{id-normalise}.jpg`.
 - Normalisation de l'ID image : minuscules, suppression des points, suppression
   des espaces, conservation des tirets.
 - Les images finales sont converties en JPG avec largeur maximale 350 px,
@@ -312,8 +312,8 @@ utilisateur, zip images libre, rapport métier et package final.
 Le contrat fonctionnel est solide pour cadrer une V1 : il sépare l'entrée Excel,
 le mapping, le CSV InDesign, les images et le rapport, tout en préservant les
 règles 2025 qui ont déjà fonctionné dans InDesign. Il corrige aussi plusieurs
-tensions dangereuses, notamment `#N/A` remplacé par cellules vides et `B_ID` /
-`F_ID` remplacés par `id_dossier` logique.
+tensions dangereuses, notamment vraies cellules vides remplacées par `#N/A` et
+`B_ID` / `F_ID` remplacés par `id_dossier` logique.
 
 ### Préoccupations
 
@@ -383,7 +383,8 @@ le modèle de rapport ne sont pas précisés.
 - La clé métier 2026 est `id_dossier`, sans dépendance à `B_ID` ou `F_ID`.
 - L'ensemble des lignes CSV V1 est l'union des `id_dossier` des onglets utiles.
 - Le CSV 2025 est une référence de sortie InDesign, pas un input.
-- Le CSV final est UTF-16 avec BOM, virgule, LF et cellules vides conservées.
+- Le CSV final est UTF-16 avec BOM, virgule, LF et cellules métier vides
+  remplacées par `#N/A`.
 - Le mapping garde la provenance complète et peut sélectionner un sous-ensemble
   de colonnes.
 - Les images viennent d'un zip uploadé, à la racine, avec une image principale
@@ -482,9 +483,9 @@ doivent être converties en décisions ou en tests avant `/to-tickets`.
 
 ## Tensions à lever pour implémentation LLM
 
-- `#N/A` vs cellule vide : les décisions intermédiaires `#N/A` sont remplacées
-  par Q73. La sortie finale garde des cellules vides ; les absences sont
-  seulement signalées dans l'interface et le rapport.
+- `#N/A` vs cellule vide : décision corrigée le 23 juillet 2026. La sortie
+  finale remplace les cellules métier vides par `#N/A`; les lignes totalement
+  vides et les lignes sans `id_dossier` restent supprimées.
 - CSV 2025 input vs output : le CSV 2025 sert de référence de sortie InDesign,
   pas de modèle d'entrée.
 - Format CSV 2025 vs colonnes 2025 : le format, l'encodage, les règles de

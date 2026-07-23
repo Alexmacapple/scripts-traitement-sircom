@@ -28,6 +28,7 @@ from sircom2026.images import UPLOAD_IMAGES_STEP_KEY
 from sircom2026.invalidation import fingerprint_payload, step_input_fingerprint
 from sircom2026.lots import get_lot_detail
 from sircom2026.mapping import MAPPING_STEP_KEY
+from sircom2026.pathimg import clean_pathimg_root, pathimg_prefix
 from sircom2026.reports import (
     BUSINESS_REPORT_ARTIFACT_ROLE,
     REPORTS_STEP_KEY,
@@ -417,7 +418,10 @@ def _build_package_sources(
         step_key=REPORTS_STEP_KEY,
         role=TECHNICAL_REPORT_ARTIFACT_ROLE,
     )
-    _require_csv_path_root(csv_final.path.read_bytes(), settings.indesign_image_root)
+    _require_csv_path_root(
+        csv_final.path.read_bytes(),
+        _csv_pathimg_root(csv_final.artifact, settings),
+    )
     return {
         "csv_final": csv_final,
         "mapping": mapping,
@@ -724,19 +728,34 @@ def _require_no_blocking_problem(repositories, *, lot_id: str) -> None:
 
 
 def _require_csv_path_root(csv_content: bytes, indesign_image_root: str) -> None:
-    expected_root = indesign_image_root.rstrip("/")
+    expected_prefix = pathimg_prefix(indesign_image_root)
     text = csv_content.decode("utf-16")
     reader = csv.DictReader(StringIO(text))
     if reader.fieldnames is None or "@pathimg" not in reader.fieldnames:
         raise PackagePrerequisiteMissing(CSV_PREVIEW_STEP_KEY, CSV_FINAL_ARTIFACT_ROLE)
     for row in reader:
         value = str(row.get("@pathimg") or "").strip()
-        if value and not value.startswith(f"{expected_root}/"):
+        if value and expected_prefix and not value.startswith(expected_prefix):
             raise PackageError(
                 409,
                 "SIRCOM_PACKAGE_PATHIMG_ROOT_INVALID",
                 "Les chemins @pathimg du CSV final ne visent pas la racine InDesign configurée.",
             )
+
+
+def _csv_pathimg_root(artifact: dict[str, Any], settings: Settings) -> str:
+    metadata = _artifact_metadata(artifact)
+    return clean_pathimg_root(metadata.get("pathimg_root")) or clean_pathimg_root(
+        settings.indesign_image_root
+    )
+
+
+def _artifact_metadata(artifact: dict[str, Any]) -> dict[str, Any]:
+    try:
+        payload = json.loads(str(artifact.get("metadata_json") or "{}"))
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _require_package_image_path(path: str) -> None:

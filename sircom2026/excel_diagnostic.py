@@ -38,6 +38,7 @@ SENSITIVE_RE = re.compile(
     re.I,
 )
 EXCEL_DIMENSIONS_EXCEEDED_CODE = "SIRCOM_EXCEL_DIMENSIONS_EXCEEDED"
+HEADER_SCAN_ROWS = 100
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,7 @@ class SheetDiagnostic:
     source_headers: list[ColumnCandidate] = field(default_factory=list)
     hidden_columns: list[str] = field(default_factory=list)
     hidden_rows: list[int] = field(default_factory=list)
+    hidden_data_rows: list[int] = field(default_factory=list)
     merged_ranges: list[str] = field(default_factory=list)
     formula_cells_sample: list[str] = field(default_factory=list)
     headers_preview: list[str] = field(default_factory=list)
@@ -150,8 +152,47 @@ def clean_indesign_header(value: str) -> str:
     return cleaned[:10]
 
 
-def iter_non_empty_values(ws, column: int, start_row: int) -> Iterable[str]:
-    for row in range(start_row, ws.max_row + 1):
+def is_hidden_row(ws, row: int) -> bool:
+    return bool(ws.row_dimensions[row].hidden)
+
+
+def row_has_non_empty_value(ws, row: int) -> bool:
+    return any(
+        normalize_header(ws.cell(row=row, column=column).value)
+        for column in range(1, ws.max_column + 1)
+    )
+
+
+def visible_non_empty_data_rows(ws, header_row: int) -> Iterable[int]:
+    for row in range(header_row + 1, ws.max_row + 1):
+        if is_hidden_row(ws, row):
+            continue
+        if row_has_non_empty_value(ws, row):
+            yield row
+
+
+def hidden_non_empty_data_rows(ws, header_row: int) -> list[int]:
+    return [
+        row
+        for row in range(header_row + 1, ws.max_row + 1)
+        if is_hidden_row(ws, row) and row_has_non_empty_value(ws, row)
+    ]
+
+
+def visible_rows_before_header_have_data(ws, header_row: int) -> bool:
+    return any(
+        not is_hidden_row(ws, row) and row_has_non_empty_value(ws, row)
+        for row in range(1, header_row)
+    )
+
+
+def iter_non_empty_values(
+    ws,
+    column: int,
+    *,
+    row_numbers: Iterable[int],
+) -> Iterable[str]:
+    for row in row_numbers:
         value = normalize_header(ws.cell(row=row, column=column).value)
         if value:
             yield value
@@ -230,10 +271,12 @@ def _dimension_value(value: int | None) -> int:
     return max(0, int(value))
 
 
-def detect_header_row(ws, max_scan: int = 8) -> int | None:
+def detect_header_row(ws, max_scan: int = HEADER_SCAN_ROWS) -> int | None:
     best_row = None
     best_score = 0.0
     for row in range(1, min(max_scan, ws.max_row) + 1):
+        if is_hidden_row(ws, row):
+            continue
         values = [
             normalize_header(ws.cell(row=row, column=col).value)
             for col in range(1, ws.max_column + 1)
@@ -284,7 +327,8 @@ def formula_cell_sample(ws, limit: int = 20) -> list[str]:
 
 
 def make_id_candidate(ws, column: int, header: str, header_row: int) -> ColumnCandidate:
-    values = list(iter_non_empty_values(ws, column, header_row + 1))
+    importable_rows = list(visible_non_empty_data_rows(ws, header_row))
+    values = list(iter_non_empty_values(ws, column, row_numbers=importable_rows))
     unique = set(values)
     return ColumnCandidate(
         column=get_column_letter(column),
@@ -292,7 +336,7 @@ def make_id_candidate(ws, column: int, header: str, header_row: int) -> ColumnCa
         non_empty_values=len(values),
         unique_values=len(unique),
         duplicate_values=len(values) - len(unique),
-        blank_values=max(0, ws.max_row - header_row - len(values)),
+        blank_values=len(importable_rows) - len(values),
     )
 
 
@@ -338,10 +382,6 @@ def diagnose_sheet(
         diagnostic.blockers.append(
             f"{len(diagnostic.hidden_columns)} colonne(s) masquée(s)."
         )
-    if diagnostic.hidden_rows:
-        diagnostic.blockers.append(
-            f"{len(diagnostic.hidden_rows)} ligne(s) masquée(s)."
-        )
     if diagnostic.merged_ranges:
         diagnostic.blockers.append(
             f"{len(diagnostic.merged_ranges)} cellule(s) fusionnée(s)."
@@ -353,11 +393,19 @@ def diagnose_sheet(
     diagnostic.header_row = header_row
     if header_row is None:
         diagnostic.blockers.append("En-tête non détecté.")
-        diagnostic.blockers.append("Colonne id_dossier non détectée.")
+        diagnostic.blockers.append("Clé primaire dossier non détectée.")
         diagnostic.importable = False
         return diagnostic
     if header_row != 1:
-        diagnostic.blockers.append("En-tête détecté hors première ligne.")
+        if visible_rows_before_header_have_data(ws, header_row):
+            diagnostic.blockers.append("En-tête détecté hors première ligne.")
+        else:
+            diagnostic.warnings.append(
+                "Ligne(s) vide(s) avant l'en-tête ignorée(s)."
+            )
+    diagnostic.hidden_data_rows = hidden_non_empty_data_rows(ws, header_row)
+    if diagnostic.hidden_data_rows:
+        diagnostic.warnings.append("Ligne(s) masquée(s) ignorée(s) à l'import.")
 
     headers = [
         normalize_header(ws.cell(row=header_row, column=column).value)
@@ -375,7 +423,13 @@ def diagnose_sheet(
     for index, header in enumerate(headers, start=1):
         if header:
             continue
-        has_values = any(iter_non_empty_values(ws, index, header_row + 1))
+        has_values = any(
+            iter_non_empty_values(
+                ws,
+                index,
+                row_numbers=visible_non_empty_data_rows(ws, header_row),
+            )
+        )
         if has_values:
             diagnostic.empty_header_columns_with_data.append(get_column_letter(index))
     if diagnostic.empty_header_columns_with_data:
@@ -422,16 +476,20 @@ def diagnose_sheet(
             diagnostic.sensitive_candidates.append(make_simple_candidate(index, header))
 
     if not diagnostic.id_candidates:
-        diagnostic.blockers.append("Colonne id_dossier non détectée.")
+        diagnostic.blockers.append("Clé primaire dossier non détectée.")
     elif len(diagnostic.id_candidates) > 1:
-        diagnostic.blockers.append("Plusieurs colonnes id_dossier candidates.")
+        diagnostic.blockers.append(
+            "Plusieurs colonnes candidates pour la clé primaire dossier."
+        )
     else:
         candidate = diagnostic.id_candidates[0]
         if candidate.duplicate_values:
-            diagnostic.blockers.append("Valeurs id_dossier dupliquées dans l'onglet.")
+            diagnostic.blockers.append(
+                "Valeurs de clé primaire dossier dupliquées dans l'onglet."
+            )
         if candidate.blank_values:
             diagnostic.warnings.append(
-                "Ligne(s) sans id_dossier à signaler et supprimer à l'export."
+                "Ligne(s) sans clé primaire dossier à signaler et supprimer à l'export."
             )
 
     diagnostic.importable = not diagnostic.blockers

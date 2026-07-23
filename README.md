@@ -2,20 +2,20 @@
 
 ## Objectif du dépôt
 
-Ce dépôt couvre deux usages complémentaires.
+Ce dépôt couvre trois usages complémentaires.
 
 - Sircom 2025 : transformer l'export Excel `Sircom.xlsx` de Démarches
   Simplifiées en fichiers prêts pour InDesign et en livrables de suivi métier.
-- Sircom 2026 : préparer une application web qui permettra d'uploader un Excel
-  multi-onglets, mapper les champs utiles, traiter un zip d'images et exporter
-  un package final compatible InDesign.
+- Sircom 2026 web : uploader un Excel multi-onglets, mapper les champs utiles,
+  traiter un zip d'images et exporter un package final compatible InDesign.
+- Sircom 2026 script : fournir une alternative hors interface depuis
+  `re-run-old-script-2026/`, copie isolée des scripts historiques adaptée au
+  jeu de test 2026.
 
-La chaîne 2025 reste le flux opérationnel disponible aujourd'hui. Côté 2026,
-l'application web locale couvre déjà la configuration, la santé, la politique
-d'accès, les erreurs API structurées, SQLite, les lots, le store d'artefacts,
-les statuts métier, les problèmes structurés, le worker local, l'import Excel,
-le diagnostic persistant, le mapping, la fusion, la normalisation, le CSV, les
-images, les rapports, le package final, la purge et les garde-fous de ressources.
+La chaîne 2025 reste la référence historique. Côté 2026, l'application web
+locale est le parcours principal candidat ; la copie `re-run-old-script-2026/`
+sert de voie scriptée à adapter et à faire tourner sur le même jeu de test.
+Ne pas modifier `scripts-2025/` pour les besoins 2026.
 
 ## Sources locales utiles
 
@@ -27,8 +27,11 @@ images, les rapports, le package final, la purge et les garde-fous de ressources
 - `docs/specs/` : contrat fonctionnel, orchestration et architecture cible
   Sircom 2026.
 - `scripts-2025/` : scripts historiques numérotés utilisés par l'orchestrateur.
+- `re-run-old-script-2026/` : copie de travail pour l'alternative scriptée 2026.
 - `sircom2026/` et `scripts-2026/` : application web locale, diagnostic Excel
   et génération de classeurs synthétiques.
+- `livrables-miweb/livrables-2026/jeux-test-23-juillet/` : jeu de test 2026 et
+  notes de fusion associées.
 
 ## Prérequis
 
@@ -144,7 +147,32 @@ python3 scripts-2025/<script-numéroté>.py
 ## Outils Sircom 2026 disponibles
 
 Les outils 2026 ne remplacent pas encore contractuellement la chaîne 2025, mais
-le flux web local est déjà exécutable de l'import Excel au package final.
+le flux web local est déjà exécutable de l'import Excel au package final. La
+voie scriptée 2026 doit rester une alternative reproductible, séparée de
+`scripts-2025/`.
+
+### Jeu de test officiel 2026
+
+Le jeu de test de référence est :
+
+```text
+livrables-miweb/livrables-2026/jeux-test-23-juillet/excel-jeu-test-2026-exploitable-bdd-etablissements.xlsx
+livrables-miweb/livrables-2026/jeux-test-23-juillet/images-jeux-test-2026.zip
+```
+
+Règles associées :
+
+- utiliser les onglets `BDD TT + ANALYSE DGDDI` et `Etablissements` ;
+- ignorer les lignes cachées ;
+- faire la correspondance sur `Dossier ID` ;
+- trier, si validé, par région puis département du site de production ;
+- générer `imageid` au format `{id_dossier_normalise}.jpg`, sans préfixe
+  `dossier-` ;
+- remplir `@pathimg` avec la racine par défaut
+  `Macintosh HD:Users:victoria:Documents:export-jpg-resize`, configurable dans
+  l'UI, l'API et les scripts.
+- remplacer les cellules métier vides par `#N/A` dans le CSV final, après
+  suppression des colonnes entièrement vides et des lignes sans `Dossier ID`.
 
 ### Lancer le socle web local
 
@@ -182,8 +210,17 @@ Worker local :
 .venv/bin/python scripts-2026/run_worker_once.py --once
 ```
 
-La commande initialise la base SQLite et exécute une acquisition unique. Si
+Cette commande crée la base SQLite et exécute une acquisition unique. Si
 aucun job n'est prêt, elle sort normalement en `idle`.
+
+### Alternative scriptée 2026
+
+Le dossier `re-run-old-script-2026/` est la seule zone prévue pour adapter les
+anciens scripts au jeu de test 2026. Il doit produire une sortie exploitable
+hors interface web, sur les mêmes entrées Excel et ZIP que le parcours web.
+
+Ne pas reporter ces adaptations dans `scripts-2025/`, sauf décision explicite
+de migration du flux historique.
 
 ### Initialiser l'environnement local
 
@@ -240,9 +277,13 @@ Règles métier verrouillées pour la V1 :
 - aucune position de colonne 2025 codée en dur pour identifier `id_dossier` ;
 - mapping utilisateur avec provenance complète : onglet, lettre colonne, nom
   original, nom CSV final et statut exporté ou supprimé ;
-- sortie CSV fidèle au format InDesign 2025 : UTF-16 avec BOM, séparateur
-  virgule, LF, cellules vides conservées ;
+- sortie CSV fidèle au format InDesign attendu : UTF-16 avec BOM, séparateur
+  virgule, LF, cellules métier vides remplacées par `#N/A` ;
 - colonnes `imageid` et `@pathimg` placées juste après `id_dossier` ;
+- `imageid` 2026 au format `{id_dossier_normalise}.jpg`, sans préfixe
+  `dossier-` pour le jeu de test officiel ;
+- `@pathimg` rempli avec une racine InDesign configurable, par défaut
+  `Macintosh HD:Users:victoria:Documents:export-jpg-resize` ;
 - lignes sans `id_dossier` supprimées et signalées ;
 - colonnes entièrement vides supprimées et signalées ;
 - dates valides converties en `dd/mm/yyyy` quand la colonne est détectée ou
@@ -281,6 +322,6 @@ sauvegardes, zips images ou images optimisées sauf demande explicite.
 
 ## Version
 
-Version : 4.0
+Version : 4.1
 
 Dernière mise à jour : 23 juillet 2026

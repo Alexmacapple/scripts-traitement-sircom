@@ -4,13 +4,16 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
+from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
 from sircom2026.database import Database
+from sircom2026.transform import build_flat_merge
 from sircom2026.worker_runner import run_worker_once
 
 
@@ -43,6 +46,8 @@ def create_merge_workbook(path: Path) -> None:
     dossiers.append(["ONLY-A", "Produit A", None])
     dossiers.append(["COMMON", "Produit commun", None])
     dossiers.append([None, "Ligne sans identifiant", None])
+    dossiers.append(["HIDDEN-A", "Produit masque", None])
+    dossiers.row_dimensions[5].hidden = True
 
     complement = workbook.create_sheet("Complement")
     complement.append(["id_dossier", "Région", "Note vide"])
@@ -51,6 +56,115 @@ def create_merge_workbook(path: Path) -> None:
 
     workbook.save(path)
     workbook.close()
+
+
+def direct_merge_mapping() -> dict[str, Any]:
+    return {
+        "source_diagnostic_artifact_id": "diagnostic-test",
+        "structural_fingerprint": "fingerprint-test",
+        "sheets": [
+            {"name": "Dossiers", "header_row": 1},
+            {"name": "Complement", "header_row": 1},
+        ],
+        "columns": [
+            {
+                "id": "Dossiers!A",
+                "status": "exporte",
+                "system": False,
+                "source_sheet": "Dossiers",
+                "source_column_index": 1,
+                "source_column_letter": "A",
+                "source_header": "id_dossier",
+                "logical_role": "id_dossier",
+                "csv_name": "id_dossier",
+                "output_position": 1,
+            },
+            {
+                "id": "system:imageid",
+                "status": "exporte",
+                "system": True,
+                "source_sheet": None,
+                "source_column_index": None,
+                "source_column_letter": None,
+                "source_header": "Image InDesign générée",
+                "logical_role": "nom_image_source",
+                "csv_name": "imageid",
+                "output_position": 2,
+            },
+            {
+                "id": "system:@pathimg",
+                "status": "exporte",
+                "system": True,
+                "source_sheet": None,
+                "source_column_index": None,
+                "source_column_letter": None,
+                "source_header": "Chemin image InDesign",
+                "logical_role": "nom_image_source",
+                "csv_name": "@pathimg",
+                "output_position": 3,
+            },
+            {
+                "id": "Dossiers!B",
+                "status": "exporte",
+                "system": False,
+                "source_sheet": "Dossiers",
+                "source_column_index": 2,
+                "source_column_letter": "B",
+                "source_header": "Nom produit",
+                "logical_role": "texte",
+                "csv_name": "b_nomprodu",
+                "output_position": 4,
+            },
+            {
+                "id": "Dossiers!C",
+                "status": "exporte",
+                "system": False,
+                "source_sheet": "Dossiers",
+                "source_column_index": 3,
+                "source_column_letter": "C",
+                "source_header": "Colonne vide",
+                "logical_role": "texte",
+                "csv_name": "c_colonnev",
+                "output_position": 5,
+            },
+            {
+                "id": "Complement!A",
+                "status": "exporte",
+                "system": False,
+                "source_sheet": "Complement",
+                "source_column_index": 1,
+                "source_column_letter": "A",
+                "source_header": "id_dossier",
+                "logical_role": "id_dossier",
+                "csv_name": "id_dossier",
+                "output_position": 6,
+            },
+            {
+                "id": "Complement!B",
+                "status": "exporte",
+                "system": False,
+                "source_sheet": "Complement",
+                "source_column_index": 2,
+                "source_column_letter": "B",
+                "source_header": "Région",
+                "logical_role": "texte",
+                "csv_name": "b_region",
+                "output_position": 7,
+            },
+            {
+                "id": "Complement!C",
+                "status": "exporte",
+                "system": False,
+                "source_sheet": "Complement",
+                "source_column_index": 3,
+                "source_column_letter": "C",
+                "source_header": "Note vide",
+                "logical_role": "texte",
+                "csv_name": "c_notevide",
+                "output_position": 8,
+            },
+        ],
+    }
 
 
 def prepare_importable_lot(
@@ -123,6 +237,32 @@ def download_fusion_payload(
 
 
 class FusionWorkerTest(unittest.TestCase):
+    def test_flat_merge_streams_read_only_rows_without_random_cell_lookups(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            workbook_path = Path(tmp) / "fixtures" / "fusion.xlsx"
+            create_merge_workbook(workbook_path)
+
+            with mock.patch.object(
+                ReadOnlyWorksheet,
+                "cell",
+                side_effect=AssertionError(
+                    "build_flat_merge must stream read-only rows with iter_rows"
+                ),
+            ):
+                result = build_flat_merge(workbook_path, direct_merge_mapping())
+
+        payload = result.payload
+        self.assertEqual(payload["rows_count"], 3)
+        self.assertEqual(payload["source_rows_count"], 5)
+        self.assertEqual(payload["removed_rows_without_id_count"], 1)
+        self.assertEqual(payload["removed_empty_columns_count"], 2)
+        row_by_id = {row["id_dossier"]: row["values"] for row in payload["rows"]}
+        self.assertEqual(list(row_by_id), ["ONLY-A", "COMMON", "ONLY-B"])
+        self.assertNotIn("HIDDEN-A", row_by_id)
+        self.assertEqual(row_by_id["COMMON"]["b_region"], "Bretagne")
+
     def test_mapping_validation_schedules_and_worker_merges_multi_sheet_rows(
         self,
     ) -> None:
@@ -177,6 +317,7 @@ class FusionWorkerTest(unittest.TestCase):
 
         row_by_id = {row["id_dossier"]: row["values"] for row in payload["rows"]}
         self.assertEqual(list(row_by_id), ["ONLY-A", "COMMON", "ONLY-B"])
+        self.assertNotIn("HIDDEN-A", row_by_id)
         self.assertEqual(row_by_id["ONLY-A"]["b_nomprodu"], "Produit A")
         self.assertEqual(row_by_id["ONLY-A"]["b_region"], "")
         self.assertEqual(row_by_id["COMMON"]["b_nomprodu"], "Produit commun")

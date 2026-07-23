@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from sircom2026.app import create_app
 from sircom2026.database import Database
+from sircom2026.pathimg import pathimg_prefix
 from tests.test_reports import (
     create_reports_workbook,
     excel_file,
@@ -146,7 +147,7 @@ class PackageApiTest(unittest.TestCase):
                 "technical_report",
             },
         )
-        self.assertIn(f"{settings.indesign_image_root}/", csv_text)
+        self.assertIn(pathimg_prefix(settings.indesign_image_root), csv_text)
 
         technical = json.loads(technical_text)
         self.assertEqual(technical["schema_version"], 1)
@@ -200,6 +201,40 @@ class PackageApiTest(unittest.TestCase):
             response.json()["error"]["code"], "SIRCOM_PACKAGE_BLOCKERS_OPEN"
         )
         self.assertIsNone(active_job)
+
+    def test_package_accepts_custom_csv_pathimg_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "package-custom-path.xlsx"
+            create_reports_workbook(workbook_path)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            custom_root = "Macintosh HD:Exports:sircom-package"
+            lot_id = _prepare_lot_until_reports(
+                client,
+                settings,
+                workbook_path,
+                pathimg_root=custom_root,
+            )
+
+            enqueue = client.post(
+                f"/api/lots/{lot_id}/package",
+                json={"accept_warnings": True},
+                headers={"X-Idempotency-Key": "package-custom-path"},
+            )
+            package_job = run_until_step(settings, "package_final")
+            package_response = client.get(f"/api/lots/{lot_id}/package")
+            download = client.get(package_response.json()["artifact"]["download_url"])
+
+        self.assertEqual(enqueue.status_code, 202, enqueue.text)
+        self.assertEqual(package_job.outcome, "succeeded")
+        self.assertEqual(package_response.status_code, 200, package_response.text)
+        self.assertEqual(download.status_code, 200, download.text)
+        with zipfile.ZipFile(BytesIO(download.content)) as archive:
+            csv_text = archive.read("sircom-indesign-utf16.csv").decode("utf-16")
+
+        self.assertIn(pathimg_prefix(custom_root), csv_text)
+        self.assertNotIn(pathimg_prefix(settings.indesign_image_root), csv_text)
 
     def test_package_generates_without_image_zip_when_reports_are_ready(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -266,6 +301,8 @@ def _prepare_lot_until_reports(
     client: TestClient,
     settings,
     workbook_path: Path,
+    *,
+    pathimg_root: str | None = None,
 ) -> str:
     lot_id = client.post("/api/lots", json={"title": "Lot package"}).json()["lot"]["id"]
     upload_images = client.post(
@@ -305,6 +342,7 @@ def _prepare_lot_until_reports(
     )
     validate_preview = client.post(
         f"/api/lots/{lot_id}/csv/preview/validate",
+        json={"pathimg_root": pathimg_root} if pathimg_root is not None else None,
         headers={"X-Idempotency-Key": "package-preview"},
     )
     reports = run_until_step(settings, "rapports")

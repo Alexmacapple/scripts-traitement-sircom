@@ -125,7 +125,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 ).fetchone()
                 user_version = connection.execute("PRAGMA user_version").fetchone()[0]
                 self.assertEqual(migration["version"], SCHEMA_VERSION)
-                self.assertEqual(migration["name"], "purge_traces")
+                self.assertEqual(migration["name"], "lot_pathimg_root")
                 self.assertEqual(user_version, SCHEMA_VERSION)
 
                 for table in (

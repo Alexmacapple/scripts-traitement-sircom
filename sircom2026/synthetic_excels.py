@@ -71,9 +71,9 @@ CASES: tuple[SyntheticWorkbookCase, ...] = (
     ),
     SyntheticWorkbookCase(
         name="hidden_row",
-        filename="sircom2026-refus-ligne-masquee.xlsx",
-        expected_importable=False,
-        description="Ligne masquée détectée.",
+        filename="sircom2026-alerte-ligne-masquee-ignoree.xlsx",
+        expected_importable=True,
+        description="Ligne masquée détectée puis ignorée à l'import.",
     ),
     SyntheticWorkbookCase(
         name="hidden_sheet",

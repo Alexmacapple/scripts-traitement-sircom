@@ -548,11 +548,17 @@ csvPreviewValidateButtons.forEach((button) => {
     csvPreviewInFlight = true;
     setButtonBusy(button, true, "Validation en cours");
     try {
+      const pathInputId = button.dataset.csvPreviewPathimgInput;
+      const pathInput = pathInputId ? document.getElementById(pathInputId) : null;
       const response = await fetch(`/api/lots/${encodeURIComponent(lotId)}/csv/preview/validate`, {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           "X-Idempotency-Key": nextIdempotencyKey(),
         },
+        body: JSON.stringify({
+          pathimg_root: pathInput ? pathInput.value : null,
+        }),
       });
       await parseJsonResponse(response);
       rememberActionFocus(button, "csv-preview-title");

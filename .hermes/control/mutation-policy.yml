@@ -1,0 +1,94 @@
+schema: hermes/mutation-policy/v1
+# Admission is enforced by `python3 <father>/runtime/mutation_admission.py --poc-repo . --proposal <file>` using a `hermes/mutation-proposal/v2` file. Legacy v1 files are refused once this policy names v2; only older packs without the marker keep the warning path. Only `admitted` allows editing, and `human_required` goes to `.hermes/control/human-decisions.yml`.
+principle: child Hermes Profile may evolve itself only for concrete target-project needs
+policy_version_rule: .hermes/profile.yml:mutation.policy_version is monotonic; any governance-core mutation bumps it, and a mutation computed against a stale version is refused (compare-and-swap). Any merge touching .hermes/control/* or sealed Claude hook artifacts is reviewed by a human.
+floor_rule: this template is a FLOOR. A child may only ADD or TIGHTEN the lists below. Removing any item, or loosening a list, requires an out-of-band human decision (a human-signed commit or human PR review), never a self-written human-decisions entry.
+proposal_contract:
+  schema: hermes/mutation-proposal/v2
+  legacy_v1: refused by this policy; accepted with warning only by older packs without proposal_contract.schema
+  full_contract_required_for:
+    - add/update skill
+    - add/update agent card
+    - add/update disclosure route
+    - tighten tool policy
+    - behavior-contract clarification
+    - domain-model clarification or extension
+  full_contract_fields:
+    - target_failure_mode
+    - predicted_fix
+    - preserved_invariants
+    - falsifying_checks
+    - rollback_path
+  light_contract_required_for:
+    - new browser scenario
+    - human-decision entry
+  light_contract_fields:
+    - stop_condition
+    - human_required_check
+  risk_rule: risk_class is gate-computed output only; a proposal that supplies risk_class is refused
+  delivery_rule: predicted_fix and falsifying_checks are for the human merge reviewer; do not create a hidden delivery-verification loop
+immutable_without_human:
+  # the child may not edit these on its own; changes need an out-of-band human approval, not a line it writes itself
+  - .hermes/control/mutation-policy.yml
+  - .hermes/control/operating-envelope.yml
+  - .hermes/control/oracles.yml
+  - .hermes/control/gates.yml
+  - .hermes/control/owners.yml
+  - .hermes/control/production-target.yml
+  - .claude/settings.json
+  - .claude/hooks/hermes_pre_tool_use.py
+  - .hermes/control/tool-policy.yml (its forbidden and human_required lists)
+  - project.objective in .hermes/profile.yml
+  - any id under .hermes/control/behavior-contract.yml:preserve
+allowed_mutations:
+  - new skill
+  - new agent card
+  - new disclosure route
+  - new browser scenario
+  - tool-policy tightening
+  - behavior-contract clarification
+  - domain-model clarification or extension
+  - human-decision entry (the open question only; never the decision/approval itself)
+human_required:
+  - product objective change
+  - tool-policy broadening
+  - deleting constraints
+  - moving behavior between preserve and change
+  - recording a human-approved production-readiness decision
+forbidden_mutations:
+  - self-declared production readiness
+  - validation-of-validation
+  - report-of-report
+  - generic reviewer
+  - agent created only to validate another agent
+  - hidden-parent-monitoring
+  - any cron, loop, scheduled job or git hook that watches .hermes/* on a timer
+human_approval_rule: a human_required mutation needs an out-of-band approval (human-signed commit or human PR review). The child may write the OPEN question into human-decisions.yml but must never write the decision/approval itself.
+parent_reentry_allowed:
+  - child profile structurally broken
+  - major project pivot
+  - external cold review requested
+  - profile drift suspected (must be initiated by a human, never by a parent self-watch loop)
+parent_default_mode: socratic-questioning
+parent_questions_before_repair:
+  - What rule justified this mutation?
+  - Which task was blocked or unsafe without it?
+  - Which profile or harness file proves the routing?
+  - Is this behavior preserve, change, or human decision?
+  - Did this require human approval?
+child_response_allowed:
+  - justify current state
+  - self-correct profile or harness
+  - request human decision
+  - escalate to father repair
+admission_questions:
+  - What task is blocked, unsafe or too costly without this mutation?
+  - What exact profile or harness file will change?
+  - What failure mode does the mutation target?
+  - What fix does it predict?
+  - Which invariants must be preserved?
+  - Which check would falsify the mutation?
+  - What rollback path exists?
+  - What context does it need?
+  - What is the stop condition?
+  - Does this require a human decision or father review?

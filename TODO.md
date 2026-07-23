@@ -2,6 +2,18 @@
 
 État au 23 juillet 2026.
 
+## Décisions d'exploitation actives
+
+- [x] Parcours principal candidat 2026 : application web locale `sircom2026/`.
+- [x] Alternative scriptée 2026 : utiliser uniquement la copie
+  `re-run-old-script-2026/`.
+- [x] Préserver `scripts-2025/` comme référence historique, sans adaptation
+  directe au jeu 2026.
+- [x] Sortir les cellules métier vides en `#N/A` pour InDesign, après
+  suppression des colonnes entièrement vides.
+- [ ] Finaliser et exécuter `re-run-old-script-2026/` sur le jeu de test
+  officiel Excel + ZIP 2026.
+
 ## Terminé
 
 - [x] Ajouter un diagnostic automatique Excel 2026 : structure détectée, onglets,
@@ -161,8 +173,8 @@
   - [x] champs sensibles préservés en texte.
 - [x] Convertir les dates valides en `dd/mm/yyyy` pour les colonnes détectées ou
   confirmées comme dates.
-- [x] Signaler les dates invalides ou absentes tout en gardant des cellules vides
-  dans le CSV final.
+- [x] Signaler les dates invalides ou absentes tout en sortant `#N/A` dans le
+  CSV final quand la cellule métier reste vide.
 - [x] Implémenter la proposition de tri région puis département avec validation
   humaine.
 - [x] Conserver l'ordre Excel avec alerte non bloquante si les colonnes de tri ne
@@ -172,7 +184,7 @@
   - [x] séparateur virgule ;
   - [x] LF ;
   - [x] guillemets automatiques seulement si nécessaire ;
-  - [x] cellules vides conservées ;
+  - [x] cellules métier vides remplacées par `#N/A` ;
   - [x] comparaison structurelle avec le CSV 2025 de référence.
 - [x] Ajouter les tests de sortie CSV UTF-16 compatibles avec
   `livrables-miweb-2025/livrables-miweb-1-2025/9-final-sircom-indesign-utf16.csv`.
@@ -203,7 +215,7 @@
   - [x] images absentes non bloquantes ;
   - [x] images non référencées ignorées mais listées.
 - [x] Produire les images finales en JPG :
-  - [x] nom `dossier-{id-normalise}.jpg` ;
+  - [x] nom `{id-normalise}.jpg` pour le jeu de test 2026 ;
   - [x] largeur maximale 350 px ;
   - [x] qualité JPEG 100 ;
   - [x] DPI 300 ;
@@ -226,8 +238,8 @@
   - [x] mapping utilisé ;
   - [x] manifeste cohérent.
 - [x] Vérifier que `@pathimg` vise
-  `/Users/victoria/Documents/export-jpg-resize` par défaut, sauf configuration
-  explicite.
+  `Macintosh HD:Users:victoria:Documents:export-jpg-resize` par défaut, sauf
+  configuration explicite.
 - [x] Autoriser le téléchargement uniquement par `artifact_id`, sans exposer les
   chemins disque internes.
 - [x] Bloquer le package si des problèmes bloquants restent ouverts.
@@ -240,6 +252,8 @@
 
 - [x] Documenter le démarrage local de l'application web quand le squelette
   FastAPI existe.
+- [x] Mettre à jour les Markdown racine avec le parcours web 2026, l'alternative
+  scriptée et le jeu de test officiel.
 - [ ] Ajouter un guide court de correction des Excels refusés.
 - [x] Ajouter une recette de bout en bout avec fixtures synthétiques.
 - [ ] Documenter les variables d'environnement V1.

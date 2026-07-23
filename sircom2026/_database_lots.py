@@ -86,6 +86,15 @@ class LotsRepository:
         )
         return self.get_required(lot_id)
 
+    def update_pathimg_root(
+        self, lot_id: str, pathimg_root: str | None
+    ) -> dict[str, Any]:
+        self.connection.execute(
+            "UPDATE lots SET pathimg_root = ?, updated_at = ? WHERE id = ?",
+            (pathimg_root, _now(), lot_id),
+        )
+        return self.get_required(lot_id)
+
     def request_cancel(self, lot_id: str) -> dict[str, Any]:
         now = _now()
         self.connection.execute(

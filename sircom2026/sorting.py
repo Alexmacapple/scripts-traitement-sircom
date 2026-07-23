@@ -264,7 +264,11 @@ def validate_sort_decision(
     )
     from sircom2026.csv_preview import require_csv_preview_validation_if_ready
 
-    require_csv_preview_validation_if_ready(repositories, lot_id=lot_id)
+    require_csv_preview_validation_if_ready(
+        repositories,
+        settings=settings,
+        lot_id=lot_id,
+    )
     repositories.events.create(
         lot_id=lot_id,
         step_key=SORT_STEP_KEY,
@@ -294,7 +298,7 @@ def build_sort_proposal(
 ) -> dict[str, Any]:
     columns = [dict(column) for column in normalized_payload.get("columns", [])]
     region_columns = _columns_with_role(columns, "region")
-    department_columns = _columns_with_role(columns, "departement")
+    department_columns = _department_sort_columns(columns)
     if len(region_columns) == 1 and len(department_columns) == 1:
         detection_status = "detected"
     elif len(region_columns) > 1 or len(department_columns) > 1:
@@ -546,6 +550,30 @@ def _columns_with_role(
     columns: list[dict[str, Any]], role: str
 ) -> list[dict[str, Any]]:
     return [column for column in columns if column.get("logical_role") == role]
+
+
+def _department_sort_columns(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        column
+        for column in _columns_with_role(columns, "departement")
+        if not _looks_like_postal_code_column(column)
+    ]
+
+
+def _looks_like_postal_code_column(column: dict[str, Any]) -> bool:
+    text = " ".join(
+        str(column.get(key) or "") for key in ("source_header", "csv_name")
+    )
+    folded = _fold_for_sort(text)
+    compact = "".join(character for character in folded if character.isalnum())
+    return (
+        "code postal" in folded
+        or "postal code" in folded
+        or "zip code" in folded
+        or "codepostal" in compact
+        or "postalcode" in compact
+        or "zipcode" in compact
+    )
 
 
 def _preview_rows(

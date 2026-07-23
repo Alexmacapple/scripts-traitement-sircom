@@ -98,7 +98,8 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.max_image_height_px, 20_000)
         self.assertEqual(settings.max_unzipped_mb, 3072)
         self.assertEqual(
-            settings.indesign_image_root, "/Users/victoria/Documents/export-jpg-resize"
+            settings.indesign_image_root,
+            "Macintosh HD:Users:victoria:Documents:export-jpg-resize",
         )
         self.assertEqual(settings.bind_host, "127.0.0.1")
         self.assertEqual(settings.port, 8000)

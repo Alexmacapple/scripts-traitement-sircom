@@ -20,6 +20,14 @@ export_images_id_dossier/
 livrables-miweb-2025/
 livrable-1-10-aout-2025/
 librable-20-aout-2024/
+re-run-old-script-2026/livrables_output_*/
+livrables-miweb/livrables-2025/
+livrables-miweb/livrables-2026/**/backup-*/
+livrables-miweb/livrables-2026/**/images-2026-jeux-tests/
+livrables-miweb/livrables-2026/**/sircom-2026-lot-*/
+livrables-miweb/livrables-2026/**/export-jpg-resize/
+livrables-miweb/livrables-2026/livrables-re-run-scripts/
+livrables-miweb/livrables-2026/livrables-ui-web-jeux-test/
 
 # Environnement virtuel Python
 venv/

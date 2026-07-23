@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+
+### Ce script permet :
+
+# de traiter automatiquement le fichier "06-livrable-final.xlsx",
+# de nettoyer les en-têtes de colonnes (minuscules, sans accents, sans caractères spéciaux, 10 caractères max),
+# de conserver les préfixes pour éviter les collisions,
+# et d'enregistrer le fichier sous "07-clean-headers.xlsx"
+
+# python3 07-clean_headers_excel.py
+
+import openpyxl
+import os
+from collections import Counter
+
+from sircom2026_rules import clean_csv_header, config_value
+
+
+# Fonction pour nettoyer les noms des colonnes
+def clean_col_name(col_name):
+    if col_name is None:
+        return col_name
+    return clean_csv_header(col_name)
+
+
+# 1. Définir le fichier source
+file_path = config_value("step_06_output")
+
+# 2. Vérifier que le fichier source existe
+if not os.path.exists(file_path):
+    print(f"Erreur : Le fichier '{file_path}' n'existe pas dans le répertoire courant.")
+    print("Assurez-vous d'avoir exécuté le script '06-livrable-final.py' au préalable.")
+    exit(1)
+
+print(f"Traitement du fichier : {file_path}")
+
+try:
+    # 3. Ouvrir le fichier Excel
+    workbook = openpyxl.load_workbook(file_path)
+    print("Fichier ouvert avec succès")
+
+    # 4. Traiter toutes les feuilles
+    for sheet_name in workbook.sheetnames:
+        print(f"Traitement de la feuille : {sheet_name}")
+        sheet = workbook[sheet_name]
+
+        header_changes = []
+
+        # Parcourir les en-têtes de colonnes (première ligne) et les nettoyer
+        for column in sheet.iter_cols(min_row=1, max_row=1):
+            for cell in column:
+                if cell.value is not None:
+                    original_value = str(cell.value)
+                    cleaned_value = clean_col_name(original_value)
+                    header_changes.append((cell, original_value, cleaned_value))
+
+        cleaned_counts = Counter(
+            cleaned for _cell, _original, cleaned in header_changes
+        )
+        collisions = sorted(
+            name for name, count in cleaned_counts.items() if name and count > 1
+        )
+        if collisions:
+            raise ValueError(
+                f"Collisions d'en-têtes après nettoyage dans la feuille '{sheet_name}' : "
+                + ", ".join(collisions)
+            )
+
+        # Appliquer les noms nettoyés après validation de l'unicité
+        for headers_processed, (cell, original_value, cleaned_value) in enumerate(
+            header_changes,
+            start=1,
+        ):
+            cell.value = cleaned_value
+
+            # Afficher quelques exemples de transformation
+            if headers_processed <= 10:
+                print(
+                    f"  Colonne {openpyxl.utils.get_column_letter(cell.column)}: '{original_value}' → '{cleaned_value}'"
+                )
+            elif headers_processed == 11:
+                print(f"  ... (et {sheet.max_column - 10} autres colonnes)")
+
+        print(f"{len(header_changes)} en-têtes nettoyés dans la feuille '{sheet_name}'")
+
+    # 5. Enregistrer le fichier modifié
+    output_filename = config_value("step_07_output")
+    workbook.save(output_filename)
+    print(f"Fichier sauvegardé sous : {output_filename}")
+
+    # 6. Afficher un résumé des transformations
+    print("\nRègles de nettoyage appliquées :")
+    print("  Conversion en minuscules")
+    print("  Suppression des accents")
+    print("  Suppression des caractères spéciaux")
+    print("  Limitation à 10 caractères maximum")
+    print("  Conservation des préfixes pour éviter les collisions")
+
+    print("Nettoyage des en-têtes terminé avec succès !")
+
+except Exception as e:
+    print(f"Erreur lors du traitement : {e}")
+    exit(1)
+finally:
+    # 7. Fermer le fichier Excel
+    if "workbook" in locals():
+        workbook.close()
+    print("Fichier fermé")

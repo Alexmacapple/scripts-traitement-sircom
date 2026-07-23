@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import math
+import posixpath
 import re
+import zipfile
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
@@ -42,6 +45,9 @@ SENSITIVE_TEXT_ROLES = {
     "code_administratif",
 }
 _HORIZONTAL_SPACE_RE = re.compile(r"[ \t\f\v]+")
+_SPREADSHEET_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+_RELATIONSHIPS_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+_OFFICE_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
 
 @dataclass(frozen=True)
@@ -314,7 +320,7 @@ def run_content_normalization_job(
                 code="SIRCOM_NORMALIZATION_DATE_VALUES_INVALID",
                 title="Dates invalides ou absentes",
                 cause="Certaines valeurs de colonnes date ne peuvent pas être exportées comme dates valides.",
-                action="Corriger les dates dans l'Excel source ou accepter des cellules vides à l'export.",
+                action="Corriger les dates dans l'Excel source ou accepter une valeur #N/A à l'export.",
                 technical={
                     "date_issues_count": normalization_result.date_issues_count,
                     "invalid_dates_count": normalization_result.invalid_dates_count,
@@ -383,6 +389,7 @@ def build_flat_merge(workbook_path, mapping: dict[str, Any]) -> FlatMergeResult:
     missing_sheet_locations: list[dict[str, Any]] = []
     source_rows_count = 0
     source_rank = 0
+    hidden_rows_by_sheet = _hidden_rows_by_sheet(workbook_path)
 
     workbook = load_workbook(workbook_path, read_only=True, data_only=True)
     try:
@@ -396,13 +403,26 @@ def build_flat_merge(workbook_path, mapping: dict[str, Any]) -> FlatMergeResult:
                 continue
             worksheet = workbook[sheet_name]
             header_row = _positive_int(sheet_info.get("header_row"), default=1)
+            hidden_rows = hidden_rows_by_sheet.get(sheet_name, set())
             seen_ids_in_sheet: set[str] = set()
-            for row_number in range(header_row + 1, worksheet.max_row + 1):
+            for row_number, row_values in enumerate(
+                worksheet.iter_rows(
+                    min_row=header_row + 1,
+                    max_row=worksheet.max_row,
+                    max_col=worksheet.max_column,
+                    values_only=True,
+                ),
+                start=header_row + 1,
+            ):
+                if row_number in hidden_rows:
+                    continue
+                if _row_values_are_empty(row_values):
+                    continue
                 source_rows_count += 1
-                id_value = worksheet.cell(
-                    row=row_number,
-                    column=int(id_column["source_column_index"]),
-                ).value
+                id_value = _row_value_at(
+                    row_values,
+                    id_column["source_column_index"],
+                )
                 id_dossier = _identifier_text(id_value)
                 if not id_dossier:
                     removed_rows.append(
@@ -435,10 +455,7 @@ def build_flat_merge(workbook_path, mapping: dict[str, Any]) -> FlatMergeResult:
                     rows.append(row)
 
                 for column in columns_by_sheet.get(sheet_name, []):
-                    value = worksheet.cell(
-                        row=row_number,
-                        column=int(column["source_column_index"]),
-                    ).value
+                    value = _row_value_at(row_values, column["source_column_index"])
                     row["values"][column["csv_name"]] = _json_cell_value(value)
     finally:
         workbook.close()
@@ -484,6 +501,85 @@ def build_flat_merge(workbook_path, mapping: dict[str, Any]) -> FlatMergeResult:
         removed_rows_without_id_count=len(removed_rows),
         removed_empty_columns_count=len(removed_empty_columns),
     )
+
+
+def _hidden_rows_by_sheet(workbook_path: Any) -> dict[str, set[int]]:
+    try:
+        with zipfile.ZipFile(workbook_path) as archive:
+            workbook_rels = _workbook_relationships(archive)
+            workbook_root = ET.fromstring(archive.read("xl/workbook.xml"))
+            sheets_el = workbook_root.find(_xlsx_tag("sheets"))
+            if sheets_el is None:
+                return {}
+
+            hidden_by_sheet: dict[str, set[int]] = {}
+            for sheet_el in sheets_el.findall(_xlsx_tag("sheet")):
+                sheet_name = str(sheet_el.attrib.get("name") or "")
+                relationship_id = sheet_el.attrib.get(
+                    f"{{{_OFFICE_REL_NS}}}id"
+                )
+                sheet_path = workbook_rels.get(str(relationship_id or ""))
+                if not sheet_name or not sheet_path:
+                    continue
+                hidden_by_sheet[sheet_name] = _hidden_rows_in_sheet_xml(
+                    archive,
+                    sheet_path,
+                )
+            return hidden_by_sheet
+    except (ET.ParseError, KeyError, OSError, ValueError, zipfile.BadZipFile):
+        return {}
+
+
+def _workbook_relationships(archive: zipfile.ZipFile) -> dict[str, str]:
+    relationships_root = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+    relationships: dict[str, str] = {}
+    for relationship in relationships_root.findall(_relationship_tag("Relationship")):
+        relationship_id = relationship.attrib.get("Id")
+        target = relationship.attrib.get("Target")
+        if relationship_id and target:
+            relationships[relationship_id] = _resolve_xlsx_target(
+                "xl/_rels/workbook.xml.rels",
+                target,
+            )
+    return relationships
+
+
+def _hidden_rows_in_sheet_xml(
+    archive: zipfile.ZipFile,
+    sheet_path: str,
+) -> set[int]:
+    sheet_root = ET.fromstring(archive.read(sheet_path))
+    sheet_data = sheet_root.find(_xlsx_tag("sheetData"))
+    if sheet_data is None:
+        return set()
+    hidden_rows: set[int] = set()
+    for row_el in sheet_data.findall(_xlsx_tag("row")):
+        if row_el.attrib.get("hidden") != "1":
+            continue
+        try:
+            hidden_rows.add(int(row_el.attrib.get("r") or "0"))
+        except ValueError:
+            continue
+    hidden_rows.discard(0)
+    return hidden_rows
+
+
+def _resolve_xlsx_target(relationship_path: str, target: str) -> str:
+    if target.startswith("/"):
+        return target.lstrip("/")
+    if "/_rels/" in relationship_path:
+        source_folder = relationship_path.split("/_rels/", 1)[0]
+    else:
+        source_folder = posixpath.dirname(relationship_path)
+    return posixpath.normpath(posixpath.join(source_folder, target))
+
+
+def _xlsx_tag(name: str) -> str:
+    return f"{{{_SPREADSHEET_NS}}}{name}"
+
+
+def _relationship_tag(name: str) -> str:
+    return f"{{{_RELATIONSHIPS_NS}}}{name}"
 
 
 def normalize_flat_merge(
@@ -736,6 +832,20 @@ def _is_blank_value(value: Any) -> bool:
     if isinstance(value, str) and value.strip() == "":
         return True
     return False
+
+
+def _row_values_are_empty(row_values: tuple[Any, ...]) -> bool:
+    return all(_is_blank_value(value) for value in row_values)
+
+
+def _row_value_at(row_values: tuple[Any, ...], column_index: Any) -> Any:
+    try:
+        index = int(column_index) - 1
+    except (TypeError, ValueError):
+        return None
+    if index < 0 or index >= len(row_values):
+        return None
+    return row_values[index]
 
 
 def _identifier_text(value: Any) -> str:

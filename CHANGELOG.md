@@ -2,6 +2,17 @@
 
 ## 2026-07-23
 
+- Mise à jour des Markdown racine pour acter le parcours web Sircom 2026 comme
+  parcours principal candidat, `re-run-old-script-2026/` comme alternative
+  scriptée, et `scripts-2025/` comme référence historique à préserver.
+- Alignement des consignes racine sur le jeu de test officiel 2026 :
+  `BDD TT + ANALYSE DGDDI` + `Etablissements`, correspondance `Dossier ID`,
+  `imageid = {id_dossier_normalise}.jpg` sans préfixe `dossier-`, et racine
+  `@pathimg` par défaut
+  `Macintosh HD:Users:victoria:Documents:export-jpg-resize`.
+- Correction de la règle InDesign sur les absences : les cellules métier vides
+  exportées doivent être remplacées par `#N/A`; les colonnes entièrement vides
+  restent supprimées et les lignes sans `Dossier ID` restent exclues.
 - Livraison du chantier A de bornes ressources Sircom 2026 : limites
   configurables Excel/images exposées dans `/api/config/limits`, refus
   structurés des classeurs hors dimensions, refus des images hors dimensions,

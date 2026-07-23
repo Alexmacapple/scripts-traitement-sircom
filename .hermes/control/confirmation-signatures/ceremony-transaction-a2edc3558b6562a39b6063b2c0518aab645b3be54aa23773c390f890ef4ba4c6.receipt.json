@@ -1,0 +1,18 @@
+{
+  "allowed_signers_sha256": "84f3ef360349bbc02361cd298a1518e3943b13352fef79c239a40f60d8c9d2ad",
+  "authority": {
+    "epoch": 1,
+    "id": "360b34453da80a7837bd664d20b3cf5c3f6f0c682d1af5b46eb0a7b285d538b0"
+  },
+  "installed_signature_sha256": {
+    ".hermes/control/confirmation-signatures/change-proposed-1.sig": "49716ea17ff8129aa656430740511e731967633645648c127825580fc0f76deb",
+    ".hermes/control/confirmation-signatures/human-decision-10327ed653eff8c1eb49789cafbd5881c517293db13376511e27587ede015ad9.sig": "e986861b1419ffd6cce23bd3e8155feb2ce17443ca1110f0b525fc2619845aa2",
+    ".hermes/control/confirmation-signatures/preserve-proposed-1.sig": "a7d493da821ca2f2d093287f43c723afec658fa25f993e1bb5266dc4d72b752a"
+  },
+  "manifest_sha256": "8c4e5fbf41417865ee3b076f6c728a8f22fdb68427e1521bede1d7e9fcb00a02",
+  "manifest_signature_sha256": "b68589f29ce90fc5d6fb93bbdacfe87f9744c4828acc4f0b5c9780ae9279b450",
+  "principal": "alex-chat-2026-07-23",
+  "schema": "hermes/ceremony-transaction-receipt/v1",
+  "status": "consumed",
+  "transaction_id": "a2edc3558b6562a39b6063b2c0518aab645b3be54aa23773c390f890ef4ba4c6"
+}

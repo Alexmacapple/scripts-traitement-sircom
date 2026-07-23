@@ -16,7 +16,8 @@ Critères d'acceptation :
       fins de ligne.
 - [ ] Les en-têtes sont uniques et dans l'ordre attendu.
 - [ ] `id_dossier`, `imageid` et `@pathimg` sont contrôlés.
-- [ ] Les cellules vides sont conservées et aucune valeur `#N/A` n'est injectée.
+- [ ] Les cellules métier vides sont remplacées par `#N/A` et les vraies
+      cellules vides des lignes exportées sont refusées.
 - [ ] Les guillemets automatiques nécessaires sont acceptés sans imposer une
       liste fixe de colonnes 2025.
 - [ ] Une comparaison structurelle avec la référence CSV 2025 est disponible

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from sircom2026.config import load_settings
 from sircom2026.csv_contract import verify_indesign_csv_bytes
 from sircom2026.csv_preview import CSV_PREVIEW_ROWS_LIMIT
 from sircom2026.database import Database
+from sircom2026.pathimg import pathimg_path
 from sircom2026.worker_runner import run_worker_once
 
 
@@ -214,11 +216,18 @@ class CsvPreviewApiTest(unittest.TestCase):
         self.assertEqual(
             [row["id_dossier"] for row in payload["rows"]], ["ID-1", "ID-2", "ID-3"]
         )
-        self.assertEqual(payload["rows"][0]["values"]["imageid"], "dossier-id-1.jpg")
-        self.assertEqual(payload["rows"][0]["values"]["@pathimg"], "")
+        self.assertEqual(payload["rows"][0]["values"]["imageid"], "id-1.jpg")
+        self.assertEqual(
+            payload["rows"][0]["values"]["@pathimg"],
+            pathimg_path(settings.indesign_image_root, "id-1.jpg"),
+        )
         self.assertEqual(
             payload["rows"][0]["values"][payload["headers"][3]], "Bretagne"
         )
+        nom_produit_header = next(
+            header for header in payload["headers"] if "nomprodu" in header
+        )
+        self.assertEqual(payload["rows"][0]["values"][nom_produit_header], "#N/A")
         self.assertIn("removed_columns", payload)
         self.assertIn("removed_rows", payload)
         self.assertEqual(payload["removed_columns_count"], 1)
@@ -259,6 +268,65 @@ class CsvPreviewApiTest(unittest.TestCase):
             step for step in lot["steps"] if step["key"] == "previsualisation_csv"
         )
         self.assertEqual(csv_step["status"], "termine_avec_alertes")
+
+    def test_preview_validation_accepts_custom_pathimg_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            workbook_path = tmpdir / "fixtures" / "preview-custom-path.xlsx"
+            create_preview_workbook(workbook_path)
+            settings = make_settings(tmpdir)
+            client = TestClient(create_app(settings))
+            lot_id = prepare_verified_lot(
+                client,
+                settings,
+                workbook_path,
+                key="preview-custom-path",
+                sort_decision="tri_region_departement",
+            )
+            custom_root = "Macintosh HD:Exports:sircom-test"
+
+            validation = client.post(
+                f"/api/lots/{lot_id}/csv/preview/validate",
+                json={"pathimg_root": custom_root},
+                headers={"X-Idempotency-Key": "preview-custom-path"},
+            )
+            export_after_validation = client.get(f"/api/lots/{lot_id}/csv/export")
+            final_csv = client.get(
+                export_after_validation.json()["artifact"]["download_url"]
+            )
+            lot = client.get(f"/api/lots/{lot_id}").json()["lot"]
+            database = Database(settings.sqlite_path)
+            with database.session() as repositories:
+                step = repositories.steps.get_by_lot_key(
+                    lot_id,
+                    "previsualisation_csv",
+                )
+                csv_artifact = repositories.artifacts.get_for_step_run_role(
+                    lot_id=lot_id,
+                    step_key="previsualisation_csv",
+                    run_id=step["current_run_id"],
+                    role="csv_final",
+                )
+
+        self.assertEqual(validation.status_code, 200, validation.text)
+        self.assertEqual(validation.json()["preview"]["pathimg_root"], custom_root)
+        self.assertEqual(lot["pathimg_root"], custom_root)
+        self.assertEqual(
+            json.loads(csv_artifact["metadata_json"])["pathimg_root"],
+            custom_root,
+        )
+        self.assertEqual(
+            export_after_validation.status_code,
+            200,
+            export_after_validation.text,
+        )
+        self.assertEqual(final_csv.status_code, 200, final_csv.text)
+        csv_text = final_csv.content.decode("utf-16")
+        self.assertIn(pathimg_path(custom_root, "id-1.jpg"), csv_text)
+        self.assertNotIn(
+            pathimg_path(settings.indesign_image_root, "id-1.jpg"),
+            csv_text,
+        )
 
     def test_preview_public_payload_and_ui_are_limited_to_ten_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

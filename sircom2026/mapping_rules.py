@@ -35,7 +35,7 @@ def useful_sheets(diagnostic: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(sheet, dict)
         and not bool(sheet.get("ignored"))
         and bool(sheet.get("importable"))
-        and sheet.get("header_row") == 1
+        and sheet.get("header_row") is not None
     ]
 
 

@@ -1,0 +1,9 @@
+schema: hermes/production-target/v1
+# Human-declared production target for this PoC.
+# Generated packs start empty: the father does not choose a target for the human.
+# A human may fill `tracks` out of band, then set status to human-confirmed.
+# States are discrete only: missing | proposed | confirmed | gated | blocked.
+# No score, percentage, color, maturity level, readiness label or aggregation
+# belongs in this file.
+status: generated-default
+tracks: []

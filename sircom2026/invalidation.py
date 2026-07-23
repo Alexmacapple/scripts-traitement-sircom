@@ -216,6 +216,7 @@ def record_human_validation_snapshot(
     lot_id: str,
     step_key: str,
     decision_payload: Mapping[str, Any],
+    input_payload: Mapping[str, Any] | None = None,
     run_id: str | None = None,
     reason: str,
 ) -> HumanValidationSnapshot:
@@ -225,6 +226,7 @@ def record_human_validation_snapshot(
         repositories,
         lot_id=lot_id,
         step_key=step_key,
+        input_payload=input_payload,
     )
     output_fingerprint = fingerprint_payload(
         {

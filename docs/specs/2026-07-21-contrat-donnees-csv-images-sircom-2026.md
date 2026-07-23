@@ -118,7 +118,7 @@ nettoyage, le mapping est bloqué jusqu'à renommage humain.
 - Espaces début/fin supprimés.
 - Espaces multiples réduits.
 - Dates confirmées ou détectées converties en `dd/mm/yyyy`.
-- Dates invalides : cellule vide dans le CSV, problème structuré.
+- Dates invalides : `#N/A` dans le CSV, problème structuré.
 - Champs sensibles conservés en texte : `id_dossier`, SIRET, téléphone, code
   postal, département et codes administratifs.
 - Colonnes entièrement vides supprimées après normalisation, même sélectionnées.
@@ -144,8 +144,9 @@ La V1 garantit le format du CSV 2025 :
 - séparateur virgule ;
 - fins de ligne LF ;
 - guillemets automatiques seulement si nécessaire ;
-- cellules vides conservées ;
-- absence de `#N/A`, `N/C` et équivalents hérités ;
+- cellules métier vides remplacées par `#N/A` ;
+- absence de cellules vides dans les lignes exportées ;
+- absence de `N/C` et équivalents hérités ;
 - `imageid` et `@pathimg` juste après `id_dossier`.
 
 Deux gates sont distincts :
@@ -197,10 +198,10 @@ Un `ImageBinding` par `id_dossier` contient :
 Sémantique V1 :
 
 - `imageid` est déterministe pour chaque ligne avec `id_dossier` valide :
-  `dossier-{id-normalise}.jpg` ;
+  `{id-normalise}.jpg` ;
 - `@pathimg` est rempli seulement si une image finale existe ;
 - lorsqu'il est rempli, `@pathimg` vaut
-  `{SIRCOM_INDESIGN_IMAGE_ROOT}/dossier-{id-normalise}.jpg`, avec
+  `{SIRCOM_INDESIGN_IMAGE_ROOT}/{id-normalise}.jpg`, avec
   `/Users/victoria/Documents/export-jpg-resize` par défaut ;
 - `@pathimg` reste vide si image absente, ignorée, ambiguë non résolue ou si
   l'utilisateur continue sans images.
@@ -229,7 +230,7 @@ Images non référencées : ignorées mais listées dans le rapport.
 Images finales :
 
 - format JPG ;
-- nom `dossier-{id-normalise}.jpg` ;
+- nom `{id-normalise}.jpg` ;
 - largeur maximale 350 px ;
 - qualité JPEG 100 ;
 - DPI 300 ;

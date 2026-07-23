@@ -1,0 +1,52 @@
+schema: hermes/browser-scenarios/v1
+scenarios:
+  - id: "pages-accessibilite"
+    source: "visual-tests/pages/accessibilite.yaml"
+    user_path: "Contr\u00f4le visuel minimal de la page d'accessibilit\u00e9 locale"
+    criticality: "medium"
+    agent_browser_needed: true
+    runtime_status: manual_required
+    instructions: "Seeded from the ShipGuard manifest visual-tests/pages/accessibilite.yaml; run it with Agent Browser against a live app."
+  - id: "pages-donnees-personnelles"
+    source: "visual-tests/pages/donnees-personnelles.yaml"
+    user_path: "Contr\u00f4le visuel minimal de la page donn\u00e9es personnelles locale"
+    criticality: "medium"
+    agent_browser_needed: true
+    runtime_status: manual_required
+    instructions: "Seeded from the ShipGuard manifest visual-tests/pages/donnees-personnelles.yaml; run it with Agent Browser against a live app."
+  - id: "pages-home"
+    source: "visual-tests/pages/home.yaml"
+    user_path: "Auto-generated homepage smoke test for the Sircom 2026 local UI"
+    criticality: "high"
+    agent_browser_needed: true
+    runtime_status: manual_required
+    instructions: "Seeded from the ShipGuard manifest visual-tests/pages/home.yaml; run it with Agent Browser against a live app."
+  - id: "pages-plan-du-site"
+    source: "visual-tests/pages/plan-du-site.yaml"
+    user_path: "Auto-generated info-page smoke test for the Sircom 2026 local UI"
+    criticality: "medium"
+    agent_browser_needed: true
+    runtime_status: manual_required
+    instructions: "Seeded from the ShipGuard manifest visual-tests/pages/plan-du-site.yaml; run it with Agent Browser against a live app."
+  - id: "pages-workflow-excel-jeudi"
+    source: "visual-tests/pages/workflow-excel-jeudi.yaml"
+    user_path: "Capture cibl\u00e9e de l'\u00e9cran Traitement Excel du lot jeudi pour retour visuel"
+    criticality: "high"
+    agent_browser_needed: true
+    runtime_status: manual_required
+    instructions: "Seeded from the ShipGuard manifest visual-tests/pages/workflow-excel-jeudi.yaml; run it with Agent Browser against a live app."
+  - id: "pages-workflow-export-final-jeudi"
+    source: "visual-tests/pages/workflow-export-final-jeudi.yaml"
+    user_path: "Capture cibl\u00e9e de l'\u00e9cran Export final du lot jeudi pour retour visuel"
+    criticality: "high"
+    agent_browser_needed: true
+    runtime_status: manual_required
+    instructions: "Seeded from the ShipGuard manifest visual-tests/pages/workflow-export-final-jeudi.yaml; run it with Agent Browser against a live app."
+  - id: "pages-workflow-images-inspection-jeudi"
+    source: "visual-tests/pages/workflow-images-inspection-jeudi.yaml"
+    user_path: "Capture cibl\u00e9e de la vue Inspecter les images du lot jeudi pour retour visuel"
+    criticality: "high"
+    agent_browser_needed: true
+    runtime_status: manual_required
+    instructions: "Seeded from the ShipGuard manifest visual-tests/pages/workflow-images-inspection-jeudi.yaml; run it with Agent Browser against a live app."
+rule: use runtime_status manual_required unless a real browser run executed the scenario

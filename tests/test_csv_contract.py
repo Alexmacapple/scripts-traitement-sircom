@@ -57,8 +57,8 @@ def synthetic_reference_csv_2025_bytes() -> bytes:
         [
             [
                 "ID-1",
-                "dossier-id-1.jpg",
-                "/Users/victoria/Documents/export-jpg-resize/dossier-id-1.jpg",
+                "id-1.jpg",
+                "/Users/victoria/Documents/export-jpg-resize/id-1.jpg",
                 "Bretagne",
                 "Produit",
             ]
@@ -135,9 +135,9 @@ class CsvContractTest(unittest.TestCase):
         content = write_indesign_csv_bytes(headers, rows)
         expected_text = (
             "id_dossier,imageid,@pathimg,b_region,c_nom\n"
-            'ID-1,,,Bretagne,"Produit, spécial"\n'
+            'ID-1,#N/A,#N/A,Bretagne,"Produit, spécial"\n'
             "ID-2,img-2,/Users/victoria/Documents/export-jpg-resize/img-2.jpg,"
-            ',"Texte ""fin"""\n'
+            '#N/A,"Texte ""fin"""\n'
         )
         expected = b"\xff\xfe" + expected_text.encode("utf-16-le")
         report = verify_indesign_csv_bytes(content, expected_headers=headers)
@@ -154,7 +154,7 @@ class CsvContractTest(unittest.TestCase):
         self,
     ) -> None:
         headers = ["id_dossier", "imageid", "@pathimg"]
-        bad_text = "id_dossier,imageid,@pathimg\r\nID-1,#N/A,\r\nID-2\r\nID-3,n/c,\r\n"
+        bad_text = "id_dossier,imageid,@pathimg\r\nID-1,,#N/A\r\nID-2\r\nID-3,n/c,\r\n"
         content = b"\xff\xfe" + bad_text.encode("utf-16-le")
 
         report = verify_indesign_csv_bytes(content, expected_headers=headers)
@@ -163,19 +163,25 @@ class CsvContractTest(unittest.TestCase):
         self.assertFalse(report.valid)
         self.assertIn("SIRCOM_CSV_LINE_ENDING_NOT_LF", codes)
         self.assertIn("SIRCOM_CSV_FORBIDDEN_VALUE", codes)
+        self.assertIn("SIRCOM_CSV_EMPTY_CELL_FORBIDDEN", codes)
         self.assertIn("SIRCOM_CSV_ROW_WIDTH_MISMATCH", codes)
         forbidden_count = sum(
             issue["code"] == "SIRCOM_CSV_FORBIDDEN_VALUE"
             for issue in report.to_public_dict()["issues"]
         )
-        self.assertEqual(forbidden_count, 2)
+        empty_count = sum(
+            issue["code"] == "SIRCOM_CSV_EMPTY_CELL_FORBIDDEN"
+            for issue in report.to_public_dict()["issues"]
+        )
+        self.assertEqual(forbidden_count, 1)
+        self.assertEqual(empty_count, 2)
 
     def test_verifier_rejects_missing_bom_duplicate_headers_and_bad_positions(
         self,
     ) -> None:
-        content = "imageid,id_dossier,id_dossier,@pathimg\nimg-1,ID-1,ID-1,\n".encode(
-            "utf-16-le"
-        )
+        content = (
+            "imageid,id_dossier,id_dossier,@pathimg\nimg-1,ID-1,ID-1,#N/A\n"
+        ).encode("utf-16-le")
 
         report = verify_indesign_csv_bytes(
             content,

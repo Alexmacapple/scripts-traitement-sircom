@@ -331,6 +331,7 @@ def serialize_lot_summary(lot: dict[str, Any]) -> dict[str, Any]:
         "title": lot["title"],
         "status": lot["status"],
         "status_label": LOT_STATUS_LABELS.get(lot["status"], lot["status"]),
+        "pathimg_root": lot.get("pathimg_root"),
         "created_at": lot["created_at"],
         "updated_at": lot["updated_at"],
         "deleted_at": lot["deleted_at"],

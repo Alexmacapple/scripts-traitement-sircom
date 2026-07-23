@@ -1,0 +1,8 @@
+schema: hermes/owners/v1
+# Project-added sealed path globs (chantier C). A worker diff touching a sealed path is
+# blocked at the observer and the judge gate — it changes only through an out-of-band human
+# approval, never a routed worker diff, exactly like every other governance-core file.
+# fnmatch globs; `*` crosses `/`, so `migrations/*` seals the whole subtree. Empty by
+# default. The built-in floor — the .hermes/control/* governance files plus this file
+# itself — is always sealed in code, regardless of (and non-removable via) this list.
+sealed: []

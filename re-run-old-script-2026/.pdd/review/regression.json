@@ -1,0 +1,9 @@
+{
+  "schema": "pdd.regression.v1",
+  "status": "pass",
+  "required_documents": [
+    "INDEX.md",
+    "sources.md"
+  ],
+  "missing": []
+}

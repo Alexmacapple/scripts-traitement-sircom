@@ -24,7 +24,8 @@ CSV_CONTRACT_RULES_VERSION = "csv-indesign-contract-v1"
 CSV_CONTRACT_SCHEMA_VERSION = 1
 UTF16_LE_BOM = b"\xff\xfe"
 REQUIRED_2026_HEADERS = ("id_dossier", "imageid", "@pathimg")
-FORBIDDEN_EMPTY_PLACEHOLDERS = {"#N/A", "N/C"}
+EMPTY_CELL_PLACEHOLDER = "#N/A"
+FORBIDDEN_EMPTY_PLACEHOLDERS = {"N/C"}
 
 
 @dataclass(frozen=True)
@@ -79,7 +80,7 @@ def write_indesign_csv_bytes(
         lineterminator="\n",
         quoting=csv.QUOTE_MINIMAL,
     )
-    writer.writerow([_csv_cell(header) for header in headers])
+    writer.writerow(["" if header is None else str(header) for header in headers])
     for row in rows:
         writer.writerow([_csv_cell(value) for value in row])
     return UTF16_LE_BOM + text_buffer.getvalue().encode("utf-16-le")
@@ -146,6 +147,18 @@ def verify_indesign_csv_bytes(
                 )
             )
         for column_index, value in enumerate(row, start=1):
+            if str(value) == "":
+                issues.append(
+                    CsvContractIssue(
+                        "SIRCOM_CSV_EMPTY_CELL_FORBIDDEN",
+                        "Cellule vide interdite",
+                        {
+                            "row_number": row_index,
+                            "column_index": column_index,
+                            "expected_value": EMPTY_CELL_PLACEHOLDER,
+                        },
+                    )
+                )
             if str(value).strip().upper() in FORBIDDEN_EMPTY_PLACEHOLDERS:
                 issues.append(
                     CsvContractIssue(
@@ -471,8 +484,11 @@ def _public_signature(signature: dict[str, Any]) -> dict[str, Any]:
 
 def _csv_cell(value: Any) -> str:
     if value is None:
-        return ""
-    return str(value)
+        return EMPTY_CELL_PLACEHOLDER
+    text = str(value)
+    if text == "":
+        return EMPTY_CELL_PLACEHOLDER
+    return text
 
 
 def _current_json_artifact(

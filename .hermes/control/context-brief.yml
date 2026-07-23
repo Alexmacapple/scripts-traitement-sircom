@@ -1,0 +1,72 @@
+schema: hermes/context-brief/v1
+known:
+  - id: center-1
+    source: "sircom2026/app.py"
+    summary: source entrypoint
+  - id: center-2
+    source: "sircom2026/static/app.js"
+    summary: source entrypoint
+  - id: doc-1
+    source: "README.md"
+    summary: documentation
+  - id: doc-2
+    source: "docs/agents/2026-07-21-prompt-implementation-ticket-01-sircom-2026.md"
+    summary: documentation
+  - id: doc-3
+    source: "docs/agents/2026-07-21-template-review-post-ticket-sircom-2026.md"
+    summary: documentation
+  - id: doc-4
+    source: "docs/agents/README.md"
+    summary: documentation
+  - id: doc-5
+    source: "docs/audits/2026-07-21-prompt-fable-verification-globale-sircom-2026.md"
+    summary: documentation
+  - id: commit-1
+    source: git log
+    summary: "89c8a4b Extract processed image zip builder"
+  - id: commit-2
+    source: git log
+    summary: "e59388b Document ShipGuard follow-up fixes"
+  - id: commit-3
+    source: git log
+    summary: "784632e Preflight Excel dimensions before full diagnostic load"
+  - id: commit-4
+    source: git log
+    summary: "027dfad Handle Pillow image bombs as business blockers"
+  - id: commit-5
+    source: git log
+    summary: "fbef501 Documenter les retours Loriq MadeInFrance"
+unknown:
+  []
+risks:
+  - id: unverified-behavior
+    source: runtime inspection
+    summary: files inspected statically, not run; behavior unverified
+gaps:
+  - id: source-surface-overflow
+    question: "these owned source files exceed the frozen write-surface cap; a human must admit a bounded route/profile mutation before a child can modify them; affected paths: tests/test_ui_table_contract.py, tests/test_web_socle.py, tests/test_worker.py, tests/test_workflow_failure_paths.py, tests/test_workflow_orchestration.py"
+source_refs:
+  - "sircom2026/app.py"
+  - "sircom2026/static/app.js"
+  - "README.md"
+  - "docs/agents/2026-07-21-prompt-implementation-ticket-01-sircom-2026.md"
+  - "docs/agents/2026-07-21-template-review-post-ticket-sircom-2026.md"
+  - "docs/agents/README.md"
+  - "docs/audits/2026-07-21-prompt-fable-verification-globale-sircom-2026.md"
+  - "sircom2026/templates/index.html"
+  - "sircom2026/templates/info.html"
+  - "sircom2026/templates/partials/footer.html"
+  - "sircom2026/templates/partials/header.html"
+  - "sircom2026/templates/partials/home_view.html"
+  - "sircom2026/templates/partials/lot_breadcrumb.html"
+  - "sircom2026/templates/partials/overview.html"
+  - "sircom2026/templates/partials/skiplinks.html"
+  - "sircom2026/templates/partials/source_uploads.html"
+  - "sircom2026/templates/partials/workflow_csv.html"
+  - "sircom2026/templates/partials/workflow_deliverables.html"
+  - "sircom2026/templates/partials/workflow_details.html"
+  - "sircom2026/templates/partials/workflow_excel.html"
+  - "sircom2026/templates/partials/workflow_images.html"
+  - "sircom2026/templates/partials/workflow_source_actions.html"
+  - "sircom2026/templates/partials/workflow_view.html"
+  - "visual-tests/_review-template.html"

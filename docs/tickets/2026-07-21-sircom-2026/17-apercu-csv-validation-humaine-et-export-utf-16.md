@@ -9,7 +9,7 @@ l'export jusqu'à validation et produire le CSV final UTF-16.
 
 Critères d'acceptation :
 
-- [ ] L'aperçu montre en-têtes finaux, premières lignes, cellules vides et
+- [ ] L'aperçu montre en-têtes finaux, premières lignes, cellules `#N/A` et
       alertes.
 - [ ] L'aperçu montre aussi les colonnes supprimées et les lignes supprimées.
 - [ ] L'aperçu correspond aux fingerprints courants.

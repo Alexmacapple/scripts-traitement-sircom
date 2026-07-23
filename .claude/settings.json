@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/hermes_pre_tool_use.py\" \"${CLAUDE_PROJECT_DIR}\""
+          }
+        ]
+      }
+    ]
+  }
+}

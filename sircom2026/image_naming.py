@@ -5,7 +5,7 @@ import unicodedata
 
 
 def image_id_for_dossier(id_dossier: str) -> str:
-    return f"dossier-{normalize_dossier_id_for_filename(id_dossier)}.jpg"
+    return f"{normalize_dossier_id_for_filename(id_dossier)}.jpg"
 
 
 def normalize_dossier_id_for_filename(id_dossier: str) -> str:

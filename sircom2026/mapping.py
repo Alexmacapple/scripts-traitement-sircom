@@ -167,7 +167,7 @@ def build_default_mapping_from_current_diagnostic(
                     status = "supprime"
                     csv_name = "id_dossier"
                     suppression_reason = (
-                        "Colonne id_dossier utilisée seulement pour la fusion interne."
+                        "Colonne identifiée comme clé primaire dossier utilisée seulement pour la fusion interne."
                     )
 
             columns.append(
@@ -575,7 +575,7 @@ def mapping_validation_errors(mapping: dict[str, Any]) -> list[MappingError]:
             MappingError(
                 422,
                 "SIRCOM_MAPPING_ID_DOSSIER_INVALID",
-                "Le mapping doit exporter une seule colonne id_dossier.",
+                "Le mapping doit exporter une seule clé primaire dossier.",
                 details={"checks_count": 1},
             )
         )
@@ -1002,5 +1002,5 @@ def mapping_error_title(code: str) -> str:
         "SIRCOM_MAPPING_CSV_HEADER_COLLISION": "Collision de noms CSV",
         "SIRCOM_MAPPING_NO_BUSINESS_COLUMN": "Aucune colonne métier exportée",
         "SIRCOM_MAPPING_CSV_NAME_MISSING": "Nom CSV manquant",
-        "SIRCOM_MAPPING_ID_DOSSIER_INVALID": "Colonne id_dossier invalide",
+        "SIRCOM_MAPPING_ID_DOSSIER_INVALID": "Clé primaire dossier invalide",
     }.get(code, "Mapping invalide")

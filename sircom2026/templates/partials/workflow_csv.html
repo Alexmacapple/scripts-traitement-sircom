@@ -75,7 +75,7 @@
                               </caption>
                               <thead>
                                 <tr>
-                                  <th scope="col">ID dossier</th>
+                                  <th scope="col">Clé dossier</th>
                                   {% if sort_proposal.can_sort %}
                                     <th scope="col">Région</th>
                                     <th scope="col">Département</th>
@@ -208,7 +208,7 @@
                       <dd>{{ csv_preview.removed_columns_count }}</dd>
                     </div>
                     <div class="fr-col-6 fr-col-md-3">
-                      <dt>Lignes sans ID</dt>
+                      <dt>Lignes sans clé dossier</dt>
                       <dd>{{ csv_preview.removed_rows_without_id_count }}</dd>
                     </div>
                   </dl>
@@ -242,6 +242,20 @@
                   <p class="fr-text--sm fr-mt-3v fr-mb-0">
                     Lignes affichées : {{ csv_preview.rows | length }} sur {{ csv_preview.rows_count }} (maximum {{ csv_preview.preview_rows_limit }}).
                   </p>
+                  <div class="fr-input-group fr-mt-3v">
+                    <label class="fr-label" for="csv-preview-pathimg-root">
+                      Chemin racine @pathimg
+                    </label>
+                    <input
+                      class="fr-input"
+                      id="csv-preview-pathimg-root"
+                      name="pathimg_root"
+                      type="text"
+                      value="{{ csv_preview.pathimg_root }}"
+                      autocomplete="off"
+                      spellcheck="false"
+                    >
+                  </div>
                   <div
                     class="fr-table fr-table--bordered fr-table--layout-fixed fr-mt-2v sircom-csv-preview-table"
                     style="--sircom-csv-preview-columns: {{ csv_preview.headers_count }};"
@@ -284,6 +298,7 @@
                           type="button"
                           data-csv-preview-validate
                           data-csv-preview-lot-id="{{ selected_lot.id }}"
+                          data-csv-preview-pathimg-input="csv-preview-pathimg-root"
                         >
                           Valider l'aperçu CSV
                         </button>

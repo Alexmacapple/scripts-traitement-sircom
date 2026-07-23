@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from sircom2026.app import create_app
+from sircom2026.pathimg import pathimg_prefix
 from tests.test_reports import (
     create_reports_workbook,
     excel_file,
@@ -176,7 +177,7 @@ class EndToEndWorkflowApiTest(unittest.TestCase):
         self.assertIn("rapport-technique.json", names)
         self.assertIn("mapping-utilise.json", names)
         self.assertEqual(len(image_entries), 1)
-        self.assertIn(f"{settings.indesign_image_root}/", csv_text)
+        self.assertIn(pathimg_prefix(settings.indesign_image_root), csv_text)
         self.assertEqual(
             {source["key"] for source in manifest["source_artifacts"]},
             {

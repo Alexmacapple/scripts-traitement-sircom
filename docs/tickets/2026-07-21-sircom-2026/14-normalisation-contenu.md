@@ -13,12 +13,12 @@ Critères d'acceptation :
 - [ ] Les espaces début/fin sont supprimés.
 - [ ] Les espaces multiples sont réduits.
 - [ ] Les dates valides détectées ou confirmées sortent en `dd/mm/yyyy`.
-- [ ] Les dates invalides ou absentes sont signalées et sortent vides.
+- [ ] Les dates invalides ou absentes sont signalées et sortent en `#N/A`.
 - [ ] `id_dossier`, SIRET, téléphone, code postal, département et codes
       administratifs restent traités comme texte.
 - [ ] Les zéros initiaux de ces champs texte sont conservés.
-- [ ] Les valeurs vides restent vides et ne deviennent jamais `nan`, `NaT`,
-      `None` ou `#N/A`.
+- [ ] Les valeurs vides deviennent `#N/A` et ne deviennent jamais `nan`, `NaT`
+      ou `None`.
 - [ ] Les prix, montants et pourcentages ne sont pas corrigés sans règle
       explicite.
 - [ ] Tests pour chaque règle de normalisation.

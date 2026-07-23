@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-MATCHING_RULES_VERSION = "image-matching-v1"
+MATCHING_RULES_VERSION = "image-matching-v2"
 MATCHING_SCHEMA_VERSION = 1
 MATCHABLE_IMAGE_SOURCE_ROLE = "nom_image_source"
 PARTIAL_SUGGESTION_MIN_LENGTH = 4

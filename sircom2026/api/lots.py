@@ -129,6 +129,10 @@ class PackageGenerationRequest(BaseModel):
     accept_warnings: bool = False
 
 
+class CsvPreviewValidationRequest(BaseModel):
+    pathimg_root: str | None = Field(default=None, max_length=512)
+
+
 @router.post("", status_code=201)
 async def create_lot(
     response: Response,
@@ -794,6 +798,7 @@ async def validate_lot_csv_preview(
     request: Request,
     _actor: Annotated[ActorContext, Depends(require_action(AccessAction.LOT_UPDATE))],
     database: Annotated[Database, Depends(get_database)],
+    payload: Annotated[CsvPreviewValidationRequest | None, Body()] = None,
 ) -> dict[str, object]:
     settings = request.app.state.settings
     idempotency_key = (
@@ -806,6 +811,8 @@ async def validate_lot_csv_preview(
                 settings=settings,
                 lot_id=lot_id,
                 idempotency_key=idempotency_key,
+                pathimg_root=payload.pathimg_root if payload is not None else None,
+                update_pathimg_root=payload is not None,
             )
         except CsvPreviewError as exc:
             raise csv_preview_api_error(exc) from exc

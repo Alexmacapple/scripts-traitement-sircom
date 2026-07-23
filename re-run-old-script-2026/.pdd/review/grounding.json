@@ -1,0 +1,14 @@
+{
+  "schema": "pdd.grounding.v1",
+  "status": "pass",
+  "source_map": "re-run-old-script-2026/.pdd/source-map.json",
+  "documents": [
+    "INDEX.md",
+    "README.md",
+    "sources.md",
+    "specification-fonctionnelle.md",
+    "specification-technique.md",
+    "verification-scripts-2026.md"
+  ],
+  "requires_human_review": false
+}

@@ -11,6 +11,7 @@ from openpyxl import Workbook
 from sircom2026.app import create_app
 from sircom2026.config import load_settings
 from sircom2026.database import Database
+from sircom2026.sorting import build_sort_proposal
 from sircom2026.worker_runner import run_worker_once
 
 
@@ -159,6 +160,90 @@ def download_sort_payload(client: TestClient, settings, lot_id: str) -> dict[str
     if response.status_code != 200:
         raise AssertionError(response.text)
     return response.json()
+
+
+class SortProposalTest(unittest.TestCase):
+    def test_postal_code_department_role_does_not_block_region_department_sort(
+        self,
+    ) -> None:
+        proposal = build_sort_proposal(
+            {
+                "columns": [
+                    {
+                        "id": "bdd-b",
+                        "system": False,
+                        "source_sheet": "BDD TT + ANALYSE DGDDI",
+                        "source_column_letter": "B",
+                        "source_header": "Région du site de production du produit candidat",
+                        "logical_role": "region",
+                        "csv_name": "b_regiondu",
+                        "output_position": 1,
+                    },
+                    {
+                        "id": "bdd-c",
+                        "system": False,
+                        "source_sheet": "BDD TT + ANALYSE DGDDI",
+                        "source_column_letter": "C",
+                        "source_header": "Département du site de production du produit candidat",
+                        "logical_role": "departement",
+                        "csv_name": "c_departem",
+                        "output_position": 2,
+                    },
+                    {
+                        "id": "etab-m",
+                        "system": False,
+                        "source_sheet": "Etablissements",
+                        "source_column_letter": "M",
+                        "source_header": "Établissement code postal",
+                        "logical_role": "departement",
+                        "csv_name": "m_etabliss",
+                        "output_position": 3,
+                    },
+                ],
+                "rows": [],
+            }
+        )
+
+        self.assertEqual(proposal["detection_status"], "detected")
+        self.assertTrue(proposal["can_sort"])
+        self.assertEqual(proposal["department_column"]["csv_name"], "c_departem")
+        self.assertEqual(
+            [column["csv_name"] for column in proposal["department_candidates"]],
+            ["c_departem"],
+        )
+
+    def test_postal_code_department_role_alone_does_not_enable_sort(self) -> None:
+        proposal = build_sort_proposal(
+            {
+                "columns": [
+                    {
+                        "id": "bdd-b",
+                        "system": False,
+                        "source_sheet": "BDD TT + ANALYSE DGDDI",
+                        "source_column_letter": "B",
+                        "source_header": "Région du site",
+                        "logical_role": "region",
+                        "csv_name": "b_region",
+                        "output_position": 1,
+                    },
+                    {
+                        "id": "etab-m",
+                        "system": False,
+                        "source_sheet": "Etablissements",
+                        "source_column_letter": "M",
+                        "source_header": "Établissement code postal",
+                        "logical_role": "departement",
+                        "csv_name": "m_code_postal",
+                        "output_position": 2,
+                    },
+                ],
+                "rows": [],
+            }
+        )
+
+        self.assertEqual(proposal["detection_status"], "missing")
+        self.assertFalse(proposal["can_sort"])
+        self.assertEqual(proposal["department_candidates"], [])
 
 
 class SortDecisionApiTest(unittest.TestCase):

@@ -731,7 +731,7 @@ class LotsUiTest(unittest.TestCase):
             "Corriger le fichier Excel puis déposer une nouvelle version.", html
         )
         self.assertIn("Bloquant", html)
-        self.assertIn("Colonne id_dossier absente", html)
+        self.assertIn("Clé primaire dossier absente", html)
         self.assertIn("Colonnes masquées détectées", html)
         self.assertIn("Formules détectées", html)
         self.assertIn("<dt>Cause</dt>", html)
@@ -772,7 +772,7 @@ class LotsUiTest(unittest.TestCase):
         )
         self.assertIn("Alerte", html)
         self.assertIn("Information", html)
-        self.assertIn("Lignes sans id_dossier", html)
+        self.assertIn("Lignes sans clé primaire dossier", html)
         self.assertIn("Onglet vide ignoré", html)
         self.assertNotIn("Excel refusé", html)
         self.assertNotIn(str(tmpdir), html)

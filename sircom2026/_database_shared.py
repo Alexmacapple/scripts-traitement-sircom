@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 LOT_STATUSES = (
     "brouillon",
@@ -65,6 +65,7 @@ EXPECTED_TABLE_COLUMNS = {
         "updated_at",
         "status",
         "title",
+        "pathimg_root",
         "idempotency_key",
         "active_run_id",
         "cancel_requested_at",
