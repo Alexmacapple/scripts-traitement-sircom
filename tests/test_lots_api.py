@@ -488,7 +488,7 @@ class LotsUiTest(unittest.TestCase):
         html = response.text
         self.assertEqual(response.status_code, 200)
         self.assertIn("Traitement Excel du lot Lot UI", html)
-        self.assertIn('<section class="fr-mt-8v" id="lot-detail"', html)
+        self.assertIn('<div class="fr-mt-8v" id="lot-detail"', html)
         self.assertIn('<section class="fr-col-12 fr-col-lg-8" id="lot-workspace"', html)
         self.assertIn("Traitement Excel", html)
         self.assertIn("Traitement images", html)

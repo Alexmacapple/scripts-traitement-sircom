@@ -1,7 +1,7 @@
         {% if selected_lot and page_mode == "workflow" %}
           {% if lot_ui.workflow_screens %}
-            <nav class="fr-mt-6v sircom-workflow-screens" aria-labelledby="workflow-screens-title">
-              <h2 id="workflow-screens-title" class="fr-sr-only">Parcours métier du lot</h2>
+            <h2 id="workflow-screens-title" class="fr-h4 fr-mt-6v fr-mb-3v">Parcours métier du lot</h2>
+            <nav class="sircom-workflow-screens" aria-labelledby="workflow-screens-title">
               <ul class="fr-raw-list fr-grid-row fr-grid-row--gutters">
                 {% for screen in lot_ui.workflow_screens %}
                   <li class="fr-col-12 fr-col-md-4">
@@ -20,9 +20,9 @@
               </ul>
             </nav>
           {% endif %}
-          <section class="fr-mt-8v" id="lot-detail" aria-labelledby="lot-workspace-title">
+          <div class="fr-mt-8v" id="lot-detail">
               <div class="fr-grid-row fr-grid-row--gutters fr-mt-5v">
-                <aside class="fr-col-12 fr-col-lg-4">
+                <div class="fr-col-12 fr-col-lg-4">
                   <nav class="fr-sidemenu" aria-labelledby="steps-menu-title">
                     <div class="fr-sidemenu__inner">
                       <button
@@ -53,7 +53,7 @@
                       </div>
                     </div>
                   </nav>
-                </aside>
+                </div>
 
                 <section class="fr-col-12 fr-col-lg-8" id="lot-workspace" aria-labelledby="lot-workspace-title">
                   <p class="fr-badge fr-badge--{{ active_step.ui_badge_class if active_step else 'info' }} fr-badge--sm fr-mb-2v">
@@ -172,5 +172,5 @@
               {% include "partials/workflow_deliverables.html" %}
 
               {% include "partials/workflow_details.html" %}
-	          </section>
+	          </div>
 	        {% endif %}

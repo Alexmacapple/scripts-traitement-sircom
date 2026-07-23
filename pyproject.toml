@@ -18,6 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
+    "axe-playwright-python==0.1.7",
     "httpx==0.28.1",
     "playwright==1.61.0",
     "pytest==8.4.2",

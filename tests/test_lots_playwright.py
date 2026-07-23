@@ -228,10 +228,19 @@ class LotsPlaywrightTest(unittest.TestCase):
                     wait_until="networkidle",
                 )
 
-                self.assertEqual(page.locator("#workflow-screens-title").count(), 1)
+                self.assertEqual(
+                    page.locator("#workflow-screens-title").inner_text(),
+                    "Parcours métier du lot",
+                )
+                self.assertEqual(
+                    page.locator("nav.sircom-workflow-screens").get_attribute(
+                        "aria-labelledby"
+                    ),
+                    "workflow-screens-title",
+                )
                 self.assertEqual(
                     page.locator(
-                        ".sircom-workflow-screens [aria-current='page']"
+                        "nav.sircom-workflow-screens [aria-current='page']"
                     ).count(),
                     1,
                 )
