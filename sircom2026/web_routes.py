@@ -148,7 +148,7 @@ def register_web_routes(app: FastAPI) -> None:
                 "SIRCOM_CONFIG_INVALID",
                 "Configuration invalide.",
             )
-        return {"limits": app.state.settings.public_limits()}
+        return {"schema_version": 1, "limits": app.state.settings.public_limits()}
 
     @app.get("/{page_slug}", include_in_schema=False)
     async def information_page(request: Request, page_slug: str):

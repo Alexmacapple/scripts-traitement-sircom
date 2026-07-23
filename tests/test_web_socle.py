@@ -275,6 +275,7 @@ class WebSocleTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
+        self.assertEqual(payload["schema_version"], 1)
         self.assertIn("limits", payload)
         serialized = str(payload)
         self.assertNotIn(str(settings.data_dir), serialized)
