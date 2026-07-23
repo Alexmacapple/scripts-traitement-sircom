@@ -3,7 +3,11 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from openpyxl import Workbook
+
+import sircom2026.excel_diagnostic as excel_diagnostic
 from sircom2026.excel_diagnostic import (
     ExcelDimensionLimits,
     clean_indesign_header,
@@ -147,6 +151,56 @@ class ExcelDiagnosticTest(unittest.TestCase):
             diagnostic.dimension_limits_exceeded[0]["limit_exceeded"], "max_cells"
         )
         self.assertEqual(diagnostic.dimension_limits_exceeded[0]["observed"], 2)
+
+    def test_direct_workbook_diagnostic_blocks_dimensions_before_full_load(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workbook_path = Path(tmpdir) / "oversized.xlsx"
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.title = "Produits"
+            sheet.append(["id_dossier", "nom"])
+            sheet.append(["DOSSIER-1", "Produit 1"])
+            sheet.append(["DOSSIER-2", "Produit 2"])
+            workbook.save(workbook_path)
+            workbook.close()
+
+            original_load_workbook = excel_diagnostic.load_workbook
+
+            def guarded_load_workbook(*args, **kwargs):
+                self.assertIs(
+                    kwargs.get("read_only"),
+                    True,
+                    "diagnose_workbook must preflight dimensions before full load",
+                )
+                return original_load_workbook(*args, **kwargs)
+
+            with patch(
+                "sircom2026.excel_diagnostic.load_workbook",
+                side_effect=guarded_load_workbook,
+            ):
+                diagnostic = diagnose_workbook(
+                    workbook_path,
+                    limits=ExcelDimensionLimits(
+                        max_rows=2,
+                        max_columns=10,
+                        max_cells=100,
+                    ),
+                )
+
+        self.assertFalse(diagnostic.importable)
+        self.assertEqual(diagnostic.sheet_count, 1)
+        self.assertEqual(diagnostic.sheets[0].name, "Produits")
+        self.assertEqual(
+            diagnostic.sheets[0].dimension_limits_exceeded[0]["limit_exceeded"],
+            "max_rows",
+        )
+        self.assertEqual(
+            diagnostic.sheets[0].dimension_limits_exceeded[0]["observed"],
+            3,
+        )
+        self.assertIn("Produits: Dimensions Excel hors limites.", diagnostic.blockers)
 
     def test_local_2024_2025_inputs_when_available(self) -> None:
         if not REAL_SIRCOM1.exists() or not REAL_SIRCOM2.exists():

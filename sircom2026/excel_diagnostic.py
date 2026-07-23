@@ -442,12 +442,47 @@ def diagnose_workbook(
     path: Path,
     limits: ExcelDimensionLimits = DEFAULT_EXCEL_DIMENSION_LIMITS,
 ) -> WorkbookDiagnostic:
+    preflight_sheets = _preflight_workbook_dimensions(path, limits)
+    if any(sheet.dimension_limits_exceeded for sheet in preflight_sheets):
+        return _build_workbook_diagnostic(path, preflight_sheets)
+
     workbook = load_workbook(path, read_only=False, data_only=False)
     try:
         sheets = [diagnose_sheet(sheet, limits) for sheet in workbook.worksheets]
     finally:
         workbook.close()
 
+    return _build_workbook_diagnostic(path, sheets)
+
+
+def _preflight_workbook_dimensions(
+    path: Path,
+    limits: ExcelDimensionLimits,
+) -> list[SheetDiagnostic]:
+    workbook = load_workbook(path, read_only=True, data_only=False)
+    try:
+        sheets: list[SheetDiagnostic] = []
+        for sheet in workbook.worksheets:
+            diagnostic = SheetDiagnostic(
+                name=sheet.title,
+                state=getattr(sheet, "sheet_state", "visible"),
+                rows=_dimension_value(sheet.max_row),
+                columns=_dimension_value(sheet.max_column),
+            )
+            try:
+                check_worksheet_dimensions(sheet, limits)
+            except ExcelDimensionLimitError as exc:
+                _block_sheet_for_dimension_limit(diagnostic, exc.violation)
+            sheets.append(diagnostic)
+        return sheets
+    finally:
+        workbook.close()
+
+
+def _build_workbook_diagnostic(
+    path: Path,
+    sheets: list[SheetDiagnostic],
+) -> WorkbookDiagnostic:
     blockers: list[str] = []
     warnings: list[str] = []
     for sheet in sheets:
