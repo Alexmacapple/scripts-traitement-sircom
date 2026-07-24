@@ -59,7 +59,7 @@
                   <p class="fr-badge fr-badge--{{ active_step.ui_badge_class if active_step else 'info' }} fr-badge--sm fr-mb-2v">
                     Étape {{ active_step.screen_number if active_step and active_step.screen_number is defined else active_step.number if active_step else lot_ui.current_step_number }} sur {{ lot_ui.screen_steps_total or lot_ui.steps_total }} - {{ active_step.ui_status_label if active_step else selected_lot.status_label }}
                   </p>
-                  <h3 id="lot-workspace-title">{{ active_step.label if active_step else "Où en est le lot ?" }}</h3>
+                  <h3 id="lot-workspace-title">Espace de travail — {{ active_step.label if active_step else "Où en est le lot ?" }}</h3>
                   <p class="fr-text--lead">
                     {{ active_step.ui_description if active_step else "Suivre l'état du lot et reprendre le traitement." }}
                   </p>
