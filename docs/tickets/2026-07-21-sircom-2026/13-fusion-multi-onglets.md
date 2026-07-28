@@ -1,6 +1,6 @@
 # 13 - Fusion multi-onglets
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 12.
 

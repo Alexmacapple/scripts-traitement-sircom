@@ -2,6 +2,10 @@
 
 Date : 2026-07-21
 
+> Statut : `historical`. Ce plan décrit le cadrage initial et ne contient plus
+> aucune frontier active. Ne pas exécuter ses indications
+> `ready-for-agent` ; utiliser [l'index courant](README.md).
+
 ## Publication
 
 Mode choisi : dossier Markdown local avec un fichier par ticket, car le dépôt ne
@@ -13,7 +17,8 @@ Index secondaire : `docs/tickets/2026-07-21-sircom-2026/README.md`.
 Revue détaillée par ticket :
 `docs/tickets/2026-07-21-sircom-2026/revue-connus-inconnus-avocat-du-diable.md`.
 
-Statut cible initial des tickets : `ready-for-agent`.
+Statut cible historique des tickets au moment du cadrage :
+`ready-for-agent`.
 
 Note post-contrats complémentaires : la passe de décisions aval est publiée dans
 `docs/specs/2026-07-21-contrats-implementation-sircom-2026.md`. Les tickets sont
@@ -39,8 +44,8 @@ Sources :
 - `docs/cuisine-moi/2026-07-20-interface-web-sircom-2026.md`
 - `AGENTS.md`
 
-Frontier produit initiale : ticket 01 uniquement.
-Frontier qualité 18+ : tickets 26, 27, 28, 29A, 29B, 29C et 29D.
+Frontiers historiques au moment du cadrage : ticket produit 01 et tickets
+qualité 26, 27, 28, 29A, 29B, 29C et 29D. Elles sont closes.
 
 ## Règles globales
 
@@ -276,8 +281,8 @@ détectée dans les tickets unitaires.
   tickets 21 et 22.
 - Remplacé par les contrats complémentaires : schéma, worker, DAG, mapping,
   bindings images, UI DSFR et purge sont cadrés.
-- Le seul point immédiatement exécutable reste le ticket 01, car les dépendances
-  de code aval ne sont pas encore livrées.
+- À la date de rédaction, le seul point immédiatement exécutable était le
+  ticket 01. Cette indication est archivée et n'est plus exécutable.
 
 ## Couverture des specs
 

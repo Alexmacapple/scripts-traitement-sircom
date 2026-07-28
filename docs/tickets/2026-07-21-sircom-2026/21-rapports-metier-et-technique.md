@@ -1,6 +1,6 @@
 # 21 - Rapports métier et technique
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 17, 20.
 

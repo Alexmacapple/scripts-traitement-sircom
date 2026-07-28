@@ -2,6 +2,11 @@
 
 Date : 2026-07-21
 
+> Statut : photographie d'architecture cible rédigée avant l'implémentation.
+> L'application existe désormais. Ce document reste explicatif ; il ne prouve
+> ni l'état courant ni une frontier. Lire d'abord
+> [l'index normatif](README.md).
+
 ## Sources
 
 - `AGENTS.md`
@@ -25,10 +30,10 @@ Le prochain incrément doit être une application web FastAPI locale, avec une
 API explicite, une interface web légère et un worker local intégré piloté par
 SQLite.
 
-Ce document ne décrit pas un service déjà existant : aucun squelette FastAPI
-n'est présent dans le dépôt au moment de la rédaction. Il définit l'architecture
-cible V1 à implémenter, les frontières de modules, les routes attendues, les
-contrats d'artefacts et les preuves minimales à produire.
+Au moment de la rédaction, aucun squelette FastAPI n'était présent. Cette phrase
+est historique : l'application a depuis été implémentée. Les frontières de
+modules, routes, artefacts et preuves ci-dessous décrivent la cible initiale ;
+les tickets `done` ne doivent pas être rouverts sur cette seule base.
 
 Les contrats complémentaires d'implémentation ferment les décisions détaillées
 post-revues GLM/SOL/Codex. En cas de tension avec une question ouverte
@@ -196,7 +201,8 @@ Valeurs V1 recommandées :
 - taille image : 50 Mo ;
 - décompressé : 3 Go ;
 - rétention : 7 jours ;
-- racine InDesign : `/Users/victoria/Documents/export-jpg-resize` ;
+- racine InDesign :
+  `Macintosh HD:Users:victoria:Documents:export-jpg-resize` ;
 - bind HTTP : `127.0.0.1` ;
 - port HTTP : `8000` ;
 - worker local : activé ;
@@ -383,7 +389,8 @@ Contrat CSV :
 - cellules métier vides remplacées par `#N/A` ;
 - en-têtes uniques ;
 - `id_dossier`, `imageid`, `@pathimg` en tête logique ;
-- aucune cellule vide dans les lignes exportées ;
+- aucune cellule métier vide dans les lignes exportées ; `@pathimg` web vide
+  sans image finale reste l'exception système ;
 - format compatible avec le CSV 2025 de référence.
 
 Tests :
@@ -1058,8 +1065,9 @@ faibles. Les limites de ce choix sont nommées au lieu d'être masquées.
    Sévérité : Haute. Statut : bloquante avant export CSV.
    Cadre : chapeau blanc et preuves.
    Description : "compatible InDesign 2025" peut être interprété différemment
-   par deux agents : encodage, BOM, LF, ordre, guillemets, cellules vides et noms
-   de colonnes doivent être vérifiés par code.
+   par deux agents : encodage, BOM, LF, ordre, guillemets, cellules métier vides,
+   exception système `@pathimg` et noms de colonnes doivent être vérifiés par
+   code.
    Conséquence : un CSV visuellement correct peut casser InDesign ou diverger du
    fichier de référence.
    Recommandation : créer un vérificateur de contrat CSV avant le writer final,

@@ -1,6 +1,6 @@
 # TODO
 
-État au 24 juillet 2026.
+État au 28 juillet 2026.
 
 ## Décisions d'exploitation actives
 
@@ -40,11 +40,61 @@
   - [x] refus des images hors pixels, largeur ou hauteur ;
   - [x] garde disque avant jobs lourds ;
   - [x] preuves adversariales et `ruff check` en CI.
-- [x] Finaliser la voie scriptée 2026 :
+- [x] Contrôler historiquement la voie scriptée 2026 au 24 juillet :
   - [x] configuration centralisée dans `re-run-old-script-2026/variables.md` ;
   - [x] sorties dans `re-run-old-script-2026/livrables_output_YYYY-MM-DD/` ;
   - [x] run contrôlé le 24 juillet 2026 avec 561 lignes CSV, 0 cellule vide
     exportée, 0 inversion de tri région/département et 10 images JPG.
+
+Ce contrôle historique ne vaut pas recette de l'état courant. La reprise
+opérationnelle suit `docs/tickets/README.md`.
+
+## Roadmap de fiabilisation avant usage réel
+
+La source détaillée des statuts, dépendances et critères d'acceptation est
+[l'index des tickets du 28 juillet](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/README.md).
+Un ticket `blocked` ou `conditional` n'est jamais lançable par anticipation.
+
+### Phase 1 - Frontiers immédiates
+
+- [ ] Frontier agent unique :
+  [05 - rétablir le gate Ruff global](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/05-retablir-gate-ruff-global.md).
+- [ ] En parallèle, frontier humaine :
+  [06 - décider le contrat InDesign 2026](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/06-decider-contrat-champs-indesign-2026.md).
+
+### Phase 2 - Corrections sur données synthétiques
+
+Après clôture de 05 :
+
+- [ ] [02 - préserver les identifiants textuels dans les deux parcours](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/02-preserver-identifiants-textuels.md) ;
+- [ ] [03 - borner les archives OOXML et refuser les lignes métier masquées](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/03-borner-archives-ooxml-decompressees.md),
+  indépendamment de 02 et 04 ;
+- [ ] [04 - anonymiser le journal images et isoler le rapport sensible](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/04-anonymiser-journal-images.md),
+  indépendamment de 02 et 03.
+
+Après clôture de 02 :
+
+- [ ] [01 - fusionner les deux onglets dans la voie scriptée](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/01-fusionner-onglets-voie-scriptee.md).
+
+### Phase 3 - Checkpoint InDesign
+
+- [ ] Après clôture de 01 à 06, comparer les schémas et CSV synthétiques
+  post-tickets à l'oracle décidé en 06.
+- [ ] Consigner soit `06A activé` avec les écarts, soit `06A non activé` avec
+  la preuve de conformité.
+- [ ] Lancer
+  [06A - adapter les exports au contrat InDesign 2026](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/06a-adapter-exports-indesign-2026.md)
+  uniquement si le checkpoint l'active.
+
+### Phase 4 - Recette réelle
+
+- [ ] Lancer
+  [07 - recetter les deux parcours](docs/tickets/2026-07-28-fiabilisation-parcours-sircom-2026/07-recette-finale-web-script-indesign.md)
+  après 01 à 06 et 06A s'il est activé, uniquement avec une autorisation
+  explicite de traiter le jeu officiel.
+
+### Hygiène Git déjà réalisée
+
 - [x] Nettoyer le suivi Git :
   - [x] ignorer `livrables-miweb/` et les sorties datées de la voie scriptée ;
   - [x] sortir du suivi `.hermes/`, `.claude/` et `.agents/skills/` ;
@@ -144,7 +194,7 @@
   `non_demarre`, `pret`, `en_cours` et `invalide` sont couverts par les tickets
   07 et 08.
 
-## Import Excel et mapping
+## Import de fichiers Excel et mapping
 
 - [x] Ajouter la route d'upload Excel FastAPI avec stockage artefact source et
   planification du job `diagnostic_excel`, sans exécuter le diagnostic dans la
@@ -225,7 +275,7 @@
   - [x] images absentes non bloquantes ;
   - [x] images non référencées ignorées mais listées.
 - [x] Produire les images finales en JPG :
-  - [x] nom `{id-normalise}.jpg` pour le jeu de test 2026 ;
+  - [x] nom `{id_dossier_normalise}.jpg` pour le jeu de test 2026 ;
   - [x] largeur maximale 350 px ;
   - [x] qualité JPEG 100 ;
   - [x] DPI 300 ;

@@ -21,7 +21,12 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 
-from sircom2026_rules import DEFAULT_SHEET_NAME, config_value, resolve_repo_path
+from sircom2026_rules import (
+    DEFAULT_SHEET_NAME,
+    config_value,
+    is_dossier_id_header,
+    resolve_repo_path,
+)
 
 
 DEFAULT_SOURCE_FILE = str(resolve_repo_path(config_value("excel_source_path")))
@@ -101,13 +106,32 @@ def extract_departements_to_sircom(
                 hidden_rows_skipped += 1
                 continue
             rows.append([cell_display_value(cell) for cell in row])
+        leading_empty_rows = 0
+        while rows and row_is_empty(rows[0]):
+            rows.pop(0)
+            leading_empty_rows += 1
+
         headers = rows[0] if rows else []
         data_rows = rows[1:] if len(rows) > 1 else []
+        invalid_id_rows_skipped = 0
+        id_column_index = find_dossier_id_column_index(headers)
+        if id_column_index is not None and str(headers[id_column_index]).strip() == "ID":
+            filtered_rows = []
+            for row in data_rows:
+                value = row[id_column_index] if id_column_index < len(row) else None
+                if not is_numeric_dossier_id(value):
+                    invalid_id_rows_skipped += 1
+                    continue
+                filtered_rows.append(row)
+            data_rows = filtered_rows
+            rows = [headers, *data_rows]
 
         # Afficher les informations sur les données
         print("\nOnglet lu avec succès :")
         print(f"   - Nombre de lignes : {len(data_rows)}")
         print(f"   - Nombre de colonnes : {len(headers)}")
+        print(f"   - Lignes vides de tête ignorées : {leading_empty_rows}")
+        print(f"   - Lignes avec ID invalide ignorées : {invalid_id_rows_skipped}")
         print(f"   - Lignes masquées ignorées : {hidden_rows_skipped}")
 
         # Afficher un aperçu des colonnes
@@ -179,6 +203,21 @@ def cell_display_value(cell):
         if re.fullmatch(r"0+", number_format):
             return str(int(value)).zfill(len(number_format))
     return value
+
+
+def row_is_empty(row):
+    return all(value is None or str(value).strip() == "" for value in row)
+
+
+def find_dossier_id_column_index(headers):
+    for index, header in enumerate(headers):
+        if is_dossier_id_header(header):
+            return index
+    return None
+
+
+def is_numeric_dossier_id(value):
+    return value is not None and re.fullmatch(r"\d+", str(value).strip()) is not None
 
 
 if __name__ == "__main__":

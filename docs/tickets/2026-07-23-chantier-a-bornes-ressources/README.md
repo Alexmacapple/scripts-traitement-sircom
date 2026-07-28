@@ -2,6 +2,10 @@
 
 Date : 2026-07-23
 
+> Statut : archive `done`. Le graphe ci-dessous décrit l'ordre de livraison
+> historique et ne constitue aucune frontier active. Utiliser
+> [l'index courant](../README.md).
+
 Parent : [spec chantier A](../../specs/2026-07-23-chantier-a-bornes-ressources-sircom-2026.md).
 
 Sources principales :
@@ -48,9 +52,9 @@ Complément post-ShipGuard :
 Mode d'exécution conseillé : un ticket par session, code modifié au minimum,
 tests ciblés dans le ticket, puis statut Git.
 
-## Frontier
+## Graphe historique
 
-Frontier initiale :
+Frontier initiale à la date du chantier :
 
 - 01 - Limites ressources configurables et visibles ;
 - 04 - Garde disque avant jobs lourds.

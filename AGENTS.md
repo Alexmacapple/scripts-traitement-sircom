@@ -30,6 +30,8 @@ explicite.
 - `README.md` : guide d'usage Sircom 2025/2026.
 - `TODO.md` : état opérationnel et restes à faire.
 - `CHANGELOG.md` : historique synthétique des changements.
+- `docs/specs/README.md` : index normatif et ordre de préséance.
+- `docs/tickets/README.md` : frontier active et taxonomie des statuts.
 - `docs/specs/` et `docs/tickets/` : contrats et tickets Sircom 2026.
 - `re-run-old-script-2026/README.md` et `re-run-old-script-2026/docs/` :
   documentation de la voie scriptée 2026.
@@ -37,6 +39,30 @@ explicite.
 Les fichiers sous `livrables-miweb/` sont des données et livrables locaux
 ignorés par Git. Les citer comme chemins de travail locaux, pas comme contenu
 distribué par GitHub.
+
+## Ordre normatif et statuts
+
+Pour décider quoi implémenter, appliquer cet ordre :
+
+1. les règles de mission et de sécurité de `AGENTS.md` ;
+2. l'index `docs/specs/README.md`, puis la spec courante qu'il désigne ;
+3. les contrats de base non contredits par cette spec courante ;
+4. le ticket actif, qui découpe le travail sans pouvoir modifier le contrat ;
+5. `README.md`, `TODO.md` et `CHANGELOG.md`, qui décrivent l'usage et
+   l'historique mais ne créent pas de règle métier.
+
+Une règle plus récente ne remplace une règle ancienne que sur le périmètre
+qu'elle cite explicitement. En cas de contradiction résiduelle, ne pas choisir
+silencieusement : bloquer le ticket et faire corriger les Markdown.
+
+Dans `docs/tickets/`, les statuts ont un sens unique :
+
+- `ready-for-agent` : contrat fermé, dépendances closes, exécutable maintenant ;
+- `blocked` : contrat fermé, mais au moins une dépendance reste ouverte ;
+- `ready-for-human` : décision ou vérification humaine lançable maintenant ;
+- `conditional` : ticket activé uniquement par la décision explicitement citée ;
+- `done` : livraison terminée ; ne pas réimplémenter ;
+- `historical` : preuve de cadrage ou d'exécution, jamais une frontier.
 
 ## Parcours à livrer
 
@@ -55,19 +81,25 @@ distribué par GitHub.
   `livrables-miweb/livrables-2026/jeux-test-23-juillet/images-jeux-test-2026.zip`.
 - Règles de fusion :
   `livrables-miweb/livrables-2026/jeux-test-23-juillet/explication-fusion-regles-metier-bdd-etablissements.md`.
-- Onglets utiles : `BDD TT + ANALYSE DGDDI` et `Etablissements`, sans lignes
-  cachées, avec correspondance sur `Dossier ID`.
+- Onglets utiles : `BDD TT + ANALYSE DGDDI` et `Etablissements`, avec
+  correspondance sur `Dossier ID`.
+- Lignes masquées : le web refuse le classeur avec un diagnostic bloquant ; la
+  voie scriptée les exclut de l'export.
 
 ## Règles métier 2026 confirmées
 
 - `imageid` est déterministe depuis `Dossier ID` et vaut
   `{id_dossier_normalise}.jpg` pour le jeu de test 2026, sans préfixe
   `dossier-`.
-- `@pathimg` doit être renseigné dans le CSV final à partir de `imageid`.
-  Racine par défaut :
+- La racine `@pathimg` par défaut est :
   `Macintosh HD:Users:victoria:Documents:export-jpg-resize`.
 - La racine `@pathimg` doit rester configurable par l'UI, l'API et la voie
   scriptée.
+- Jusqu'à la décision humaine du ticket 2026-07-28-06, les deux parcours
+  conservent leurs contrats propres : la voie scriptée renseigne `@pathimg`
+  pour toute ligne à partir de `imageid`, même si l'image source manque ; le
+  web ne le renseigne que lorsqu'une image finale existe. Les images absentes
+  restent non bloquantes dans les deux parcours.
 - Les cellules métier vides conservées dans des lignes exportées doivent sortir
   en `#N/A`, car InDesign ne supporte pas les cellules vides.
 - Les colonnes entièrement vides restent supprimées et les lignes sans
@@ -92,10 +124,12 @@ distribué par GitHub.
 
 - Web : exécuter les tests disponibles et, pour une validation produit, vérifier
   un lot réel Excel + ZIP jusqu'au téléchargement du package.
-- Scripts 2026 : en cas de modification, exécuter
-  `re-run-old-script-2026/run_jeu_test_2026.py --clean`, puis contrôler le CSV
-  UTF-16, le tri région/département, `imageid`, `@pathimg` et les images
-  produites.
+- Scripts 2026 : pour les tickets 2026-07-28-01 à 05, utiliser uniquement des
+  fixtures synthétiques et ne pas traiter le jeu officiel. Le run
+  `re-run-old-script-2026/run_jeu_test_2026.py --clean` sur données réelles est
+  réservé au ticket humain 2026-07-28-07, après autorisation explicite. Il doit
+  alors contrôler le CSV UTF-16, le tri région/département, `imageid`,
+  `@pathimg` et les images produites.
 - Git : avant commit ou push, vérifier `git status --short`, `git diff`,
   `git diff --cached`, et l'absence de données locales, backups ou artefacts
   générés suivis par Git.

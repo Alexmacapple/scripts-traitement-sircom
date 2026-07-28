@@ -2,6 +2,11 @@
 
 Statut : `done`
 
+> Supersession 2026-07-28 : la règle courante est
+> `{id_dossier_normalise}.jpg`, sans préfixe `dossier-`. La mention contraire
+> dans le hors périmètre ci-dessous est une contrainte historique de refactor et
+> ne doit pas être réimplémentée.
+
 Dépend de : aucun, peut commencer immédiatement.
 
 À construire : documenter et verrouiller le contrat public du matching images
@@ -36,7 +41,7 @@ de déplacer du code.
 
 - Déplacer des fonctions hors de `image_matching.py`.
 - Changer les règles de matching.
-- Changer les noms finaux `dossier-{id-normalise}.jpg`.
+- Changer la règle de nommage alors en vigueur.
 
 ## Garde-fous LLM
 

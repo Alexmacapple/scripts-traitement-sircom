@@ -1,6 +1,6 @@
 # 03 - Schéma SQLite, migrations et repositories de base
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 01.
 

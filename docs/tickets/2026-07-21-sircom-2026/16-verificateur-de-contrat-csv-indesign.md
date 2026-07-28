@@ -1,6 +1,6 @@
 # 16 - Vérificateur de contrat CSV InDesign
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 14.
 
@@ -16,8 +16,9 @@ Critères d'acceptation :
       fins de ligne.
 - [ ] Les en-têtes sont uniques et dans l'ordre attendu.
 - [ ] `id_dossier`, `imageid` et `@pathimg` sont contrôlés.
-- [ ] Les cellules métier vides sont remplacées par `#N/A` et les vraies
-      cellules vides des lignes exportées sont refusées.
+- [ ] Les cellules métier vides sont remplacées par `#N/A`. Les autres cellules
+      vides sont refusées, sauf `@pathimg` web lorsqu'aucune image finale
+      n'existe.
 - [ ] Les guillemets automatiques nécessaires sont acceptés sans imposer une
       liste fixe de colonnes 2025.
 - [ ] Une comparaison structurelle avec la référence CSV 2025 est disponible

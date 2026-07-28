@@ -1,6 +1,6 @@
 # 01 - Socle FastAPI, configuration, santé et UI shell DSFR
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : aucun, peut commencer immédiatement.
 

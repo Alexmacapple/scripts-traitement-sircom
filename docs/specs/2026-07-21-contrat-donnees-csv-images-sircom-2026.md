@@ -19,7 +19,9 @@ de tri, de `imageid` ou de compatibilité InDesign au moment du code.
 
 ## Upload et diagnostic Excel
 
-- Format accepté V1 : `.xlsx` OOXML exploitable par `openpyxl`.
+- Formats acceptés V1 : `.xlsx` et `.xlsm` OOXML exploitables par `openpyxl`.
+  Les macros ne sont jamais exécutées. Les deux formats passent par les mêmes
+  contrôles d'archive avant `openpyxl`.
 - Les limites de taille sont celles de la configuration V1.
 - L'upload crée un artefact `excel_source`.
 - Aucun chemin disque interne n'est renvoyé.
@@ -145,7 +147,9 @@ La V1 garantit le format du CSV 2025 :
 - fins de ligne LF ;
 - guillemets automatiques seulement si nécessaire ;
 - cellules métier vides remplacées par `#N/A` ;
-- absence de cellules vides dans les lignes exportées ;
+- absence de cellules métier vides dans les lignes exportées ;
+- exception système web : `@pathimg` peut rester vide lorsqu'aucune image
+  finale n'existe, selon la sémantique images ci-dessous ;
 - absence de `N/C` et équivalents hérités ;
 - `imageid` et `@pathimg` juste après `id_dossier`.
 
@@ -156,7 +160,7 @@ Deux gates sont distincts :
 - `package_exportable` : `csv_exportable`, rapports courants, snapshot images
   courant ou décision explicite de continuer sans images.
 
-## Gabarit InDesign
+## Gabarit pour InDesign
 
 La V1 ne promet pas automatiquement la compatibilité des noms de champs avec le
 gabarit InDesign 2026.
@@ -198,13 +202,23 @@ Un `ImageBinding` par `id_dossier` contient :
 Sémantique V1 :
 
 - `imageid` est déterministe pour chaque ligne avec `id_dossier` valide :
-  `{id-normalise}.jpg` ;
+  `{id_dossier_normalise}.jpg` ;
 - `@pathimg` est rempli seulement si une image finale existe ;
 - lorsqu'il est rempli, `@pathimg` vaut
-  `{SIRCOM_INDESIGN_IMAGE_ROOT}/{id-normalise}.jpg`, avec
-  `/Users/victoria/Documents/export-jpg-resize` par défaut ;
+  la racine `SIRCOM_INDESIGN_IMAGE_ROOT` suivie de
+  `{id_dossier_normalise}.jpg`. Le séparateur est `:` pour une racine HFS
+  contenant `:` sans `/`, sinon `/` ;
+- la racine par défaut est
+  `Macintosh HD:Users:victoria:Documents:export-jpg-resize`, donc la valeur par
+  défaut se termine par
+  `export-jpg-resize:{id_dossier_normalise}.jpg` ;
 - `@pathimg` reste vide si image absente, ignorée, ambiguë non résolue ou si
   l'utilisateur continue sans images.
+
+Cette sémantique est celle du parcours web. Jusqu'à la décision du ticket
+2026-07-28-06, la voie scriptée conserve son contrat propre : elle renseigne
+`@pathimg` depuis `imageid` pour toute ligne, même si l'image source manque.
+Cette divergence est intentionnelle et ne doit pas être alignée implicitement.
 
 ## Upload zip images
 
@@ -230,7 +244,7 @@ Images non référencées : ignorées mais listées dans le rapport.
 Images finales :
 
 - format JPG ;
-- nom `{id-normalise}.jpg` ;
+- nom `{id_dossier_normalise}.jpg` ;
 - largeur maximale 350 px ;
 - qualité JPEG 100 ;
 - DPI 300 ;

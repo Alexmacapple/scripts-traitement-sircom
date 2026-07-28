@@ -74,7 +74,7 @@ utilisateur, zip images libre, rapport métier et package final.
 - Navigation : onglets libres avec état bloquant. L'export reste bloqué tant que
   les étapes minimales ne sont pas prêtes.
 
-### Import Excel
+### Import de fichiers Excel
 
 - Entrée 2026 : un fichier Excel multi-onglets uploadé par l'utilisateur.
 - Le CSV 2025 de référence est un output de référence, pas un input.
@@ -120,7 +120,7 @@ utilisateur, zip images libre, rapport métier et package final.
 - Il n'y a pas de feuille principale imposée en V1 ; le modèle s'appuie sur les
   onglets utiles et leur clé commune.
 - Si un `id_dossier` existe dans un onglet mais pas dans un autre, la ligne est
-  conservée et les champs absents sortent vides dans le CSV final.
+  conservée et les champs métier absents sortent en `#N/A` dans le CSV final.
 - L'ordre des colonnes suit l'ordre du classeur : onglets dans leur ordre, puis
   colonnes dans leur ordre, sauf colonnes ajoutées.
 - `imageid` et `@pathimg` sont placés juste après `id_dossier`.
@@ -135,6 +135,8 @@ utilisateur, zip images libre, rapport métier et package final.
   pas en cellule vide.
 - Cette règle corrige la décision Q73 après validation métier du risque
   InDesign : les vraies cellules vides peuvent faire planter le gabarit.
+- Exception système web : `@pathimg` reste vide quand aucune image finale
+  n'existe. Cette exception ne s'applique à aucune cellule métier.
 - Les absences restent visibles dans l'interface et dans le rapport.
 - Renommage des colonnes : ajouter d'abord la référence de colonne Excel au nom
   original, puis appliquer la règle 2025 : minuscules, sans accents, sans
@@ -154,8 +156,8 @@ utilisateur, zip images libre, rapport métier et package final.
   explicite.
 - Si des colonnes dates sont détectées ou confirmées dans le mapping, convertir
   les valeurs valides au format `dd/mm/yyyy`.
-- Les dates invalides ou absentes sont signalées et sortent vides dans le CSV
-  final.
+- Les dates invalides ou absentes sont signalées et sortent en `#N/A` dans le
+  CSV final.
 - Le tri région puis département est proposé quand les colonnes correspondantes
   sont détectées et doit être confirmé par l'utilisateur.
 - Si les colonnes de tri ne sont pas détectées clairement, l'ordre Excel est
@@ -203,16 +205,18 @@ utilisateur, zip images libre, rapport métier et package final.
 - Si plusieurs images peuvent correspondre au même dossier, l'application ne
   choisit pas automatiquement ; l'utilisateur sélectionne l'image correcte.
 - Le nom final d'image reprend l'identifiant dossier normalisé :
-  `{id-normalise}.jpg`.
-- Normalisation de l'ID image : minuscules, suppression des points, suppression
-  des espaces, conservation des tirets.
+  `{id_dossier_normalise}.jpg`.
+- Normalisation de l'ID image : NFKD puis ASCII et minuscules, suppression des
+  points et espaces, conservation de `a-z`, `0-9`, `_` et `-`, suppression des
+  autres caractères. Un stem vide devient `sans-id`.
 - Les images finales sont converties en JPG avec largeur maximale 350 px,
   qualité JPEG 100 et DPI 300.
 - Les images transparentes reçoivent un fond blanc avant conversion JPG.
 - L'orientation EXIF est appliquée automatiquement avant conversion.
 - Le dossier d'images dans le package final s'appelle `export-jpg-resize/`.
 - La colonne `@pathimg` doit viser le chemin InDesign final attendu :
-  `/Users/victoria/Documents/export-jpg-resize/...`.
+  `Macintosh HD:Users:victoria:Documents:export-jpg-resize:...` par défaut.
+  La racine reste configurable.
 - Formats sources V1 après spike : JPG, PNG, WEBP et TIFF. HEIC/HEIF est refusé
   explicitement en V1.
 - Les erreurs images ont deux niveaux : message métier actionnable dans
@@ -285,13 +289,14 @@ utilisateur, zip images libre, rapport métier et package final.
 - Seam : générer des Excels synthétiques sans données métier pour tester import,
   refus, mapping, fusion, dates et CSV.
 - Seam : vérifier que le CSV final respecte UTF-16 BOM, séparateur virgule, LF,
-  en-têtes nettoyés, cellules vides et position `imageid` / `@pathimg`.
+  en-têtes nettoyés, remplacement des cellules métier vides par `#N/A` et
+  position `imageid` / `@pathimg`.
 - Seam : vérifier qu'une colonne sélectionnée mais entièrement vide est supprimée
   et signalée.
 - Seam : vérifier qu'une ligne sans `id_dossier` est supprimée et signalée.
 - Seam : vérifier que les champs sensibles restent en texte.
 - Seam : vérifier que les dates valides sortent en `dd/mm/yyyy` et que les dates
-  invalides sortent vides avec alerte.
+  invalides sortent en `#N/A` avec alerte.
 - Seam : vérifier le tri région/département confirmé et le repli en ordre Excel
   avec alerte.
 - Seam : vérifier le matching images exact, tolérant, fallback par ID, ambigu et

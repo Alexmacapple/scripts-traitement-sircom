@@ -1,6 +1,11 @@
 # 20 - Matching et traitement images
 
-Statut : `ready-for-agent`
+Statut : `done`
+
+> Supersession 2026-07-28 : la règle courante est
+> `{id_dossier_normalise}.jpg`, sans préfixe `dossier-`. Les occurrences du
+> préfixe ci-dessous décrivent la livraison historique et ne sont pas
+> normatives pour une reprise.
 
 Dépend de : 12, 18, 19.
 
@@ -21,8 +26,9 @@ Critères d'acceptation :
 - [ ] Les images manquantes et non référencées sont listées sans bloquer le CSV.
 - [ ] Les images finales sont JPG, largeur max 350 px, qualité 100, DPI 300,
       fond blanc si transparence et EXIF appliqué.
-- [ ] Le nom final suit `dossier-{id-normalise}.jpg`, avec minuscules,
-      suppression des points et espaces, et conservation des tirets.
+- [ ] Le nom final suit `{id_dossier_normalise}.jpg`, sans préfixe, avec NFKD,
+      ASCII et minuscules, suppression des points et espaces, conservation de
+      `a-z`, `0-9`, `_` et `-`, puis `sans-id` si le stem est vide.
 - [ ] Le dossier final s'appelle `export-jpg-resize/`.
 - [ ] Les images sources viennent uniquement du zip uploadé, jamais d'un ancien
       dossier local.
@@ -45,11 +51,12 @@ Finding traité : `SG-001`, origine stable `r1-z04-001`.
 Titre ShipGuard : collisions de noms JPG finaux non détectées pour des
 `id_dossier` normalisés identiques.
 
-Décision appliquée : le matching images ne change pas la règle de nommage
-`dossier-{id-normalise}.jpg`. Il détecte désormais les collisions de nom final
-avant toute association source, marque les dossiers concernés en `ambiguous`
-avec `match_level` à `final_name_collision`, et bloque le matching tant que les
-identifiants d'entrée produisent le même fichier final.
+Décision appliquée à l'époque : le matching images conservait le préfixe
+historique alors en vigueur. La règle a depuis été remplacée par la supersession
+indiquée en tête de ticket. La détection de collision reste applicable : elle
+intervient avant toute association source, marque les dossiers concernés en
+`ambiguous` avec `match_level` à `final_name_collision`, et bloque le matching
+tant que les identifiants d'entrée produisent le même fichier final.
 
 Preuve locale :
 

@@ -18,6 +18,8 @@ InDesign à partir d'un Excel multi-onglets et d'un lot d'images.
 - `AGENTS.md` : règles projet et preuves minimales attendues.
 - `TODO.md` : état opérationnel et restes à faire.
 - `CHANGELOG.md` : historique synthétique.
+- `docs/specs/README.md` : index normatif et ordre de préséance des contrats.
+- `docs/tickets/README.md` : frontier active, dépendances et statuts.
 - `docs/specs/` : contrats fonctionnels, données, orchestration et
   architecture 2026.
 - `docs/tickets/` : tickets et preuves des incréments 2026.
@@ -39,7 +41,8 @@ livrables-miweb/livrables-2026/jeux-test-23-juillet/images-jeux-test-2026.zip
 Règles d'entrée :
 
 - utiliser les onglets `BDD TT + ANALYSE DGDDI` et `Etablissements` ;
-- ignorer les lignes cachées ;
+- pour le web, refuser les lignes masquées avec un diagnostic bloquant ;
+- pour la voie scriptée, exclure les lignes masquées de l'export ;
 - faire la correspondance sur `Dossier ID` ;
 - utiliser le tri région puis département du site de production quand il est
   validé.
@@ -47,10 +50,12 @@ Règles d'entrée :
 ## Règles métier 2026
 
 - `imageid` vaut `{id_dossier_normalise}.jpg`, sans préfixe `dossier-`.
-- `@pathimg` est renseigné depuis `imageid`.
 - Racine `@pathimg` par défaut :
   `Macintosh HD:Users:victoria:Documents:export-jpg-resize`.
 - La racine `@pathimg` est configurable par l'UI, l'API et la voie scriptée.
+- Jusqu'à la décision InDesign 2026, la voie scriptée renseigne `@pathimg`
+  depuis `imageid` pour toute ligne ; le web le renseigne seulement si une
+  image finale existe. Une image absente reste une alerte non bloquante.
 - Les cellules métier vides dans les lignes exportées sortent en `#N/A`.
 - Les lignes sans `Dossier ID` sont supprimées.
 - Les colonnes entièrement vides sont supprimées.
@@ -110,7 +115,8 @@ Le fichier unique à modifier pour changer de lot est :
 re-run-old-script-2026/variables.md
 ```
 
-Run complet :
+Run complet sur le jeu officiel, réservé à la recette humaine finale après
+autorisation explicite :
 
 ```bash
 .venv/bin/python re-run-old-script-2026/run_jeu_test_2026.py --clean
@@ -131,6 +137,10 @@ Sorties principales :
 
 Dernier run contrôlé : `re-run-old-script-2026/livrables_output_2026-07-24/`.
 
+Ce résultat est une preuve historique, pas une recette de l'état courant. Avant
+usage réel, terminer les tickets actifs de fiabilisation puis exécuter le ticket
+humain de recette finale.
+
 Résultat contrôlé :
 
 - 561 lignes CSV ;
@@ -141,6 +151,14 @@ Résultat contrôlé :
 - 10 images JPG traitées.
 
 ## Vérifications
+
+État de reprise :
+
+- la frontier agent courante est le ticket 2026-07-28-05, qui rétablit Ruff ;
+- les tickets identifiants, fusion, OOXML et confidentialité sont séquencés
+  derrière lui dans `docs/tickets/README.md` ;
+- la décision humaine sur les champs InDesign peut commencer en parallèle ;
+- aucune recette réelle ne doit commencer avant la fermeture du graphe.
 
 Tests Python ciblés :
 
@@ -184,6 +202,6 @@ Versionné :
 
 ## Version
 
-Version : 5.0
+Version : 5.1
 
-Dernière mise à jour : 24 juillet 2026
+Dernière mise à jour : 28 juillet 2026

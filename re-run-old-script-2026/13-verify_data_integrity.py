@@ -107,6 +107,7 @@ def verify_data_integrity():
                 "id dossier",
                 "id_dossier",
                 "ID du dossier",
+                "ID",
                 "B_ID",
             ],
         )

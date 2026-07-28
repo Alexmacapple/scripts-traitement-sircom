@@ -1,6 +1,6 @@
 # 17 - Aperçu CSV, validation humaine et export UTF-16
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 15, 16.
 

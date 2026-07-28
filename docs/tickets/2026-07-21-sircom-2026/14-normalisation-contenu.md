@@ -1,6 +1,6 @@
 # 14 - Normalisation contenu
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 13.
 

@@ -2,6 +2,11 @@
 
 Date : 2026-07-21
 
+> Statut : contrat de base livré. Lire d'abord
+> [l'index normatif](README.md) et la spec courante du 28 juillet. Les statuts
+> et frontiers décrits en fin de document sont historiques et ne doivent pas
+> relancer les tickets livrés.
+
 ## Rôle
 
 Ce document ferme la passe de décisions demandée avant les tickets 03 et aval.
@@ -60,15 +65,11 @@ Décision V1 tant que la réponse manque :
   manuel ;
 - aucun adaptateur legacy de noms de champs n'est inventé dans les tickets.
 
-## Effet sur les tickets
+## Effet historique sur les tickets
 
-Les 23 tickets redeviennent `ready-for-agent` du point de vue cadrage. Leur
-ouverture reste contrainte par le graphe de dépendances :
+Au 21 juillet, ces contrats avaient rendu les tickets 01 à 23 lançables selon
+leur graphe. Ces tickets sont désormais livrés et classés `done` dans leur
+index : ce paragraphe ne constitue plus une frontier.
 
-- frontier initiale : 01 ;
-- après 01 : 02 et 03 ;
-- ensuite : suivre strictement le graphe, une session agent par ticket.
-
-Les agents d'implémentation doivent lire le contrat complémentaire applicable
-avant de coder le ticket.
-
+Pour toute reprise, utiliser exclusivement `docs/tickets/README.md`, puis lire
+le contrat complémentaire applicable avant de coder le ticket actif.

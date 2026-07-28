@@ -1,6 +1,6 @@
 # 22 - Package final, manifeste et téléchargements
 
-Statut : `ready-for-agent`
+Statut : `done`
 
 Dépend de : 17, 20, 21.
 
