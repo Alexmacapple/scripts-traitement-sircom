@@ -120,6 +120,33 @@ class OrchestratorTest(unittest.TestCase):
 
             self.assertEqual(selected, latest)
 
+    def test_same_mtime_prefers_highest_chrome_numbered_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            downloads = Path(tmp)
+            base = downloads / "photos-produits-dossiers.csv"
+            first_copy = downloads / "photos-produits-dossiers (1).csv"
+            second_copy = downloads / "photos-produits-dossiers (2).csv"
+            for path in (base, first_copy, second_copy):
+                self.write_csv(path, download_url="https://example.test/photo.jpg")
+
+            import os
+
+            same_mtime = 1_700_000_000
+            for path in (base, first_copy, second_copy):
+                os.utime(path, (same_mtime, same_mtime))
+
+            with (
+                patch.object(self.module, "DOWNLOADS", downloads),
+                patch.object(
+                    self.module,
+                    "PHOTOS_PREPARED_MARKER",
+                    downloads / ".missing-photo-marker",
+                ),
+            ):
+                selected = self.module.default_photos_csv()
+
+            self.assertEqual(selected, second_copy)
+
     def test_latest_numbered_anomalies_csv_is_selected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             downloads = Path(tmp)
@@ -218,6 +245,47 @@ class OrchestratorTest(unittest.TestCase):
             generated = output.read_text(encoding="utf-8")
             self.assertIn("12345678\n87654321", generated)
             self.assertIn('const PROCEDURE_ID = "140205";', generated)
+
+    def test_prepare_complete_errors_injects_ids_from_photo_anomaly_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            scripts = tmp_path / "scripts"
+            results = tmp_path / "results"
+            scripts.mkdir()
+            results.mkdir()
+            (scripts / "extract_complete_dossiers.js").write_text(
+                'const SOURCE = `\\n`;\\nconst PROCEDURE_ID = "1";\\n',
+                encoding="utf-8",
+            )
+            anomaly_csv = tmp_path / "photos-produits-dossiers-anomalies.csv"
+            self.write_csv(
+                anomaly_csv,
+                download_url="",
+                status="pièce photo introuvable",
+                filename="",
+            )
+
+            with (
+                patch.object(self.module, "ROOT", tmp_path),
+                patch.object(self.module, "SCRIPTS", scripts),
+                patch.object(self.module, "RESULTS", results),
+                patch.object(
+                    self.module,
+                    "COMPLETE_PREPARED_MARKER",
+                    results / ".complete-prepared",
+                ),
+            ):
+                status = self.module.cmd_prepare_complete_errors(
+                    argparse.Namespace(ids=anomaly_csv, procedure_id="140205")
+                )
+
+            generated = (results / "run_extract_complete_dossiers.js").read_text(
+                encoding="utf-8"
+            )
+            self.assertEqual(status, 0)
+            self.assertIn("12345678", generated)
+            self.assertIn('const PROCEDURE_ID = "140205";', generated)
+            self.assertTrue((results / ".complete-prepared").exists())
 
     def test_download_photos_uses_latest_csv_and_writes_filtered_source(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

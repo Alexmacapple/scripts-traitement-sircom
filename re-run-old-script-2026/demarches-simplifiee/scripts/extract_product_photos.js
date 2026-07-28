@@ -23,6 +23,18 @@ const ids = [...new Set(SOURCE.split(/\r?\n/).map(line => {
 const clean = value => String(value || "").replace(/\s+/g, " ").trim();
 const imageAttachmentPattern = /(\.(avif|gif|heic|heif|jpe?g|png|tiff?|webp)\b|\b(AVIF|GIF|HEIC|HEIF|JPE?G|PNG|TIFF?|WEBP)\b)/i;
 
+function isActiveStorageBlobLink(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE || !node.matches?.("a[href]")) {
+    return false;
+  }
+  try {
+    const path = new URL(node.getAttribute("href"), BASE).pathname;
+    return /\/rails\/active_storage\/blobs\//.test(path);
+  } catch (_error) {
+    return false;
+  }
+}
+
 function filenameFromUrl(url) {
   const parsed = new URL(url, BASE);
   return decodeURIComponent(parsed.pathname.split("/").pop() || "");
@@ -102,10 +114,7 @@ function collectAttachments(doc) {
       continue;
     }
 
-    if (
-      node.nodeType === Node.ELEMENT_NODE &&
-      node.matches?.('a[href*="/rails/active_storage/blobs/redirect/"]')
-    ) {
+    if (isActiveStorageBlobLink(node)) {
       const downloadUrl = new URL(node.getAttribute("href"), BASE).href;
       const linkText = clean(node.textContent);
       attachments.push({

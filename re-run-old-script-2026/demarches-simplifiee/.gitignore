@@ -1,5 +1,5 @@
 # Données locales et exports contenant des URLs temporaires.
-data/dossier-id.txt
+data/dossier-id.txt*
 results/*
 !results/README.md
 reports/*

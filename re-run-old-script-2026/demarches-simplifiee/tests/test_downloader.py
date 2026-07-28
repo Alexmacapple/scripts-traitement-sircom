@@ -184,6 +184,75 @@ class DownloaderTest(unittest.TestCase):
             self.assertIn("invalide", result["download_status"])
             self.assertFalse(self.module.target_path(row, output_dir, False).exists())
 
+    def test_mislabeled_json_response_with_unknown_suffix_is_not_saved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            row = {
+                **self.row(),
+                "filename": "erreur.bin",
+                "download_url": "https://example.test/erreur.bin",
+            }
+            response = FakeResponse(b'{"error":"expired"}')
+            response.headers = {"Content-Type": "application/octet-stream"}
+
+            with patch.object(
+                self.module.urllib.request,
+                "urlopen",
+                return_value=response,
+            ):
+                result = self.module.download_one(
+                    row,
+                    output_dir,
+                    group_by_dossier=False,
+                    timeout=1,
+                    retries=0,
+                )
+
+            self.assertIn("invalide", result["download_status"])
+            self.assertFalse(self.module.target_path(row, output_dir, False).exists())
+
+    def test_docx_container_is_saved_as_a_valid_complete_attachment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            row = {
+                **self.row(),
+                "filename": "fiche.docx",
+                "download_url": "https://example.test/fiche.docx",
+            }
+            response = FakeResponse(b"PK\x03\x04synthetic office document")
+            response.headers = {
+                "Content-Type": (
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document"
+                )
+            }
+
+            with patch.object(
+                self.module.urllib.request,
+                "urlopen",
+                return_value=response,
+            ):
+                result = self.module.download_one(
+                    row,
+                    output_dir,
+                    group_by_dossier=False,
+                    timeout=1,
+                    retries=0,
+                )
+
+            self.assertEqual(result["download_status"], "downloaded")
+            self.assertEqual(
+                self.module.target_path(row, output_dir, False).read_bytes(),
+                b"PK\x03\x04synthetic office document",
+            )
+
+    def test_rtf_attachment_is_not_confused_with_json_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "fiche.rtf"
+            path.write_bytes(b"{\\rtf1 synthetic document}")
+
+            self.assertTrue(self.module.file_is_usable(path, ".rtf"))
+
     def test_existing_html_file_is_replaced_instead_of_skipped(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp)

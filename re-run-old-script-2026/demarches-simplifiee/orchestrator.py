@@ -224,7 +224,15 @@ def latest_download_csv(
     ]
     if not candidates:
         return None
-    return max(candidates, key=lambda path: (path.stat().st_mtime, path.name))
+    return max(
+        candidates,
+        key=lambda path: (path.stat().st_mtime_ns, chrome_download_index(path), path.name),
+    )
+
+
+def chrome_download_index(path: Path) -> int:
+    match = re.search(r" \((\d+)\)$", path.stem)
+    return int(match.group(1)) if match else 0
 
 
 def default_photos_csv() -> Path | None:

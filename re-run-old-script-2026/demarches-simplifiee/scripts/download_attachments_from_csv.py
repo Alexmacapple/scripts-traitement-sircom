@@ -20,6 +20,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 
+ERROR_CONTENT_TYPES = {
+    "text/html",
+    "application/xhtml+xml",
+    "application/json",
+    "application/problem+json",
+    "application/xml",
+    "text/xml",
+}
+ZIP_CONTAINER_SUFFIXES = {
+    ".docx",
+    ".odp",
+    ".ods",
+    ".odt",
+    ".pptx",
+    ".xlsx",
+    ".zip",
+}
+OLE_CONTAINER_SUFFIXES = {".doc", ".ppt", ".xls"}
+TEXT_ATTACHMENT_SUFFIXES = {".csv", ".md", ".rtf", ".txt"}
+
+
 def clean_filename(value: str) -> str:
     cleaned = re.sub(r'[\\/:*?"<>|]+', "_", value or "").strip()
     cleaned = re.sub(r"\s+", " ", cleaned)
@@ -113,6 +134,34 @@ def plan_downloads(
     return planned
 
 
+def looks_like_html_document(header: bytes) -> bool:
+    stripped = header.lstrip().lower()
+    return stripped.startswith(b"<!doctype html") or b"<html" in stripped[:512]
+
+
+def looks_like_structured_error_document(header: bytes) -> bool:
+    stripped = header.lstrip().lower()
+    if stripped.startswith(b"{\\rtf"):
+        return False
+    return stripped.startswith((b"{", b"[", b"<?xml"))
+
+
+def looks_like_binary_document(header: bytes) -> bool:
+    if header.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")):
+        return True
+    if header.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"):
+        return True
+
+    sample = header[:512]
+    if not sample:
+        return False
+    if b"\x00" in sample:
+        return True
+
+    printable = sum(byte in b"\t\r\n" or 32 <= byte <= 126 for byte in sample)
+    return printable / len(sample) < 0.85
+
+
 def file_is_usable(path: Path, expected_suffix: str = "") -> bool:
     try:
         if path.stat().st_size == 0:
@@ -122,8 +171,7 @@ def file_is_usable(path: Path, expected_suffix: str = "") -> bool:
     except OSError:
         return False
 
-    stripped = header.lstrip().lower()
-    if stripped.startswith(b"<!doctype html") or b"<html" in stripped[:512]:
+    if looks_like_html_document(header):
         return False
 
     suffix = (expected_suffix or path.suffix).lower()
@@ -144,7 +192,15 @@ def file_is_usable(path: Path, expected_suffix: str = "") -> bool:
             brand in header[8:32]
             for brand in (b"avif", b"avis", b"heic", b"heix", b"heif", b"mif1")
         )
-    return True
+    if suffix in ZIP_CONTAINER_SUFFIXES:
+        return header.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"))
+    if suffix in OLE_CONTAINER_SUFFIXES:
+        return header.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1")
+    if suffix in TEXT_ATTACHMENT_SUFFIXES:
+        return not looks_like_structured_error_document(header)
+    if looks_like_structured_error_document(header):
+        return False
+    return looks_like_binary_document(header)
 
 
 def download_one(
@@ -178,9 +234,13 @@ def download_one(
                         response.headers,
                         None,
                     )
-                if content_type in {"text/html", "application/xhtml+xml"}:
+                if (
+                    content_type in ERROR_CONTENT_TYPES
+                    or content_type.endswith("+json")
+                    or content_type.endswith("+xml")
+                ):
                     raise OSError(
-                        "la réponse est une page HTML au lieu d'une pièce jointe "
+                        "la réponse est une page ou erreur structurée au lieu d'une pièce jointe "
                         "(URL expirée ou session invalide)"
                     )
                 with partial.open("wb") as handle:
