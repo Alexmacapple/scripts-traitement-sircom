@@ -1,0 +1,11 @@
+# Données locales et exports contenant des URLs temporaires.
+data/dossier-id.txt
+results/*
+!results/README.md
+reports/*
+!reports/README.md
+
+# Fichiers temporaires Python et macOS.
+__pycache__/
+*.py[cod]
+.DS_Store
